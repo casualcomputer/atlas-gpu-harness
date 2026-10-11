@@ -2,6 +2,8 @@
 
 The system preserves experimental evidence across process failure and makes that evidence available before the next GPU action. Its unit of work is a predefined candidate evaluated against one fixed exact top-k contract. It is a deterministic single-host prototype.
 
+This document describes the implemented operator prototype. The clarified product goal is consumer-GPU LLM inference inspired by Strata and Project Maya; that engine integration and its memory/quality/speed evaluation remain unimplemented. See [the proposed inference architecture and controlled experiment](CONSUMER_GPU_PLAN.md).
+
 ## Components and responsibilities
 
 | Component | Implementation | Responsibility |

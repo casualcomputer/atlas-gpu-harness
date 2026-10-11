@@ -1,18 +1,20 @@
 # Atlas GPU Harness
 
-**An experiment notebook that helps a program avoid repeating its mistakes.**
+**Goal: help large language models run on consumer GPUs through measured inference experiments.**
 
-An engineer asks a computer to find a faster way to perform a calculation used in AI. The computer tries different methods. Some return the wrong answer. Others look faster only because timings fluctuate. If the program stops unexpectedly, it can also lose track of completed work and repeat tests whose answers were already known.
+An engineer wants a capable language model on a desktop, but its model weights and conversation state exceed the graphics card's memory. Moving work into system RAM or compressing it may help it fit, while also changing speed or answer quality. The engineer needs evidence about which configuration actually works on that machine.
 
-We built an **experiment manager with a saved lab notebook**. It checks each answer, measures correct alternatives against a reference, saves the evidence in MongoDB Atlas, and reads those notes before deciding what to try next. After an interruption, it continues from saved work.
+The intended inspiration is [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya), which use consumer hardware for large-model inference. Our proposed contribution is a harness that evaluates inference configurations against a memory budget, a quality requirement, and repeated speed measurements, retaining the evidence in MongoDB Atlas. [The corrected goal and experiment protocol](CONSUMER_GPU_PLAN.md) explain the missing integration and the baseline required to establish that outcome.
 
-**Measured result:** in two controlled comparisons on a real RTX 5070 Ti, access to previous evidence reduced attempts from **4 to 3 — 25% fewer attempts — while checking the same three correct alternatives**. One known-invalid test was avoided in each comparison. This measures less repeated experimental work; no repeatable speedup of the calculation itself was established.
+**Implemented today:** an experiment manager with a saved lab notebook, tested on a standalone PyTorch top-k calculation. It checks each answer, measures correct alternatives against a reference, saves evidence in Atlas, and uses saved failures to avoid repeated work. Strata/Maya integration, actual LLM inference evaluation, and model memory reduction are not implemented. No LLM output quality has been measured.
+
+**Measured subsystem result:** in two controlled comparisons on a real RTX 5070 Ti, access to previous evidence reduced attempts from **4 to 3 — 25% fewer attempts — while checking the same three correct alternatives**. One known-invalid test was avoided in each comparison. This measures less repeated experimental work; it does not establish lower LLM memory use, better LLM answers, or faster inference.
 
 [Experiment design and results](EXPERIMENTS.md) · [Hackathon review](HACKATHON_REVIEW.md) · [Three-minute demo](DEMO.md) · [Technical system design](ARCHITECTURE.md) · [Original work](NEW_WORK.md)
 
 ## Are we writing faster GPU kernels?
 
-The intended optimization goal is faster GPU code with the same correct answer. A GPU kernel is a program executed on the GPU; writing or tuning kernels is one way to pursue that goal. **This build manages and evaluates experiments. It does not generate new CUDA or Triton kernels.** It tests five predefined implementations composed from PyTorch operations, including a packed-key alternative we wrote using those operations. A kernel-writing agent could supply future alternatives, but it is not part of the demonstrated system.
+The user-facing goal is usable LLM inference within a consumer GPU's memory budget while preserving measured answer quality. A GPU kernel is a program executed on the GPU; writing or tuning kernels is one possible implementation technique. **This build manages and evaluates experiments. It does not generate new CUDA or Triton kernels.** It tests five predefined implementations composed from PyTorch operations, including a packed-key alternative we wrote using those operations. A kernel-writing agent could supply future alternatives, but it is not part of the demonstrated system.
 
 So far, the measured improvement is in the experiment workflow: fewer repeated tests. Faster GPU calculation remains an unachieved outcome. We should present both the useful working mechanism and that limitation clearly.
 
