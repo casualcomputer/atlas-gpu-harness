@@ -1,0 +1,6 @@
+{
+  "buildCommand": null,
+  "outputDirectory": ".",
+  "cleanUrls": false,
+  "rewrites": [{ "source": "/", "destination": "/demo-ui/index.html" }]
+}

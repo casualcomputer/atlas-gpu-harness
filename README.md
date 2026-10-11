@@ -1,137 +1,120 @@
 # Atlas GPU Harness
 
-**A 30 GB language model. A 16 GB graphics card. A coding harness that tests how to run it.**
+**An LLM deployment agent: it runs open models on real inference engines, benchmarks every configuration for correctness, memory and speed, and records each experiment in MongoDB Atlas — so a setting reaches production only when the evidence holds.**
 
-Developers want capable open models on hardware they already own. When model weights exceed GPU memory, CPU offload makes local inference possible—but choosing settings becomes an engineering experiment. Each new model needs a configuration that fits, answers correctly, and responds usefully.
+**[▶ Live demo](demo-ui/index.html)** · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
-We ran **Kimi-Linear-48B-A3B Q4_K_M, a 30.06 GB file, on a 16 GB RTX 5070 Ti**. llama.cpp's existing automatic CPU/GPU placement passed all 12 tuning checks and four reserved confirmation questions within the card's sampled memory capacity. It remained the selected configuration after two generated policies were tested.
-
-**Our contribution is the coding experiment around that engine:** a local agent writes a Python placement policy, the harness tests it against automatic fitting, and measured answers, memory, speed, and errors become feedback for the next attempt. Atlas preserves the code-to-result history. Reserved questions decide whether to accept the candidate or keep the baseline, and a confirmed choice becomes a reusable launch recipe.
-
-[Visual evidence dashboard](demo-ui/index.html) · [MongoDB replay audit](MONGODB_AUDIT.md) · [59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [Deployment engineer](DEPLOYMENT_ENGINEER.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
-
-The visual dashboard uses the design and motion replay from the `ui` branch. Its Kimi chart shows saved inference measurements; the replay below it shows an earlier PyTorch operator experiment. The vLLM and SGLang queue is a planning view, not a live benchmark feed. Serve the repository with `python3 -m http.server 8000` and open `http://127.0.0.1:8000/demo-ui/` to browse the relative evidence links.
-
-## What the framework does
-
-Atlas GPU Harness is an **LLM deployment experiment framework**. It starts with a model artifact, available GPU/RAM/SSD capacity, and a fixed workload; proposes a runtime configuration; records answers, latency, resource use, and failures; and uses those results to choose the next experiment. A proposed setting is a hypothesis, not an optimization claim. The measured MoE loop confirms its final choice on reserved tasks; the newer deployment path reports preliminary benchmark outcomes.
-
-There are two paths with different levels of evidence:
-
-| Path | Implemented workflow | Current evidence |
-| --- | --- | --- |
-| **MoE placement loop** | A local coding model writes a constrained `n_cpu_moe` policy; llama.cpp runs the same GGUF under automatic fitting and proposed placements; MongoDB Atlas stores trials, failures, decisions, and a resumable recommendation. | Completed Kimi and Qwen trials below. The engine baseline won; no generated speedup is claimed. |
-| **Deployment engineer** | Searches first-party vLLM, SGLang, and Unsloth documentation indexes; plans source-cited GPU, RAM, SSD, and MoE experiments; benchmarks a running local OpenAI-compatible endpoint; and compares saved JSON outcomes. Unsloth supplies export guidance rather than a serving backend. | Planner and benchmark contract are tested. Live vLLM/SGLang deployment results and Atlas-backed resume for this path are not yet demonstrated. See the [operator guide](DEPLOYMENT_ENGINEER.md). |
-
-**Strata and Maya define a richer policy target, not a measured win for this project.** Their adaptive expert tiers use VRAM, RAM, PCIe, and sometimes SSD in ways the current `n_cpu_moe` layer-count policy cannot express. They target different model families; neither has been run on this repository's Kimi file and GPU. The [primary-source comparison and experiment plan](STRATA_MAYA_RESEARCH.md) separates a Kimi-compatible policy test from supported-model engine comparisons. Any claim of outperforming llama.cpp needs a matched model, hardware, workload, quality gate, and held-out confirmation.
-
-**Long horizon means continuity across experiments, not a longer model context window.** The demonstrated placement loop saves measurements in Atlas, retrieves compatible tuning evidence for the next coding attempt, and can resume after interruption without repeating committed trials. Its coding model has a 4,096-token context capacity. The newer deployment path can consume prior benchmark JSON to propose the next configuration, but its results are not yet part of that Atlas resume loop. The measured long-horizon claim therefore rests on the placement loop and remains bounded to a few attempts, not autonomous days of work.
-
-## What is running today?
-
-The consumer inference loop is implemented: model inspection, real local code generation, constrained code execution, baseline and candidate inference, answer checks, memory sampling, feedback, held-out confirmation, Atlas persistence, resume, and reuse of a confirmed recipe.
-
-| Model / experiment | Evidence status |
+| | |
 | --- | --- |
-| Kimi-Linear-48B-A3B Q4_K_M, **30.06 GB** | **Completed four trials.** All three tuning trials passed **12/12**; automatic fitting was fastest at **47.21 short-answer decode tokens/s** and **15,472 MiB** sampled peak on the **16,303 MiB GPU**. The selected baseline then passed **4/4 reserved questions**, with **14,664 MiB** sampled peak, and was retained. |
-| Qwen3.5-35B-A3B UD-IQ2_M, **11.39 GB file** | **Completed seven trials.** Each of three tuning trials passed **12/12 checks**; each of four confirmation trials passed **4/4**. The engine baseline was retained. Its tuning peak was **12,880 MiB**. |
-| Qwen3-30B-A3B Q4_K_M, **18.56 GB** | Download complete and full-file SHA-256 verified; larger-than-card inference proof pending. |
+| **Headline result** | **Kimi-Linear-48B-A3B, a 30.06 GB model, served on a 16 GB RTX 5070 Ti.** Every tuning trial passed 12/12 answer checks; the selected configuration passed 4/4 unseen confirmation questions. |
+| **Agent behaviour** | The coding agent read its own failure from Atlas and rewrote its policy (+30.73% over its first attempt). That was still 36.94% slower than the engine default, so the harness kept the default. |
+| **Honesty gate** | On Qwen3.5-35B-A3B, a +3.56% / +1.92% "speedup" missed the 5% confirmation rule and was rejected. **No unproven speedup is ever promoted.** |
+| **Durability** | Resuming a finished run returns its saved recipe from Atlas in 7.80 s without re-running anything; the saved recipe relaunches and serves correct answers. |
 
-Each tuning trial's 12 checks are **six distinct questions repeated twice**. Kimi's completed run is `70be4572a9824186999857dadeb1237d`; its baseline establishes operability through existing engine offload. The [full Atlas export](evidence/inference/70be4572a9824186999857dadeb1237d.json) includes both generated policies, all four trials, and the recommendation: **“Engine baseline passed held-out validation.”**
+## Why this matters
 
-**Feedback produced a real code revision, but the engine baseline still won.** Kimi's first policy chose **13 CPU expert layers** and achieved **22.77 tokens/s**, about **52% below baseline**. After receiving those results, the next proposal removed the `- 1` from its placement calculation and chose **14 layers**. It reached **29.77 tokens/s**: **30.73% above the first candidate, yet 36.94% below automatic fitting**. Both passed all 12 checks. Policy 2's sampled peak was **15,890 MiB** and median full request time **1.137 s**, versus policy 1's **15,791 MiB** and **1.405 s**. This is partial recovery from a bad candidate, not an improvement over the engine. Only the fastest passing choice—the baseline—received reserved-question confirmation and became the saved recommendation.
+Inference is now about two-thirds of AI compute, and memory prices are projected to rise more than 400% from 2024 to the end of 2026 ([J.P. Morgan](https://www.jpmorgan.com/insights/global-research/artificial-intelligence/dram-memory-shortage-from-ai)). Getting more from existing GPUs is the cheapest capacity available. Yet deployment tuning is still manual: every **model × GPU × engine version** needs its own configuration, dozens of flags interact, some requirements can never break, and benchmarks are easy to fool with noise or wrong answers.
 
-The completed 35B run shows the acceptance rule working: both proposals produced identical code with `n_cpu_moe=0`; confirmation gains of **+3.5647% and +1.9202%** missed the predefined 5% threshold, so the baseline stayed selected. It did not produce a successful revision or confirmed speedup. Its smaller file fits within VRAM, and downloads overlapped some timing measurements. See the [raw Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json), [summary](evidence/inference-summary.json), [verified model manifest](evidence/inference-models.json), and [result ledger](INFERENCE_RESULTS.md).
+Data-center deployment engineers face this at fleet scale; developers face it on a single card. Atlas GPU Harness turns it into a controlled, resumable experiment loop.
 
-## How it works
-
-A **mixture-of-experts (MoE)** model contains many specialist parameter groups; only some participate in each token. Keeping more expert weights in system RAM can reduce GPU memory use, with a possible speed cost. llama.cpp implements that execution. The generated policy chooses how many early layers keep their expert weights on the CPU.
+## Architecture
 
 ```mermaid
-flowchart TD
-    I[Your model file + your desktop] --> P[Inspect model and available memory]
-    P --> B[Run llama.cpp automatic-fit baseline]
-    B --> N[(MongoDB Atlas: saved experiment notebook)]
-    N -->|Results and errors guide each revision| C[Local coding model reads prior measurements]
-    C --> G[Write Python placement policy]
-    G --> V[Check code and execute it with strict limits]
-    V --> E[llama.cpp runs the target model using that placement]
-    E --> T[Check answers and measure GPU memory and speed]
-    T --> N
-    T -->|After the bounded search| H[Confirm the best passing choice on reserved questions]
-    H --> R[Save a proven launch recipe, or report no recommendation]
-    R --> U[Launch the same model later without repeating the search]
+flowchart LR
+    subgraph Agent["Deployment agent"]
+      I[Inspect model,<br/>GPU, RAM, engine] --> B[Measure engine<br/>default baseline]
+      B --> P[Coding model writes<br/>placement policy]
+      P --> V[Validate & sandbox<br/>generated Python]
+    end
+    subgraph Engine["Inference engine (real weights)"]
+      V --> R[Launch llama.cpp<br/>with candidate]
+      R --> Q[Answer checks ·<br/>memory · speed]
+    end
+    subgraph Atlas["MongoDB Atlas"]
+      DB[(runs · experiments<br/>· decisions)]
+    end
+    Q -->|commit before moving on| DB
+    DB -->|compatible evidence| P
+    Q --> C{Confirm on<br/>unseen questions<br/>more than 5% faster?}
+    C -->|yes| S[Promote candidate]
+    C -->|no| K[Keep engine default]
+    S & K --> RC[Saved launch recipe] --> SV[inference_serve<br/>reuses it]
 ```
 
-There are two different model roles:
-
-- **Coding model:** local Ollama `gemma3:12b` writes `choose(context)`. Its output is actual Python source with a saved hash, hypothesis, and receipt. The proposer is asked to unload after generation.
-- **Target model:** a supported local MoE GGUF runs through a pinned llama.cpp engine. Its answers and resource use determine whether the proposal works.
-
-The generated function returns one setting: `n_cpu_moe`, the number of early layers whose expert weights stay on the CPU. It reads model facts, hardware facts, prior trial summaries, its previous code, and failure feedback. Imports, filesystem access, shell commands, loops, and arbitrary function calls are rejected. The fixed answer checks and acceptance rules remain outside the generated code.
-
-The editable surface is **one placement-policy function**. Current adapters accept the `qwen35moe`, `qwen3moe`, and `kimi-linear` GGUF architectures; the result ledger records which artifacts have actually passed inference.
-
-## How do we prove it works?
-
-| Question | Required evidence |
-| --- | --- |
-| Can the model run usefully here? | Server starts, completes every fixed answer check, remains healthy, and stays within the sampled memory budget. Report actual model size, quantization, host RAM, and GPU. |
-| Did the generated policy improve the engine's default? | Compare the **same weights** against llama.cpp automatic fitting, then confirm a candidate on reserved tasks with reversed run order. |
-| Did the harness produce a reusable result? | Retain generated code, commands, answers, metrics, failures, and validation IDs; reload the saved recipe with compatibility checks. |
-
-### The baseline is already capable
-
-The reference uses llama.cpp's existing `--gpu-layers auto --fit on` behavior. Every new run measures it first. Candidate policies use `--gpu-layers all --n-cpu-moe N --fit off`. The experiment compares placement strategies while keeping the quantized model file fixed. CPU/GPU offload and automatic fitting are credited to [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/b11429/tools/server/README.md).
-
-The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. The baseline retains the engine's minimum 1,024 MiB fit margin. An optional lower `--gpu-budget-mib` creates an explicit experiment constraint.
-
-### Experimental design
-
-| Design element | Implemented control |
-| --- | --- |
-| Hypothesis | A different CPU/GPU expert placement may produce a passing, faster configuration on this model and machine. |
-| Treatment | Only the expert-placement setting changes between generated candidates. |
-| Fixed conditions | Model and quantization, engine, 4,096-token context capacity, threads, prompts, decoding settings, and answer rules. |
-| Tuning data | Six short exact-answer tasks, each run twice in reverse question order. Generated policies see trial summaries. |
-| Reserved confirmation data | Four different questions excluded from proposer feedback. Confirm only the best passing tuning choice. A winning generated candidate gets **baseline → candidate → candidate → baseline**; a winning baseline gets one baseline confirmation. |
-| Acceptance gate | All answers pass exact JSON type/value checks; server remains healthy; sampled GPU memory stays within budget. |
-| Speed measure | Engine-reported decode tokens/second, compared by matching question; full nonstream request latency is also retained. |
-| Directional improvement rule | Both confirmation blocks must pass, and each block's median paired decode gain must exceed **5%**. |
-| Budget | Default: one baseline plus two code-generation slots. Invalid or interrupted proposals consume a slot. Confirmation may add up to four engine launches. |
-
-If an apparent tuning gain fails confirmation, the harness keeps the baseline when both baseline confirmations pass. If only the candidate passes both confirmations, it can be recommended for feasibility with speedup explicitly unproven. If neither is confirmed, the harness returns no recipe. The recorded error must explain what failed before calling a feasibility result a memory-capacity improvement.
-
-These checks establish **short-task operability on the tested hardware**. GPU memory is sampled every 250 ms, includes other processes, and can miss brief peaks. Short answers make decode rates noisy; the 5% rule is descriptive, not a confidence interval. [The result ledger](INFERENCE_RESULTS.md) retains the measurements and conditions.
-
-## What we add above the inference engine
-
-| Existing work | What we reuse or learn from it | What this project adds |
+| Layer | Module | Responsibility |
 | --- | --- | --- |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF execution, quantized kernels, CPU/GPU offload, automatic fitting, server API. | Generated placement code tested against that capable baseline, with failures, confirmation, and a reusable result. |
-| [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya) | Inspiration for large MoE inference on consumer hardware; these projects already include setup or calibration. | A bounded experiment-and-verification workflow. Neither is integrated as our backend, and their model support or speed results are not ours. |
-| [MongoDB Atlas](https://www.mongodb.com/docs/atlas/) | Durable documents and indexed retrieval. | Experiment evidence becomes the next coding attempt's input and the source of truth for resumed work. |
-| Existing model and GGUF publishers | Pretrained models and compressed weight artifacts. | Hardware-specific evaluation of unchanged artifacts. Model size reduction belongs to their quantization work. |
+| Inspect | `model_probe.py` | GGUF metadata, architecture allowlist (`qwen35moe`, `qwen3moe`, `kimi-linear`), GPU/RAM inventory |
+| Propose | `policy_codegen.py` | Local coding model (Ollama `gemma3:12b`) writes `choose(context)`; imports, I/O, loops and arbitrary calls are rejected |
+| Execute & measure | `inference_backend.py` | Owns the llama.cpp process; exact-answer scoring, 250 ms memory sampling, decode speed, latency, errors |
+| Orchestrate | `inference.py` | Budgeted search, baseline-first, held-out confirmation, resume from Atlas, recommendation |
+| Deploy | `inference_serve.py` | Relaunches a confirmed recipe after compatibility checks |
+| Plan other engines | `deployment_engineer.py` | Source-cited vLLM / SGLang experiment plans and an OpenAI-compatible endpoint benchmark |
+| Memory | `store.py` + Atlas | `runs`, `experiments`, `decisions`; every decision lists the experiment IDs it retrieved |
 
-The deliverable is **an inspectable chain from generated source → executed placement → measured outcome → accepted recipe**. The engine supplies the ability to run Kimi; our harness supplies the generated candidate, controlled comparison, feedback, and acceptance decision. A faster or more memory-efficient candidate must earn that claim through the experiment. This is the precise comparison with llama.cpp and the basis for evaluating future algorithms.
+**Controls that keep long runs honest.** The agent may change only one setting (`n_cpu_moe`). Model file, engine build, context (4,096), threads, decoding, prompts and acceptance rules are locked. A context hash over hardware, engine, source and model identity prevents evidence from being reused where it does not apply. Confirmation questions never enter the agent's feedback.
 
-## How Atlas is used
+### How MongoDB Atlas is used
 
-| Collection | What it remembers | How the workflow uses it |
+| Collection | Stores | Used for |
 | --- | --- | --- |
-| `runs` | Model and machine context, budget, generated policies, failed proposals, progress, recommendation. | Resume the same experiment and preserve consumed proposal slots. |
-| `experiments` | Exact recipe and command, answer outputs and scores, timings, sampled memory, errors, and tuning/confirmation stage. | Reuse committed trials and compare results under the same context. |
-| `decisions` | Hypothesis, chosen trial, and IDs of available prior experiments. | Trace the evidence supplied before testing the next policy. |
+| `runs` | Model/machine context, budget, generated policies, progress, recommendation | Resume without repeating committed work |
+| `experiments` | Exact command, answers and scores, timings, sampled memory, errors, stage | Evidence for the next proposal and for confirmation |
+| `decisions` | Hypothesis, chosen candidate, IDs of retrieved experiments | Auditable decision → evidence lineage ([aggregation](queries/decision-evidence.json), [export](evidence/kimi-decision-evidence.json)) |
 
-Atlas is on the execution path: results are committed before moving on, and saved evidence is read before a new proposal. The proposer receives only compatible tuning summaries; reserved confirmation results stay out of its context. A [decision-to-evidence query](queries/decision-evidence.json) joins each decision to the experiments it retrieved. [ARCHITECTURE.md](ARCHITECTURE.md) gives exact identities, limits, and Data Explorer filters.
+Atlas is on the execution path, not a dashboard: results are committed before the loop advances, and the next coding attempt is built from what Atlas returns. Shared, durable evidence is also what lets many agents on many machines build on each other — the scaling path in the roadmap.
 
-## What is “long context” here? Which track fits?
+## Measured results
 
-**Statement 1 — Recursive Harnessing:** generated placement code can change in response to measurements, within a fixed evaluator and fixed guardrails. Kimi's policy changed from 13 to 14 CPU expert layers after feedback, improving on its first candidate while remaining slower than automatic fitting. Present this as bounded policy evolution; the completed 35B run generated the same policy twice.
+RTX 5070 Ti (16,303 MiB), i7-14700F, WSL with ~48 GiB RAM, llama.cpp b11429. Full ledger and limits: [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
 
-**Statement 2 — Long Horizon Engineering:** Atlas carries measured progress into later attempts and resumed runs. The model has a **4,096-token** context capacity; the notebook supplies bounded summaries outside that window. This implements durable experimental memory. Full architectural self-improvement, billion-token reasoning, and days of autonomous work are beyond the current demonstration; track acceptance remains with the organizers.
+**Kimi-Linear-48B-A3B Q4_K_M, 30.06 GB** — run `70be4572…` ([Atlas export](evidence/inference/70be4572a9824186999857dadeb1237d.json))
 
-The supplied guide weights round one as impact 20%, technical demo 35%, creativity 15%, and difficulty 30%. The strongest demo shows the model-size problem, working baseline, generated policy and measured outcome, then Atlas evidence and a saved recipe. Finalists must use the event-provided **Atlas Sandbox**. The project owner has confirmed that this cluster was created through the event invitation; this is user confirmation, not an independent Atlas UI verification. [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md) covers criteria and public hackathon guidance reviewed.
+| Trial | CPU expert layers | Answers | GPU peak (MiB) | Decode tok/s |
+| --- | --- | ---: | ---: | ---: |
+| Engine auto-fit (baseline) | auto | 12/12 | 15,472 | **47.21** |
+| Agent policy 1 | 13 | 12/12 | 15,791 | 22.77 |
+| Agent policy 2 (revised from Atlas feedback) | 14 | 12/12 | 15,890 | 29.77 |
+| Confirmation, baseline | auto | 4/4 | 14,664 | 52.70 |
+
+**Qwen3.5-35B-A3B UD-IQ2_M, 11.39 GB** — run `b88ec5bd…` ([Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json)): seven trials, all answers passed; candidate confirmation gains of +3.56% and +1.92% missed the 5% rule, so the default was kept.
+
+Limits: short exact-answer tasks, not a production throughput or general-quality benchmark; GPU memory is sampled, not allocator-enforced; one machine. No speedup over llama.cpp is claimed.
+
+## Inference engines
+
+| Engine | What the agent tunes | Status |
+| --- | --- | --- |
+| llama.cpp (GGUF) | MoE expert placement vs. engine auto-fit | **Measured** — two full MoE runs |
+| vLLM (HF weights) | GPU memory utilization, KV cache, CPU offload, expert parallelism, batching | Planner and endpoint benchmark implemented; no live result yet ([guide](DEPLOYMENT_ENGINEER.md)) |
+| SGLang (HF weights) | Memory fraction, KV dtype, CPU offload, EP size, MoE backends | Planner and endpoint benchmark implemented; no live result yet |
+| Strata | Adaptive VRAM/RAM/PCIe expert tiers | Research and experiment in progress ([notes](STRATA_MAYA_RESEARCH.md)) |
+
+## Judging criteria
+
+| Criterion (weight) | Where to look |
+| --- | --- |
+| **Impact (20%)** | Compute scarcity and the manual model × hardware × engine tuning problem, for both data centers and individual developers (see *Why this matters*). |
+| **Technical demo (35%)** | Real 30 GB model on a 16 GB GPU, real generated code, real Atlas records, recipe relaunch — all exported in [`evidence/`](evidence/). [Live demo page](demo-ui/index.html) and [video](demo/atlas-inference-demo.mp4). |
+| **Creativity (15%)** | A coding agent proposes deployment policies while the harness — not the agent — decides what is true. Atlas is the agent's memory and the audit trail. |
+| **Difficulty (30%)** | Owned engine processes, sandboxed generated code, memory sampling, held-out confirmation, context hashing, crash-safe resume across a larger-than-VRAM model. |
+
+**Track fit.** *Long Horizon Engineering*: durable experiment memory, metric-driven decisions and resume across interruptions. *Recursive Harnessing*: the policy code is regenerated from measured feedback, while the evaluator stays fixed. Long horizon here means continuity across experiments, not the model's context window.
+
+## Roadmap
+
+1. **Now:** controlled deployment loop on llama.cpp, measured on two MoE models.
+2. **Next:** live vLLM and SGLang benchmarks under the same contract, recorded in the same Atlas ledger; Strata expert-tier policies at 32K–128K inputs.
+3. **Vision:** parallel agents exploring configurations across NVIDIA, AMD and Intel fleets and controlling their own experiments, so new open models run efficiently on day one.
+
+## Demo website
+
+The demo page is static and reads only exported evidence; no credentials reach the browser.
+
+```bash
+python3 -m http.server 8000   # then open http://127.0.0.1:8000/demo-ui/
+```
+
+It deploys to Vercel as-is: import the repository with no build command; `vercel.json` serves the demo at `/`.
 
 ## Run it
 
@@ -185,16 +168,9 @@ Per-run artifacts include policy `.py` files and receipts, server logs, trial JS
 .venv/bin/python -m unittest discover -s tests -p 'test_inference*.py' -v
 ```
 
-These cover generated-code restrictions, metadata, orchestration, measurements, and saved-recipe guards using fixtures. The complete project suite passed **46 tests** at this revision. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
+These cover generated-code restrictions, metadata, orchestration, measurements, and saved-recipe guards using fixtures. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
 
-## Scope and next experiments
 
-Current value is the generated-code experiment and evidenced recipe. No confirmed inference gain over automatic fitting has been demonstrated yet, and code generation has not been compared with a simple parameter sweep. The short task suite does not establish general model quality or long-context performance. Support is limited to the implemented architectures and tested artifacts.
+## Credits
 
-After the validated submission, the same evaluation approach could compare new expert-offload algorithms, pruning, or merging, with appropriate quality baselines. These are future work. The current system keeps weights fixed and generates no CUDA kernels.
-
-## Earlier subsystem evidence
-
-The original PyTorch top-k prototype remains available through `python -m atlas_gpu_harness`. Its [controlled memory comparison](EXPERIMENTS.md) observed **4 → 3 attempts** in two blocks while assessing the same three correct alternatives. Its [recovery demonstration](EVIDENCE.md) retained a committed result across a deliberate interruption. Those results test the original experiment-notebook mechanism; they do not measure LLM memory use, answer quality, or inference acceleration.
-
-See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md) for reused foundations and event work.
+Inference and CPU/GPU offload: [llama.cpp](https://github.com/ggml-org/llama.cpp). Models: Moonshot AI (Kimi Linear) with Bartowski GGUF quantization; Qwen with Unsloth GGUF quantization. Coding model: Ollama `gemma3:12b`. Inspiration for expert-tier policies: [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya). See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md) for what was built during the event. An earlier PyTorch operator prototype and its evidence remain in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md).

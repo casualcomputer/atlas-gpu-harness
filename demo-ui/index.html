@@ -3,901 +3,354 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Measured MoE inference experiments and an evidence-aware LLM deployment engineer.">
-<title>Atlas GPU Harness · measured MoE experiments</title>
+<title>Atlas GPU Harness</title>
+<meta name="description" content="An LLM deployment agent that runs inference engines, benchmarks configurations, and keeps only what is proven — with every experiment in MongoDB Atlas.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700;800;900&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Layout: measured inference results → saved operator-run replay → evidence. Dark-first graphite; amber = measured signal, teal = durable in Atlas, red = crash/reject. */
 :root{
-  --bg:#0A0C0F; --bg2:#0E1115; --panel:#12161B; --panel2:#171C22; --line:#222932; --line2:#2E3742;
-  --fg:#E9EDF2; --fg2:#B9C2CD; --muted:#7D8896;
-  --amber:#FFB020; --amber-soft:rgba(255,176,32,.14);
-  --teal:#3BD9C5; --teal-soft:rgba(59,217,197,.13);
-  --red:#FF5A4E; --red-soft:rgba(255,90,78,.14);
-  --violet:#9C8CFF;
-  --glow:rgba(255,176,32,.10);
-  --f-display:"Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-body:"Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"Martian Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --ease-out:cubic-bezier(.22,1,.36,1);
-  --ease-spring:cubic-bezier(.34,1.56,.64,1);
-  color-scheme:dark;
+  --bg:#0B0D10; --panel:#12161B; --panel2:#171C22; --line:#232A33;
+  --text:#EEF2F6; --muted:#9AA5B1; --dim:#66717D;
+  --green:#76FF8A; --green-d:#1E3A26; --red:#FF5C5C; --red-d:#3A1E1E; --amber:#FFC24B;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
 }
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
-  --bg:#F3F5F7; --bg2:#ECEFF3; --panel:#FFFFFF; --panel2:#F7F9FB; --line:#DDE3E9; --line2:#C9D1DA;
-  --fg:#0C1015; --fg2:#2C3540; --muted:#5E6976;
-  --amber:#B36A00; --amber-soft:rgba(179,106,0,.11);
-  --teal:#0A8778; --teal-soft:rgba(10,135,120,.10);
-  --red:#D2392C; --red-soft:rgba(210,57,44,.10);
-  --violet:#5B48D6; --glow:rgba(179,106,0,.08); color-scheme:light;}}
-:root[data-theme="light"]{
-  --bg:#F3F5F7; --bg2:#ECEFF3; --panel:#FFFFFF; --panel2:#F7F9FB; --line:#DDE3E9; --line2:#C9D1DA;
-  --fg:#0C1015; --fg2:#2C3540; --muted:#5E6976;
-  --amber:#B36A00; --amber-soft:rgba(179,106,0,.11);
-  --teal:#0A8778; --teal-soft:rgba(10,135,120,.10);
-  --red:#D2392C; --red-soft:rgba(210,57,44,.10);
-  --violet:#5B48D6; --glow:rgba(179,106,0,.08); color-scheme:light;}
-
-*{box-sizing:border-box}
+*{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-.wrap{max-width:1240px;margin:0 auto;padding-inline:clamp(16px,4vw,40px)}
-.mono{font-family:var(--f-mono)}
-.tab{font-variant-numeric:tabular-nums}
-:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;text-decoration:none}
+.brand i{width:10px;height:10px;border-radius:2px;background:var(--green);box-shadow:0 0 12px var(--green)}
+nav .links{display:flex;gap:22px;margin-left:auto;font-size:14px;color:var(--muted)}
+nav .links a{text-decoration:none}
+nav .links a:hover{color:var(--text)}
+.gh{border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:13px;text-decoration:none}
+@media(max-width:820px){nav .links{display:none}}
 
-/* ---------- nav ---------- */
-.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
-.nav .wrap{display:flex;align-items:center;gap:24px;height:60px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;text-decoration:none;font-size:15px}
-.brand-mark{width:22px;height:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
-.brand-mark i{background:var(--line2);border-radius:1.5px}
-.brand-mark i.on{background:var(--amber)}
-.brand-mark i.ok{background:var(--teal)}
-.nav-links{display:flex;gap:22px;margin-left:auto;font-size:14px;color:var(--fg2)}
-.nav-links a{text-decoration:none;transition:color .2s}
-.nav-links a:hover{color:var(--fg)}
-.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:999px;font:600 14px/1 var(--f-body);text-decoration:none;cursor:pointer;border:1px solid var(--line2);background:var(--panel);color:var(--fg);transition:transform .25s var(--ease-spring),background .2s,border-color .2s}
-.btn:hover{transform:translateY(-1px);border-color:var(--muted)}
-.btn:active{transform:translateY(0) scale(.97)}
-.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.btn.primary:hover{background:color-mix(in srgb,var(--fg) 88%,var(--amber))}
-.btn svg{width:16px;height:16px}
-.nav .btn{height:34px;font-size:13px}
-@media (max-width:760px){.nav-links{display:none}.nav .btn{margin-left:auto}}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+h1{font-size:clamp(40px,6.4vw,76px);line-height:1.02;letter-spacing:-.035em;font-weight:800}
+h2{font-size:clamp(28px,3.6vw,42px);line-height:1.1;letter-spacing:-.025em;font-weight:750;margin:10px 0 14px}
+h3{font-size:18px;letter-spacing:-.01em}
+.lead{font-size:clamp(17px,1.6vw,20px);color:var(--muted);max-width:760px}
+.accent{color:var(--green)}
+section{padding:88px 0;border-bottom:1px solid var(--line)}
 
-/* ---------- hero ---------- */
-.hero{position:relative;padding-block:clamp(56px,9vw,104px) 28px;text-align:center;overflow:hidden}
-.hero-grid{position:absolute;inset:0;pointer-events:none;opacity:.55;
-  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-  background-size:56px 56px;mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 75%)}
-.hero-glow{position:absolute;left:50%;top:-180px;width:900px;height:520px;transform:translateX(-50%);background:radial-gradient(closest-side,var(--glow),transparent);pointer-events:none}
-.pill{display:inline-flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);font-size:13px;color:var(--fg2);position:relative}
-.pill b{font-family:var(--f-mono);font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;background:var(--amber-soft);color:var(--amber)}
-h1{font-family:var(--f-display);font-weight:800;font-size:clamp(40px,7.4vw,92px);line-height:.96;letter-spacing:-.045em;margin:26px auto 0;max-width:13ch;text-wrap:balance;position:relative}
-h1 .w{display:inline-block}
-h1 .scar{color:var(--amber);position:relative;white-space:nowrap}
-.lede{max-width:60ch;margin:22px auto 0;font-size:clamp(16px,1.8vw,19px);color:var(--fg2);text-wrap:pretty;position:relative}
-.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:30px;position:relative}
-.cmd{display:inline-flex;align-items:center;gap:10px;margin-top:20px;font:12px/1.4 var(--f-mono);color:var(--muted);position:relative;max-width:100%;overflow:hidden}
-.cmd code{color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cmd .dollar{color:var(--amber)}
+.hero{padding:96px 0 80px;position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;inset:0;background:
+  radial-gradient(600px 300px at 80% 10%,rgba(118,255,138,.10),transparent 70%),
+  linear-gradient(var(--line) 1px,transparent 1px) 0 0/48px 48px,
+  linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/48px 48px;opacity:.35;pointer-events:none}
+.hero .wrap{position:relative}
+.badge{display:inline-flex;gap:10px;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted);margin-bottom:28px}
+.badge b{font-family:var(--mono);font-weight:500;color:var(--green);font-size:11px;letter-spacing:.12em}
+.hero .lead{margin:24px 0 32px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--line)}
+.btn.primary{background:var(--green);color:#06140A;border-color:var(--green)}
+.term{margin-top:28px;font-family:var(--mono);font-size:13px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;display:inline-block;max-width:100%;overflow-x:auto;white-space:nowrap}
+.term span{color:var(--green)}
 
-/* ---------- console ---------- */
-.stage{position:relative;padding-block:28px 40px}
-.console{position:relative;border:1px solid var(--line2);border-radius:18px;background:var(--panel);overflow:hidden;
-  box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 40px 120px -40px rgba(0,0,0,.55),0 0 0 6px color-mix(in srgb,var(--panel) 40%,transparent)}
-.console::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;box-shadow:0 0 0 1px transparent inset;transition:box-shadow .4s}
-.console.is-dead::before{box-shadow:0 0 0 1px var(--red) inset}
-.cbar{display:flex;align-items:center;gap:14px;height:46px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel2);font:12px var(--f-mono);color:var(--muted)}
-.dots{display:flex;gap:7px}.dots i{width:11px;height:11px;border-radius:50%;background:var(--line2)}
-.cbar .title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.cbar .title b{color:var(--fg2);font-weight:500}
-.chap-now{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap;color:var(--fg2)}
-.chap-now .n{color:var(--amber)}
-.cgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.2fr) minmax(0,1fr);height:540px}
-.pane{overflow:hidden}
-.pane{position:relative;min-width:0;border-right:1px solid var(--line);display:flex;flex-direction:column}
-.pane:last-child{border-right:0}
-.phead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.phead .r{margin-left:auto;display:flex;gap:8px;align-items:center}
-.state{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font:500 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line2);color:var(--fg2);transition:all .3s}
-.state::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.state.running{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 40%,transparent);background:var(--teal-soft)}
-.state.running::before{animation:pulse 1.2s infinite}
-.state.dead{color:var(--red);border-color:color-mix(in srgb,var(--red) 50%,transparent);background:var(--red-soft)}
-.state.idle{color:var(--muted)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:56px}
+.stat{background:var(--panel);padding:22px}
+.stat .n{font-size:34px;font-weight:800;letter-spacing:-.03em}
+.stat .l{font-size:13px;color:var(--muted)}
+@media(max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}}
 
-/* terminal */
-.term{flex:1;padding:14px 16px 16px;font:11.5px/1.75 var(--f-mono);color:var(--fg2);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
-.term .ln{white-space:pre-wrap;word-break:break-word}
-.term .ln.new{animation:type .5s steps(28,end) both}
-@keyframes type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-.ln.cmd{color:var(--fg)}.ln.cmd .p{color:var(--amber)}
-.ln.dim{color:var(--muted)}
-.ln.ok{color:var(--teal)}
-.ln.bad{color:var(--red)}
-.ln.warn{color:var(--amber)}
-.ln.sep{color:var(--line2);text-align:center;letter-spacing:.2em}
-.caret{display:inline-block;width:7px;height:13px;background:var(--fg2);vertical-align:-2px;animation:pulse 1s steps(1) infinite}
-.deadveil{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--panel) 72%,transparent);backdrop-filter:blur(2px) grayscale(1);-webkit-backdrop-filter:blur(2px) grayscale(1);opacity:0;pointer-events:none;transition:opacity .35s}
-.is-dead .deadveil{opacity:1}
-.deadcard{text-align:center;font-family:var(--f-mono);padding:18px 20px;border:1px dashed color-mix(in srgb,var(--red) 60%,transparent);border-radius:12px;background:var(--panel);max-width:85%}
-.deadcard .code{font-size:34px;font-weight:600;color:var(--red);letter-spacing:-.02em;line-height:1}
-.deadcard .t{font-size:11px;color:var(--fg2);margin-top:8px}
-.deadcard .s{font-size:10px;color:var(--muted);margin-top:4px}
-
-/* candidates */
-.cands{flex:1;padding:12px;display:flex;flex-direction:column;gap:8px}
-.mem{font:500 10px var(--f-mono);color:var(--amber);letter-spacing:.06em;opacity:0;transition:opacity .3s}
-.mem.on{opacity:1}
-.card{position:relative;border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:var(--panel2);display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:10px;row-gap:7px;transition:border-color .35s,background .35s,opacity .35s,transform .45s var(--ease-spring)}
-.card .nm{font:500 12.5px var(--f-mono);color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .chip{justify-self:end;font:500 9.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;padding:3px 7px;border-radius:6px;color:var(--muted);border:1px solid var(--line2);white-space:nowrap}
-.card .row{grid-column:1/-1;display:flex;align-items:center;gap:10px;min-height:22px;min-width:0}
-.checks{display:flex;gap:3px;flex:none}
-.checks i{width:9px;height:9px;border-radius:2.5px;background:var(--line);transition:background .2s,transform .3s var(--ease-spring)}
-.checks i.p{background:var(--teal);transform:scale(1.1)}
-.checks i.f{background:var(--red);transform:scale(1.25)}
-.spark{flex:1;height:22px;min-width:0}
-.spark polyline{fill:none;stroke:var(--amber);stroke-width:1.4;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-.spark .area{fill:var(--amber-soft);stroke:none}
-.med{font:600 12px var(--f-mono);color:var(--fg);white-space:nowrap;min-width:64px;text-align:right}
-.med small{font-weight:400;color:var(--muted);font-size:10px}
-.note{font:10.5px var(--f-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-.card[data-s="queued"]{opacity:.55}
-.card[data-s="deciding"]{border-color:color-mix(in srgb,var(--violet) 55%,transparent)}
-.card[data-s="deciding"] .chip{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 45%,transparent)}
-.card[data-s="checking"],.card[data-s="timing"]{border-color:color-mix(in srgb,var(--amber) 55%,transparent);background:linear-gradient(90deg,var(--amber-soft),transparent 70%),var(--panel2);transform:translateX(3px)}
-.card[data-s="checking"] .chip,.card[data-s="timing"] .chip{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 45%,transparent)}
-.card[data-s="committed"] .chip,.card[data-s="restored"] .chip{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent);background:var(--teal-soft)}
-.card[data-s="restored"]{border-color:color-mix(in srgb,var(--teal) 55%,transparent);box-shadow:0 0 0 3px var(--teal-soft)}
-.card[data-s="rejected"]{border-color:color-mix(in srgb,var(--red) 55%,transparent);background:linear-gradient(90deg,var(--red-soft),transparent 70%),var(--panel2)}
-.card[data-s="rejected"] .chip{color:var(--red);border-color:color-mix(in srgb,var(--red) 50%,transparent);background:var(--red-soft)}
-.card[data-s="skipped"],.card[data-s="screened"]{opacity:.8;border-style:dashed}
-.card[data-s="skipped"] .chip,.card[data-s="screened"] .chip{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 45%,transparent)}
-.card[data-s="skipped"] .nm,.card[data-s="screened"] .nm{text-decoration:line-through;text-decoration-color:var(--amber)}
-.is-dead .card:not([data-s="committed"]){opacity:.3;filter:grayscale(1)}
-.is-dead .card[data-s="committed"]{opacity:.45}
-
-/* atlas ledger */
-.ledger{flex:1;padding:12px;display:flex;flex-direction:column;gap:7px;overflow:hidden;position:relative}
-.counts{display:flex;gap:6px}
-.counts span{font:500 10px var(--f-mono);padding:3px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--fg2);letter-spacing:0;text-transform:none}
-.counts span b{color:var(--teal);font-weight:600}
-.doc{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel2);font:10.5px/1.6 var(--f-mono);color:var(--fg2);transition:border-color .35s,box-shadow .35s,opacity .35s}
-.doc.new{animation:drop .7s var(--ease-spring) both}
-@keyframes drop{from{transform:translateY(-14px) scale(.97);opacity:0}to{transform:none;opacity:1}}
-.doc .h{display:flex;gap:8px;align-items:center;margin-bottom:2px}
-.doc .coll{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.doc .id{color:var(--fg);margin-left:auto}
-.doc .k{color:var(--muted)}
-.doc .v{color:var(--fg)}
-.doc .v.ok{color:var(--teal)}.doc .v.bad{color:var(--red)}.doc .v.am{color:var(--amber)}
-.doc.exp{border-left:2px solid var(--teal)}
-.doc.fail{border-left:2px solid var(--red)}
-.doc.dec{border-left:2px solid var(--violet)}
-.doc.retr{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
-.doc.prev{opacity:.62}
-.doc.retr.prev{opacity:1}
-.survive{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 12px;border-radius:10px;background:var(--teal-soft);border:1px solid color-mix(in srgb,var(--teal) 45%,transparent);color:var(--teal);font:500 11px/1.5 var(--f-mono);transform:translateY(130%);opacity:0;transition:transform .5s var(--ease-spring),opacity .3s}
-.is-dead .survive{transform:none;opacity:1}
-
-/* controls */
-.cfoot{display:flex;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
-.ctl{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line2);background:var(--panel);color:var(--fg);cursor:pointer;transition:transform .25s var(--ease-spring),border-color .2s;flex:none}
-.ctl:hover{border-color:var(--muted)}.ctl:active{transform:scale(.92)}
-.ctl svg{width:15px;height:15px}
-.chapters{flex:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;min-width:260px}
-.chap{appearance:none;border:0;background:none;padding:0;cursor:pointer;text-align:left;color:var(--muted);font:500 10.5px var(--f-mono);min-width:0}
-.chap .bar{display:block;height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-bottom:7px}
-.chap .bar i{display:block;height:100%;width:0;background:var(--amber);border-radius:inherit}
-.chap.done .bar i{background:var(--fg2)}
-.chap .lbl{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chap .lbl b{color:var(--fg2);font-weight:500;margin-right:6px}
-.chap.cur{color:var(--fg)}
-.chap.cur .lbl b{color:var(--amber)}
-.chap:hover{color:var(--fg)}
-.speed{font:500 11px var(--f-mono);height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--line2);background:var(--panel);color:var(--fg2);cursor:pointer}
-.clock{font:11px var(--f-mono);color:var(--muted);min-width:76px;text-align:right}
-.caption{margin:14px auto 0;text-align:center;font-size:13px;color:var(--muted);max-width:70ch;min-height:2.6em;transition:opacity .3s}
-.caption b{color:var(--fg);font-weight:600}
-
-/* crash fx */
-.console.crash{animation:shake .5s cubic-bezier(.36,.07,.19,.97) both}
-.console .flash{position:absolute;inset:0;pointer-events:none;background:var(--red);opacity:0;mix-blend-mode:screen;z-index:5}
-.console.crash .flash{animation:flash .6s ease-out}
-.console .scan{position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,90,78,.08) 3px 4px)}
-.console.crash .scan{animation:flash 1s ease-out}
-@keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
-@keyframes flash{0%{opacity:.28}100%{opacity:0}}
-
-@media (max-width:980px){
-  .cgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:auto}
-  .ledger{max-height:400px}
-  .pane.p-term{grid-column:1/-1;border-right:0;border-bottom:1px solid var(--line)}
-  .term{height:210px;flex:none}
-}
-@media (max-width:640px){
-  .cgrid{grid-template-columns:minmax(0,1fr)}
-  .pane{border-right:0;border-bottom:1px solid var(--line)}
-  .ledger{max-height:330px}
-  .chapters{grid-template-columns:repeat(5,minmax(0,1fr));min-width:0;flex:1 1 100%;order:3}
-  .chap .lbl span{display:none}
-  .cbar .chap-now .t{display:none}
-}
-
-/* ---------- logos / spec strip ---------- */
-.spec{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 34px;padding-block:22px 6px;font:11.5px var(--f-mono);color:var(--muted)}
-.spec span b{color:var(--fg2);font-weight:500}
-
-/* ---------- sections ---------- */
-section.blk{padding-block:clamp(64px,10vw,120px)}
-.eyebrow{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
-h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px);line-height:1.02;letter-spacing:-.035em;margin:14px 0 0;text-wrap:balance;max-width:18ch}
-.sub{color:var(--fg2);font-size:17px;max-width:58ch;margin:16px 0 0;text-wrap:pretty}
-.split{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,72px);align-items:center}
-.split.rev{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
-.split.rev .txt{order:2}
-@media (max-width:880px){.split,.split.rev{grid-template-columns:minmax(0,1fr)}.split.rev .txt{order:0}}
-.frame{border:1px solid var(--line2);border-radius:16px;background:var(--panel);overflow:hidden;position:relative}
-.frame .fh{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2);font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.frame .fh .r{margin-left:auto}
-.facts{display:grid;gap:14px;margin-top:28px}
-.fact{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;font-size:15px;color:var(--fg2)}
-.fact b{color:var(--fg);font-weight:600}
-.fact svg{width:18px;height:18px;margin-top:3px;color:var(--teal)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+.card p{color:var(--muted);font-size:15px;margin-top:8px}
+.card .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
 
 /* loop */
-.loop{padding:24px}
-.loopsvg{width:100%;height:auto;display:block}
-.loopsvg .track{fill:none;stroke:var(--line2);stroke-width:1.5}
-.loopsvg .runner{fill:none;stroke:var(--amber);stroke-width:2.5;stroke-linecap:round}
-.loopsvg .node rect{fill:var(--panel2);stroke:var(--line2);stroke-width:1}
-.loopsvg .node.lit rect{stroke:var(--amber)}
-.loopsvg .node text{font-family:var(--f-mono);fill:var(--muted);font-size:10px}
-.loopsvg .node text.t{fill:var(--fg);font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:-.01em}
-.loopsvg .node text.n{fill:var(--amber);font-size:10px}
-.loopsvg .core{fill:var(--panel2);stroke:var(--line2)}
-.loopsvg .core-t{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
-.loopsvg .core-b{font-family:var(--f-display);font-weight:800;font-size:22px;fill:var(--fg);letter-spacing:-.02em}
+.loop{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:36px;counter-reset:s}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;position:relative}
+.step:before{counter-increment:s;content:"0" counter(s);font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.1em}
+.step h3{margin:8px 0 6px;font-size:16px}
+.step p{font-size:13px;color:var(--muted)}
+.step.atlas{border-color:var(--green);background:linear-gradient(180deg,rgba(118,255,138,.07),var(--panel))}
+@media(max-width:900px){.loop{grid-template-columns:1fr 1fr}}
+.locked{margin-top:16px;font-size:14px;color:var(--muted);border-left:3px solid var(--green);padding:6px 14px}
 
-/* tie fixture */
-.tie{padding:22px;display:grid;gap:18px}
-.arr{display:grid;grid-template-columns:110px repeat(4,minmax(0,1fr));gap:8px;align-items:center}
-.arr .lab{font:500 10.5px var(--f-mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-.cell{height:58px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);display:grid;place-items:center;font:600 18px var(--f-mono);position:relative}
-.cell small{position:absolute;top:5px;left:8px;font:400 9.5px var(--f-mono);color:var(--muted)}
-.cell.top{border-color:color-mix(in srgb,var(--amber) 60%,transparent);background:var(--amber-soft)}
-.outs{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:center}
-.outrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.idx{width:58px;height:44px;border-radius:9px;display:grid;place-items:center;font:600 16px var(--f-mono);border:1px solid var(--line2);background:var(--panel2);position:relative}
-.idx.g{border-color:color-mix(in srgb,var(--teal) 55%,transparent);color:var(--teal);background:var(--teal-soft)}
-.idx.b{border-color:color-mix(in srgb,var(--red) 55%,transparent);color:var(--red);background:var(--red-soft)}
-.verdict{font:500 11px var(--f-mono);padding:5px 9px;border-radius:7px;white-space:nowrap}
-.verdict.g{color:var(--teal);background:var(--teal-soft)}
-.verdict.b{color:var(--red);background:var(--red-soft)}
-.stamp{justify-self:start;font:600 12px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--red);border:2px solid var(--red);padding:8px 12px;border-radius:8px;transform:rotate(-3deg)}
-@media (max-width:520px){.arr,.outs{grid-template-columns:72px repeat(4,minmax(0,1fr))}.outs{grid-template-columns:72px minmax(0,1fr)}.cell{height:48px;font-size:15px}.idx{width:46px;height:40px}}
+/* chart */
+.chart{margin-top:8px}
+.row{display:grid;grid-template-columns:190px 1fr 70px;align-items:center;gap:14px;margin:14px 0}
+.row .name{font-size:14px}
+.row .name small{display:block;color:var(--dim);font-family:var(--mono);font-size:11px}
+.bar{height:28px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:6px;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.bar i.keep{background:var(--green)}
+.bar i.rej{background:var(--red);opacity:.85}
+.row .v{font-family:var(--mono);font-size:15px;text-align:right}
+@media(max-width:600px){.row{grid-template-columns:110px 1fr 56px}}
+.verdict{margin-top:20px;border-radius:12px;padding:16px 18px;background:var(--green-d);border:1px solid rgba(118,255,138,.35);font-size:15px}
+.verdict b{color:var(--green)}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:3px 8px;border-radius:6px;margin-left:6px}
+.tag.g{background:var(--green-d);color:var(--green)}
+.tag.r{background:var(--red-d);color:var(--red)}
+.tag.a{background:#3A2F14;color:var(--amber)}
+.tag.d{background:var(--panel2);color:var(--muted)}
 
-/* timing chart */
-.chartwrap{padding:16px 16px 10px;overflow-x:auto}
-.chart{width:100%;min-width:520px;height:auto;display:block}
-.chart text{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
-.chart .cn{fill:var(--fg);font-size:11px}
-.chart .grid{stroke:var(--line);stroke-width:1}
-.chart .dot{fill:var(--amber);fill-opacity:.55}
-.chart .dot.b{fill:var(--violet);fill-opacity:.5}
-.chart .medtick{stroke:var(--fg);stroke-width:2}
-.chart .medl{fill:var(--fg);font-size:10.5px;font-weight:600}
-.legend{display:flex;gap:18px;padding:0 16px 14px;font:10.5px var(--f-mono);color:var(--muted);flex-wrap:wrap}
-.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0}
-.honest{margin-top:22px;padding:14px 16px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);font-size:14.5px;color:var(--fg2)}
-.honest b{color:var(--fg)}
+/* code diff */
+pre{font-family:var(--mono);font-size:13px;background:#0E1216;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;margin-top:12px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.del{color:var(--red)} .add{color:var(--green)} .cm{color:var(--dim)}
 
-/* outcomes */
-.outcomes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:40px}
-@media (max-width:880px){.outcomes{grid-template-columns:minmax(0,1fr)}}
-.oc{border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:22px;display:flex;flex-direction:column;gap:12px;min-width:0;transition:transform .4s var(--ease-spring),border-color .3s}
-.oc:hover{transform:translateY(-4px);border-color:var(--muted)}
-.oc .big{font-family:var(--f-display);font-weight:800;font-size:46px;letter-spacing:-.04em;line-height:1}
-.oc .big.t{color:var(--teal)}.oc .big.r{color:var(--red)}.oc .big.a{color:var(--amber)}
-.oc h3{margin:0;font-size:18px;letter-spacing:-.01em}
-.oc p{margin:0;color:var(--fg2);font-size:14.5px}
-.oc .rid{margin-top:auto;font:10.5px var(--f-mono);color:var(--muted);padding-top:12px;border-top:1px solid var(--line);word-break:break-all}
+/* timeline */
+.tl{margin-top:12px}
+.tl li{list-style:none;position:relative;padding:0 0 18px 26px;border-left:1px solid var(--line);margin-left:6px;font-size:14px;color:var(--muted)}
+.tl li:before{content:"";position:absolute;left:-6px;top:4px;width:11px;height:11px;border-radius:50%;background:var(--panel2);border:2px solid var(--dim)}
+.tl li.g:before{border-color:var(--green)} .tl li.r:before{border-color:var(--red)}
+.tl li b{color:var(--text)}
 
-/* closing */
-.closing{text-align:center;padding-block:clamp(70px,10vw,130px);position:relative;overflow:hidden}
-.closing h2{margin:14px auto 0;max-width:16ch}
-.closing .sub{margin:16px auto 0}
-.foot{border-top:1px solid var(--line);padding-block:26px;font:11px var(--f-mono);color:var(--muted)}
-.foot .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
+/* engines table */
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:24px}
+th,td{text-align:left;padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:500}
+td small{color:var(--muted)}
+.tblwrap{overflow-x:auto}
 
-/* Current inference experiment, using the UI branch's visual language. */
-.current{padding-block:clamp(48px,7vw,88px);border-bottom:1px solid var(--line)}
-.current-head{display:flex;align-items:end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px}
-.current-head h2{margin:8px 0 0}
-.current-head .sub{max-width:70ch;margin:10px 0 0}
-.badge{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:999px;padding:6px 10px;color:var(--fg2);font:11px var(--f-mono)}
-.badge.measured{border-color:var(--teal);color:var(--teal)}
-.badge.pending{border-color:var(--amber);color:var(--amber)}
-.results-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr);gap:18px}
-.result-panel{min-width:0;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:clamp(18px,2.7vw,30px)}
-.result-panel h3{margin:0 0 8px;font-size:20px}
-.result-panel p{margin:0;color:var(--fg2);font-size:14px}
-.trial-chart{display:grid;gap:17px;margin-top:28px}
-.trial{display:grid;grid-template-columns:112px minmax(0,1fr) 70px;gap:12px;align-items:center;font:11px var(--f-mono)}
-.trial .label{color:var(--fg2)}
-.trial .track{height:20px;border-radius:5px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
-.trial .fill{display:block;height:100%;width:var(--bar);background:var(--amber);border-radius:4px;transform-origin:left center}
-.trial.baseline .fill{background:var(--teal)}
-.trial .value{text-align:right;color:var(--fg)}
-.trial-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:26px}
-.trial-notes div{border-top:1px solid var(--line);padding-top:12px;color:var(--muted);font:11px/1.5 var(--f-mono)}
-.trial-notes b{display:block;color:var(--fg);font-size:16px}
-.result-verdict{margin-top:26px;padding:15px;border:1px solid var(--teal);border-radius:10px;background:var(--teal-soft);color:var(--fg2);font:13px/1.55 var(--f-body)}
-.result-verdict b{color:var(--teal)}
-.runtime-list{display:grid;gap:10px;margin-top:18px}
-.runtime-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:9px;padding:11px 12px;font:12px var(--f-mono)}
-.runtime-row .name{color:var(--fg)}
-.runtime-row .state{color:var(--muted);text-align:right}
-.runtime-row .state.done{color:var(--teal)}
-.runtime-note{padding-top:16px!important;font-size:12px!important}
-.source-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.source-links a{font:12px var(--f-mono);color:var(--teal);text-underline-offset:3px}
-@media (max-width:850px){.results-grid{grid-template-columns:1fr}}
-@media (max-width:570px){.trial{grid-template-columns:82px minmax(0,1fr) 58px;gap:7px;font-size:10px}.trial-notes{grid-template-columns:1fr 1fr}}
+.road{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px}
+.road .card .k{color:var(--green)}
+.road .card.next .k{color:var(--amber)}
+.road .card.future .k{color:var(--muted)}
+@media(max-width:820px){.road{grid-template-columns:1fr}}
 
+/* hero split + agent console mockup */
+.hsplit{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+@media(max-width:980px){.hsplit{grid-template-columns:1fr}}
+.console{background:#0E1216;border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(118,255,138,.06);overflow:hidden}
+.console .bar2{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.console .bar2 i{width:10px;height:10px;border-radius:50%;background:#2A323C}
+.console .bar2 span{margin-left:8px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.console .bar2 .live{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--green)}
+.console .bar2 .live:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+.log{padding:16px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.85;min-height:310px;overflow-wrap:anywhere}
+.hsplit>*,.grid2>*,.grid3>*{min-width:0}
+.log div{opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s cubic-bezier(.2,.8,.2,1);white-space:pre-wrap}
+.log div.on{opacity:1;transform:none}
+.log .p{color:var(--green)} .log .m{color:var(--dim)} .log .ok{color:var(--green)} .log .no{color:var(--red)} .log .at{color:var(--amber)}
+.console .foot{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--line);background:var(--panel)}
+.pill{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);transition:all .3s ease}
+.pill.on{border-color:rgba(118,255,138,.5);color:var(--green);background:var(--green-d)}
+
+/* engine strip */
+.strip{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.strip b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--dim);font-weight:500;margin-right:6px}
+.strip span{display:inline-flex;align-items:center;gap:7px}
+.strip span:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--dim)}
+.strip span.m:before{background:var(--green)} .strip span.p:before{background:var(--amber)}
+
+/* scroll reveal */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+.rv.in{opacity:1;transform:none}
+.card,.step,.btn{transition:border-color .2s ease,transform .2s ease,background .2s ease}
+.card:hover,.step:hover{border-color:#34404C;transform:translateY(-2px)}
+.btn:hover{transform:translateY(-1px)}
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  *,*:before,*:after{animation:none!important;transition:none!important}
+  .rv,.log div{opacity:1!important;transform:none!important}
 }
+
+.links2{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.links2 a{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:7px 12px;text-decoration:none;color:var(--muted)}
+.links2 a:hover{color:var(--text);border-color:var(--dim)}
+footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
+.src{font-size:12px;color:var(--dim);margin-top:14px}
 </style>
 </head>
 <body>
 
-<nav class="nav" aria-label="Primary">
-  <div class="wrap">
-    <a class="brand" href="#top">
-      <span class="brand-mark" aria-hidden="true"><i class="on"></i><i class="ok"></i><i></i><i class="ok"></i><i class="ok"></i><i></i><i></i><i class="ok"></i><i class="on"></i></span>
-      Atlas GPU Harness
-    </a>
-    <div class="nav-links">
-      <a href="#results">Results</a>
-      <a href="#runtimes">Runtimes</a>
-      <a href="#replay">Memory replay</a>
-      <a href="#proof">Evidence</a>
-    </div>
-    <a class="btn" href="https://github.com/casualcomputer/atlas-gpu-harness" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-      GitHub
-    </a>
+<nav><div class="wrap">
+  <a class="brand" href="#top"><i></i>Atlas GPU Harness</a>
+  <div class="links">
+    <a href="#problem">Problem</a><a href="#how">How it works</a><a href="#proof">Proof</a><a href="#engines">Engines</a><a href="#roadmap">Roadmap</a>
   </div>
-</nav>
+  <a class="gh" href="https://github.com/casualcomputer/atlas-gpu-harness">GitHub</a>
+</div></nav>
 
-<header class="hero" id="top">
-  <div class="hero-grid" aria-hidden="true"></div>
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="wrap">
-    <span class="pill reveal"><b>LLM deployment engineer</b> RTX 5070 Ti · MongoDB Atlas · measured MoE inference</span>
-    <h1 id="h1"><span class="w">Find</span> <span class="w">the</span> <span class="w scar">configuration</span> <span class="w">that</span> <span class="w">earns</span> <span class="w">its</span> <span class="w">place.</span></h1>
-    <p class="lede reveal">Plan GPU, RAM, and SSD experiments from runtime documentation. Run candidates against a fixed workload, save the evidence, and keep the fastest passing configuration. The completed MoE comparison below retained the engine baseline.</p>
-    <div class="hero-cta reveal">
-      <a class="btn primary" href="#results" id="cta-results">
-        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
-        See the measured run
-      </a>
-      <a class="btn" href="#replay" id="cta-replay">Replay the memory proof</a>
-    </div>
-    <div class="cmd reveal"><span class="dollar">$</span><code>python -m atlas_gpu_harness.deployment_engineer plan --spec spec.json</code></div>
+<header class="hero" id="top"><div class="wrap">
+ <div class="hsplit"><div>
+  <div class="badge"><b>LLM DEPLOYMENT AGENT</b> inference engines · real benchmarks · MongoDB Atlas</div>
+  <h1>Deploy any open model.<br>Keep only what's <span class="accent">proven.</span></h1>
+  <p class="lead">Atlas GPU Harness is a deployment agent for inference teams. It launches the model on a real engine, benchmarks each configuration for correctness, memory and speed, and records every experiment in MongoDB Atlas — so a setting goes to production only when the evidence holds.</p>
+  <div class="cta">
+    <a class="btn primary" href="#proof">See the measured results →</a>
+    <a class="btn" href="#how">How the agent works</a>
   </div>
-</header>
+  </div>
+  <div class="console" aria-label="Replay of measured run 70be4572">
+    <div class="bar2"><i></i><i></i><i></i><span>deployment-agent · run 70be4572</span><span class="live">REPLAY</span></div>
+    <div class="log" id="log">
+      <div><span class="p">$</span> atlas-gpu-harness evolve --model kimi-linear-48b.gguf</div>
+      <div class="m">› model  Kimi-Linear-48B-A3B · Q4_K_M · 30.06 GB · 256 experts</div>
+      <div class="m">› gpu    RTX 5070 Ti · 16,303 MiB · engine llama.cpp b11429</div>
+      <div>baseline  engine auto-fit   <span class="ok">12/12 ✓</span>  47.21 tok/s</div>
+      <div class="at">atlas ▸ commit experiment · baseline</div>
+      <div>policy_1  13 CPU expert layers  <span class="ok">12/12 ✓</span>  <span class="no">22.77 tok/s ▼</span></div>
+      <div class="at">atlas ▸ retrieve 2 experiments → next proposal</div>
+      <div class="m">agent: "The previous policy … slowed down inference."</div>
+      <div>policy_2  14 CPU expert layers  <span class="ok">12/12 ✓</span>  <span class="no">29.77 tok/s</span></div>
+      <div>confirm   baseline · reserved questions  <span class="ok">4/4 ✓</span></div>
+      <div><span class="ok">✓ recipe saved: engine_autofit</span> <span class="m">· no unproven speedup</span></div>
+    </div>
+    <div class="foot"><span class="pill" data-i="3">BASELINE</span><span class="pill" data-i="5">PROPOSE</span><span class="pill" data-i="6">ATLAS MEMORY</span><span class="pill" data-i="9">CONFIRM</span><span class="pill" data-i="10">RECIPE</span></div>
+  </div>
+ </div>
+  <div class="strip"><b>ENGINES</b><span class="m">llama.cpp · measured</span><span class="p">vLLM · planned</span><span class="p">SGLang · planned</span><span class="p">Strata · in progress</span><span class="m">MongoDB Atlas · ledger</span></div>
 
-<section class="current" id="results" aria-labelledby="results-title">
-  <div class="wrap">
-    <div class="current-head">
-      <div>
-        <div class="eyebrow">Measured inference · run 70be4572a9824186999857dadeb1237d</div>
-        <h2 id="results-title">What the Kimi experiment actually found.</h2>
-        <p class="sub">Kimi Linear 48B-A3B Instruct, 30.06 GB Q4_K_M GGUF, on one RTX 5070 Ti with 16,303 MiB VRAM. llama.cpp ran the weights across GPU and system RAM. Only the CPU expert-layer count changed between generated candidates.</p>
+  <div class="stats">
+    <div class="stat"><div class="n">30 GB</div><div class="l">model served on a 16 GB GPU</div></div>
+    <div class="stat"><div class="n accent">12/12</div><div class="l">answer checks, every tuning trial</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">MoE models, full runs on real hardware</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">unproven speedups shipped</div></div>
+  </div>
+</div></header>
+
+<section id="problem"><div class="wrap">
+  <div class="eyebrow">The problem</div>
+  <h2>Deployment tuning is still manual — and expensive to get wrong.</h2>
+  <p class="lead">Every new model × GPU × engine version needs its own configuration. Dozens of interdependent flags, hard requirements that can't break, and benchmarks that are easy to fool.</p>
+  <div class="grid3" style="margin-top:36px">
+    <div class="card"><div class="k">Compute is scarce</div><h3>Memory prices up 400%+</h3><p>DRAM is projected to rise more than 400% from 2024 to the end of 2026, and inference is now about two-thirds of AI compute. Getting more from existing GPUs is the cheapest capacity there is.</p></div>
+    <div class="card"><div class="k">Dependencies everywhere</div><h3>Model × hardware × engine</h3><p>Expert offload, GPU layers, KV cache, context, threads — each depends on the GPU, driver, engine version and model architecture. Change one, and you tune again.</p></div>
+    <div class="card"><div class="k">False wins</div><h3>Benchmarks lie quietly</h3><p>A config can be fast and wrong, or "faster" only because of noise. Without controls, a bad result becomes the baseline for every decision after it.</p></div>
+  </div>
+  <p class="src">Sources: J.P. Morgan Global Research, Aug 2026 (DRAM); Deloitte via Presenc research (inference share).</p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="eyebrow">How it works</div>
+  <h2>A controlled experiment loop, not a guess.</h2>
+  <p class="lead">The agent proposes; the harness decides. Each step writes to or reads from Atlas, so a crashed run resumes from what was proven and the next proposal starts from real measurements.</p>
+  <div class="loop">
+    <div class="step"><h3>Inspect</h3><p>Read model metadata, GPU, RAM and engine version.</p></div>
+    <div class="step"><h3>Baseline</h3><p>Measure the engine's own default first, under a fixed contract.</p></div>
+    <div class="step"><h3>Propose</h3><p>A coding model writes the placement policy as constrained Python.</p></div>
+    <div class="step"><h3>Benchmark</h3><p>Run the real model. Check every answer, sample memory, measure speed.</p></div>
+    <div class="step atlas"><h3>Atlas</h3><p>Commit results, failures and the evidence each decision used.</p></div>
+  </div>
+  <div class="locked">The agent can change only what it's allowed to change. Model file, engine, context, threads, decoding, answer rules and acceptance thresholds are locked by the harness. A compatibility fingerprint of GPU, driver, engine and model stops evidence from being reused where it doesn't apply.</div>
+  <div class="grid3" style="margin-top:20px">
+    <div class="card"><div class="k">Gate 1</div><h3>Correct or rejected</h3><p>Exact JSON answer checks on fixed questions. A wrong answer is never counted as fast.</p></div>
+    <div class="card"><div class="k">Gate 2</div><h3>Confirm on unseen questions</h3><p>The best tuning result is re-run on reserved questions the agent never saw, in reversed order.</p></div>
+    <div class="card"><div class="k">Gate 3</div><h3>Beat the default, clearly</h3><p>A candidate replaces the engine default only if each confirmation block improves decode speed by more than 5%.</p></div>
+  </div>
+</div></section>
+
+<section id="proof"><div class="wrap">
+  <div class="eyebrow">Measured · run 70be4572 · RTX 5070 Ti, 16,303 MiB</div>
+  <h2>A 30 GB model on a 16 GB GPU — and an agent that learned from its mistake.</h2>
+  <p class="lead">Kimi Linear 48B-A3B Instruct, 30.06 GB Q4_K_M GGUF. llama.cpp serves it across GPU and system RAM. Only the CPU expert-layer count changed between candidates.</p>
+
+  <div class="grid2" style="margin-top:36px">
+    <div class="card">
+      <div class="k">Short-answer decode speed · tokens/s · higher is faster</div>
+      <div class="chart" id="chart">
+        <div class="row"><div class="name">Engine auto-fit<small>baseline · default</small></div><div class="bar"><i class="keep" data-v="47.21"></i></div><div class="v">47.21</div></div>
+        <div class="row"><div class="name">Agent policy 1<small>13 CPU expert layers</small></div><div class="bar"><i class="rej" data-v="22.77"></i></div><div class="v">22.77</div></div>
+        <div class="row"><div class="name">Agent policy 2<small>14 CPU expert layers</small></div><div class="bar"><i class="rej" data-v="29.77"></i></div><div class="v">29.77</div></div>
       </div>
-      <span class="badge measured">saved Atlas evidence</span>
+      <p class="src">All three trials passed 12/12 checks (six questions, twice). Baseline sampled GPU peak 15,472 MiB.</p>
+      <div class="verdict"><b>Kept: engine auto-fit.</b> It then passed 4/4 reserved confirmation questions and was saved as the launch recipe. No speedup is claimed.</div>
     </div>
-    <div class="results-grid">
-      <article class="result-panel" aria-labelledby="speed-title">
-        <h3 id="speed-title">Short-answer decode rate</h3>
-        <p>Median engine-reported tokens per second. Each tuning trial passed 12/12 checks: six questions, twice. Higher is faster.</p>
-        <div class="trial-chart" role="img" aria-label="Engine auto-fit 47.21 tokens per second; generated policy with 13 CPU expert layers 22.77; revised policy with 14 layers 29.77.">
-          <div class="trial baseline"><span class="label">Engine auto-fit</span><span class="track"><span class="fill" style="--bar:100%"></span></span><span class="value">47.21</span></div>
-          <div class="trial"><span class="label">Policy 1 · 13</span><span class="track"><span class="fill" style="--bar:48.2%"></span></span><span class="value">22.77</span></div>
-          <div class="trial"><span class="label">Policy 2 · 14</span><span class="track"><span class="fill" style="--bar:63.1%"></span></span><span class="value">29.77</span></div>
-        </div>
-        <div class="trial-notes">
-          <div><b>12 / 12</b>each tuning trial passed</div>
-          <div><b>15,472 MiB</b>baseline sampled GPU peak</div>
-          <div><b>+30.73%</b>revision over policy 1</div>
-        </div>
-        <div class="result-verdict"><b>Saved choice: engine auto-fit.</b> The revision recovered speed but was still 36.94% slower than the baseline. The baseline passed 4/4 reserved confirmation questions. No inference speedup is claimed.</div>
-        <div class="source-links"><a href="../evidence/inference/70be4572a9824186999857dadeb1237d.json">Full Atlas export</a><a href="../evidence/kimi-decision-evidence.json">Decision-to-evidence links</a><a href="../INFERENCE_RESULTS.md">Methods and limits</a></div>
-      </article>
-      <article class="result-panel" id="runtimes" aria-labelledby="runtimes-title">
-        <h3 id="runtimes-title">Runtime experiment queue</h3>
-        <p>The planner cites official documentation and proposes one change at a time. A plan is a hypothesis until a compatible model and runtime have been measured.</p>
-        <div class="runtime-list">
-          <div class="runtime-row"><span class="name">llama.cpp · GGUF</span><span class="state done">measured · baseline kept</span></div>
-          <div class="runtime-row"><span class="name">vLLM · HF weights</span><span class="state">planned · no live result</span></div>
-          <div class="runtime-row"><span class="name">SGLang · HF weights</span><span class="state">planned · no live result</span></div>
-          <div class="runtime-row"><span class="name">Unsloth · export</span><span class="state">artifact guidance</span></div>
-        </div>
-        <p class="runtime-note">Candidate axes: expert placement and parallelism, GPU weight pressure, CPU offload, KV cache use, and cold versus warm SSD load. Compare only supported artifacts under the same workload.</p>
-        <p class="runtime-note"><b>Policy research:</b> Strata and Maya suggest adaptive per-expert VRAM/RAM/SSD tiers, but neither runs the measured Kimi artifact here. A gain over llama.cpp still needs a compatible implementation and matched experiment.</p>
-        <div class="source-links"><a href="../DEPLOYMENT_ENGINEER.md">Run the planner</a><a href="../RUNTIME_RESEARCH.md">Runtime sources</a><a href="../STRATA_MAYA_RESEARCH.md">Strata/Maya research</a></div>
-      </article>
+
+    <div class="card">
+      <div class="k">What the agent did, from the Atlas decision log</div>
+      <ul class="tl">
+        <li class="g"><b>Baseline measured.</b> 47.21 tok/s, 12/12 correct.</li>
+        <li class="r"><b>Policy 1</b> — hypothesis: "slightly reduce CPU experts to conserve GPU memory." Result: 22.77 tok/s, about 52% slower.</li>
+        <li class="g"><b>Policy 2</b> read that failure from Atlas: "The previous policy … slowed down inference. Revert to the initial estimate." Result: +30.73% over policy 1.</li>
+        <li class="r"><b>Still 36.94% slower</b> than the default — so the harness did not promote it.</li>
+        <li class="g"><b>Default confirmed</b> on unseen questions. Recipe saved and reused.</li>
+      </ul>
+      <pre><span class="cm"># the agent's generated choose(), verbatim from Atlas</span>
+<span class="del">- n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'] - 1)</span>
+<span class="add">+ n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'])</span>
+  return {'n_cpu_moe': n_cpu_moe}</pre>
     </div>
   </div>
-</section>
 
-<section class="current" aria-labelledby="memory-title">
-  <div class="wrap current-head" style="margin-bottom:0">
-    <div><div class="eyebrow">Earlier operator prototype · separate experiment</div><h2 id="memory-title">Replay how the notebook preserves progress.</h2><p class="sub">The motion sequence below replays exported MongoDB Atlas records from real PyTorch top-k runs. Its `sort_stable` and `argsort_stable` names identify tested PyTorch operators, not llama.cpp, Strata, or Maya inference policies. This page replays saved data; it does not query Atlas live. Its microsecond chart is separate from the Kimi inference results above.</p></div>
-    <div class="source-links"><a href="../EVIDENCE.md">Prototype evidence</a><a href="../MONGODB_AUDIT.md">Live Atlas audit</a></div>
+  <div class="grid3" style="margin-top:16px">
+    <div class="card"><div class="k">Second model · run b88ec5bd</div><h3>Fake win rejected <span class="tag r">REJECTED</span></h3><p>Qwen3.5-35B-A3B (11.39 GB). A candidate measured +3.56% and +1.92% on confirmation — below the 5% rule, so the default stayed. Seven trials, every answer passed.</p></div>
+    <div class="card"><div class="k">Resume</div><h3>Nothing re-run <span class="tag g">7.80 s</span></h3><p>Resuming the finished Kimi run returned its saved recommendation from Atlas without changing any experiment, attempt count or decision.</p></div>
+    <div class="card"><div class="k">Deploy</div><h3>Recipe launched <span class="tag g">SERVED</span></h3><p>The saved recipe launched the same engine configuration; the health check passed and the API answered the evaluation prompt correctly.</p></div>
   </div>
-</section>
 
-<div class="stage" id="replay">
-  <div class="wrap">
-    <div class="console" id="console" aria-label="Replay of recorded Atlas runs">
-      <div class="flash" aria-hidden="true"></div><div class="scan" aria-hidden="true"></div>
-      <div class="cbar">
-        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title">replay · <b id="runlabel">run 2eb9f21a</b> · recorded 2026-10-11</span>
-        <span class="chap-now"><span class="n" id="chapn">01</span><span class="t" id="chapt">Baseline</span></span>
-      </div>
-      <div class="cgrid">
-        <section class="pane p-term">
-          <div class="phead">Controller <span class="r"><span class="state running" id="ctlstate">running</span></span></div>
-          <div class="term" id="term" aria-live="polite"></div>
-          <div class="deadveil" aria-hidden="true"><div class="deadcard"><div class="code">exit 86</div><div class="t">controller process killed after commit</div><div class="s">in-memory progress: gone</div></div></div>
-        </section>
-        <section class="pane p-gpu">
-          <div class="phead">PyTorch operators · RTX 5070 Ti <span class="r"><span class="mem" id="mem">memory: 4 records</span></span></div>
-          <div class="cands" id="cands"></div>
-        </section>
-        <section class="pane p-atlas">
-          <div class="phead">MongoDB Atlas <span class="r counts"><span>exp <b id="nexp">0</b></span><span>dec <b id="ndec">0</b></span></span></div>
-          <div class="ledger" id="ledger"></div>
-          <div class="survive" aria-hidden="true">✓ baseline committed before the crash<br>durable in Atlas · attempt 1</div>
-        </section>
-      </div>
-      <div class="cfoot">
-        <button class="ctl" id="play" aria-label="Pause"><svg viewBox="0 0 16 16" fill="currentColor" id="playico"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button>
-        <button class="ctl" id="restart" aria-label="Restart replay"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4M2.5 2.5v3h3"/></svg></button>
-        <div class="chapters" id="chapters"></div>
-        <button class="speed" id="speed" aria-label="Playback speed">1×</button>
-        <span class="clock tab" id="clock">00:00</span>
-      </div>
-    </div>
-    <p class="caption" id="caption"></p>
-    <div class="spec">
-      <span>op <b>exact top-k indices</b></span>
-      <span>n <b>16,384 float32</b></span>
-      <span>k <b>64</b></span>
-      <span>ties <b>lower index wins</b></span>
-      <span>timing <b>CUDA events · 10 warmup · 30 samples</b></span>
-      <span>seed <b>20261011</b></span>
-    </div>
+  <div class="links2">
+    <a href="../evidence/inference/70be4572a9824186999857dadeb1237d.json">Kimi · full Atlas export</a>
+    <a href="../evidence/kimi-decision-evidence.json">Decision → evidence links</a>
+    <a href="../evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json">Qwen 35B · Atlas export</a>
+    <a href="../evidence/inference-resume.json">Resume receipt</a>
+    <a href="../evidence/inference-serve.json">Launch receipt</a>
+    <a href="../INFERENCE_RESULTS.md">Methods &amp; limits</a>
   </div>
-</div>
+</div></section>
 
-<section class="blk" id="loop">
-  <div class="wrap split">
-    <div class="txt">
-      <div class="eyebrow">The loop</div>
-      <h2>Evidence first. Then the next decision.</h2>
-      <p class="sub">The controller never trusts its own process memory. Each step writes or reads a document in Atlas, so a restart rebuilds progress from what was proven.</p>
-      <div class="facts">
-        <div class="fact"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9.5l3 3 7-7"/></svg><span><b>Exact oracle.</b> A CPU reference fixes the expected indices, including tie order, before any timing runs.</span></div>
-        <div class="fact"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9.5l3 3 7-7"/></svg><span><b>Owner-token commits.</b> A completed experiment is written once, with attempt count and the run's context hash.</span></div>
-        <div class="fact"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9.5l3 3 7-7"/></svg><span><b>Decisions cite their evidence.</b> Every decision document lists the experiment IDs it retrieved.</span></div>
-      </div>
-    </div>
-    <div class="frame">
-      <div class="fh">policy · deterministic-memory-v1 <span class="r">no LLM</span></div>
-      <div class="loop">
-        <svg class="loopsvg" viewBox="0 0 560 380" role="img" aria-label="Loop: check, measure, commit, retrieve">
-          <path id="looppath" class="track" d="M140 70 H420 A70 70 0 0 1 490 140 V240 A70 70 0 0 1 420 310 H140 A70 70 0 0 1 70 240 V140 A70 70 0 0 1 140 70 Z"/>
-          <path class="runner" id="runner" d="M140 70 H420 A70 70 0 0 1 490 140 V240 A70 70 0 0 1 420 310 H140 A70 70 0 0 1 70 240 V140 A70 70 0 0 1 140 70 Z"/>
-          <rect class="core" x="190" y="150" width="180" height="80" rx="14"/>
-          <text class="core-t" x="280" y="180" text-anchor="middle">MongoDB Atlas</text>
-          <text class="core-b" x="280" y="210" text-anchor="middle">runs · experiments · decisions</text>
-          <g class="node" data-i="0" transform="translate(30,36)"><rect width="200" height="68" rx="12"/><text class="n" x="16" y="24">01 CHECK</text><text class="t" x="16" y="50">CPU oracle, exact IDs</text></g>
-          <g class="node" data-i="1" transform="translate(330,36)"><rect width="200" height="68" rx="12"/><text class="n" x="16" y="24">02 MEASURE</text><text class="t" x="16" y="50">30 CUDA samples</text></g>
-          <g class="node" data-i="2" transform="translate(330,276)"><rect width="200" height="68" rx="12"/><text class="n" x="16" y="24">03 COMMIT</text><text class="t" x="16" y="50">experiment → Atlas</text></g>
-          <g class="node" data-i="3" transform="translate(30,276)"><rect width="200" height="68" rx="12"/><text class="n" x="16" y="24">04 RETRIEVE</text><text class="t" x="16" y="50">prior records → policy</text></g>
-        </svg>
-      </div>
-    </div>
+<section id="engines"><div class="wrap">
+  <div class="eyebrow">Inference engines</div>
+  <h2>One agent, many engines.</h2>
+  <p class="lead">The deployment agent plans source-cited experiments for each engine and benchmarks any running OpenAI-compatible endpoint under the same workload. Status is shown exactly as measured.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Engine</th><th>What the agent tunes</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><b>llama.cpp</b><br><small>GGUF · consumer &amp; workstation GPUs</small></td><td>MoE expert placement across GPU/CPU (<code>n_cpu_moe</code>) vs. engine auto-fit</td><td><span class="tag g">MEASURED</span><br><small>Kimi 48B + Qwen 35B, full runs</small></td></tr>
+      <tr><td><b>vLLM</b><br><small>HF weights · data center</small></td><td>GPU memory utilization, KV cache size &amp; dtype, CPU offload, expert parallelism, batching</td><td><span class="tag a">PLANNER + BENCHMARK READY</span><br><small>No live result yet</small></td></tr>
+      <tr><td><b>SGLang</b><br><small>HF weights · data center</small></td><td>Static memory fraction, KV dtype, CPU offload, EP size, MoE backends, running-request limit</td><td><span class="tag a">PLANNER + BENCHMARK READY</span><br><small>No live result yet</small></td></tr>
+      <tr><td><b>Strata</b><br><small>adaptive expert tiers</small></td><td>VRAM/RAM/PCIe expert cache policy at 32K–128K input tokens</td><td><span class="tag d">IN PROGRESS</span><br><small>No measurements published</small></td></tr>
+    </tbody>
+  </table></div>
+  <div class="links2">
+    <a href="../DEPLOYMENT_ENGINEER.md">Run the planner</a>
+    <a href="../RUNTIME_RESEARCH.md">Engine documentation sources</a>
+    <a href="../STRATA_MAYA_RESEARCH.md">Strata / Maya research</a>
   </div>
-</section>
+</div></section>
 
-<section class="blk" id="correctness" style="padding-top:0">
-  <div class="wrap split rev">
-    <div class="txt">
-      <div class="eyebrow">Correctness gates speed</div>
-      <h2>A fast wrong answer is never timed.</h2>
-      <p class="sub">Direct <span class="mono" style="font-size:.85em">torch.topk</span> returned the right values in the wrong tie order. The harness rejected it, stored the failing case in Atlas, and the next run skipped it along with unstable sort, its tie-risk neighbor.</p>
-    </div>
-    <div class="frame">
-      <div class="fh">fixture “ties” · k = 2 <span class="r">experiments/63bff614</span></div>
-      <div class="tie" id="tie">
-        <div class="arr"><span class="lab">scores</span>
-          <div class="cell top"><small>i=0</small>3.0</div><div class="cell top"><small>i=1</small>3.0</div><div class="cell"><small>i=2</small>2.0</div><div class="cell"><small>i=3</small>1.0</div>
-        </div>
-        <div class="outs"><span class="lab">oracle</span><div class="outrow"><span class="idx g">0</span><span class="idx g">1</span><span class="verdict g">expected</span></div></div>
-        <div class="outs"><span class="lab">topk_sorted</span><div class="outrow"><span class="idx b" id="sw0">1</span><span class="idx b" id="sw1">0</span><span class="verdict b">2 of 5 checks failed</span></div></div>
-        <div class="stamp" id="stamp">rejected · not timed</div>
-      </div>
-    </div>
+<section id="roadmap"><div class="wrap">
+  <div class="eyebrow">Roadmap</div>
+  <h2>From one GPU to every model on every chip.</h2>
+  <p class="lead">Atlas is what makes this scale: many agents on many machines need one shared, durable record of what was tested, what failed and what was proven.</p>
+  <div class="road">
+    <div class="card"><div class="k">Today · built</div><h3>Controlled deployment loop</h3><p>Real engine runs, answer gates, held-out confirmation, saved recipes, resume — measured on llama.cpp with two MoE models.</p></div>
+    <div class="card next"><div class="k">Next</div><h3>Data center engines</h3><p>Live vLLM and SGLang benchmarks under the same contract, with results flowing into the same Atlas ledger.</p></div>
+    <div class="card future"><div class="k">Vision</div><h3>Autonomous fleet tuning</h3><p>Parallel agents exploring configurations across NVIDIA, AMD and Intel, controlling their own experiments — so new open models run efficiently on day one.</p></div>
   </div>
-</section>
+</div></section>
 
-<section class="blk" id="timing" style="padding-top:0">
-  <div class="wrap">
-    <div class="eyebrow">Measurements</div>
-    <h2>Every sample, not just the headline.</h2>
-    <p class="sub">Thirty CUDA-event samples per candidate, per run. Medians are marked. The same baseline moved from 104.1 to 121.8 µs between runs, which is why no single median gets called a win.</p>
-    <div class="frame" style="margin-top:32px">
-      <div class="fh">latency per call, µs · RTX 5070 Ti <span class="r">lower is faster</span></div>
-      <div class="chartwrap"><svg class="chart" id="chart" viewBox="0 0 900 330" role="img" aria-label="Dot plot of CUDA timing samples per candidate in two runs"></svg></div>
-      <div class="legend"><span><i style="background:var(--amber)"></i>run 2eb9f21a (crash + resume)</span><span><i style="background:var(--violet)"></i>run 21dbac51 (memory-informed)</span><span><i style="background:var(--fg);border-radius:1px;width:2px;height:10px"></i>median</span></div>
-    </div>
-    <div class="honest"><b>No speedup claimed.</b> Stable argsort had the lowest median in both runs, but the alternating paired recheck against the baseline did not support a speedup. The demonstrated outcomes are preserved work and memory that changes the next decision.</div>
-  </div>
-</section>
+<footer><div class="wrap">
+  Atlas GPU Harness · measured on one RTX 5070 Ti with llama.cpp b11429 · short exact-answer workloads, not a production throughput benchmark · vLLM, SGLang and Strata results pending · <a href="https://github.com/casualcomputer/atlas-gpu-harness">github.com/casualcomputer/atlas-gpu-harness</a>
+</div></footer>
 
-<section class="blk" id="proof" style="padding-top:0">
-  <div class="wrap">
-    <div class="eyebrow">Verified on October 11, 2026</div>
-    <h2>Three outcomes, each with a run ID.</h2>
-    <div class="outcomes">
-      <article class="oc"><div class="big t">1 attempt</div><h3>Preserved across a crash</h3><p>The controller exited with code 86 right after committing the baseline. Resume read Atlas, skipped the baseline, and finished the other three candidates.</p><div class="rid">run 2eb9f21a2e374f358c4a42b9fbe2258d</div></article>
-      <article class="oc"><div class="big r">[1, 0]</div><h3>Rejected before timing</h3><p>Direct top-k failed the ties and negative_and_ties fixtures. It was stored as a failed experiment with no timing, so it could never be reported as fast.</p><div class="rid">experiments/63bff614 · run 2eb9f21a</div></article>
-      <article class="oc"><div class="big a">3 / 5</div><h3>Remembered by the next run</h3><p>The next run retrieved 4 prior records before its first decision, skipped the known failure, screened unstable sort, and stopped after 3 of 5 evaluations.</p><div class="rid">run 21dbac5116a04dafa1ddaed17ea34030</div></article>
-    </div>
-  </div>
-</section>
-
-<section class="closing">
-  <div class="hero-grid" aria-hidden="true"></div>
-  <div class="wrap" style="position:relative">
-    <div class="eyebrow">Atlas GPU Harness</div>
-    <h2>Long runs should keep what they learn.</h2>
-    <p class="sub">The measured MoE loop retains a validated llama.cpp recipe in Atlas. The runtime planner names the next vLLM and SGLang experiments. Strata and Maya inform a richer policy research track; no speedup over llama.cpp has been demonstrated by this harness.</p>
-    <div class="hero-cta" style="margin-top:28px">
-      <a class="btn primary" href="#replay" id="cta-replay2"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>Watch it again</a>
-      <a class="btn" href="https://github.com/casualcomputer/atlas-gpu-harness" target="_blank" rel="noopener">Read the code</a>
-    </div>
-  </div>
-</section>
-
-<footer class="foot"><div class="wrap"><span>Saved evidence: Kimi inference export and earlier PyTorch replay in evidence/</span><span>Measured inference: llama.cpp · runtime planner: vLLM, SGLang · no speedup claimed</span></div></footer>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
 (function(){
-"use strict";
-const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/* ================= evidence (from evidence/report-*.json) ================= */
-const S = {"21dbac51":{"sort_stable":[157.8,320.6,142.7,136.3,74.8,120.0,98.3,117.9,131.4,147.1,149.1,121.7,156.4,173.7,116.1,98.7,86.4,108.7,169.0,98.5,196.5,168.0,111.0,145.3,123.5,121.9,109.0,110.1,91.1,110.4],"argsort_stable":[223.6,78.9,99.9,75.9,96.3,88.7,91.5,127.4,118.6,171.2,74.9,87.6,91.8,93.1,173.2,113.9,223.6,136.4,112.3,85.6,103.2,112.0,124.3,203.6,80.4,119.6,123.6,89.5,98.2,143.6],"packed_topk":[235.7,219.9,216.4,231.0,228.8,223.3,219.6,250.1,245.9,392.9,270.8,238.8,221.9,213.0,232.7,242.4,210.6,211.6,233.4,220.7,201.8,214.0,215.7,213.2,201.5,219.5,205.7,228.0,207.7,205.1]},"2eb9f21a":{"sort_stable":[92.6,133.2,84.4,140.3,109.9,104.0,94.5,123.2,93.9,89.7,114.0,104.2,92.4,106.6,105.5,89.8,88.7,80.9,88.7,126.6,110.5,90.9,130.0,90.9,113.6,110.5,112.4,101.6,112.1,92.9],"argsort_stable":[125.3,93.1,95.1,89.6,90.5,128.8,133.9,88.0,89.2,81.5,85.2,142.3,82.2,91.6,102.5,84.1,93.3,94.0,87.4,99.1,92.6,88.7,86.6,98.9,100.3,101.4,94.0,90.0,91.5,100.3],"packed_topk":[256.6,228.8,231.0,215.7,218.3,215.7,213.3,237.0,227.2,236.4,214.5,228.4,224.4,227.5,215.1,221.4,211.7,332.5,240.6,247.6,204.0,233.9,216.8,274.8,215.6,209.3,196.4,225.4,215.8,218.1]}};
-const MED = {"2eb9f21a":{sort_stable:104.1,argsort_stable:92.8,packed_topk:222.9},"21dbac51":{sort_stable:121.8,argsort_stable:107.6,packed_topk:220.3}};
-const EXPID = {sort_stable:"75e9243a",argsort_stable:"74b5bce6",packed_topk:"aca41497",topk_sorted:"63bff614"};
-const CANDS = ["sort_stable","argsort_stable","packed_topk","topk_sorted","sort_unstable"];
-const CMD = '<span class="p">$</span> python -m atlas_gpu_harness ';
-
-/* ================= script of events (seconds) ================= */
-const CHAPTERS = [
-  {t:0,    n:"01", name:"Baseline", cap:"<b>Baseline.</b> The controller picks the stable-sort baseline, checks it against the CPU oracle, times 30 CUDA samples, and commits the result to Atlas."},
-  {t:7.0,  n:"02", name:"Crash",    cap:"<b>Crash.</b> <span class='mono'>--fault-after-commit</span> kills the controller with exit 86. Its in-memory state is gone. The baseline document in Atlas is not."},
-  {t:9.6,  n:"03", name:"Resume",   cap:"<b>Resume.</b> A fresh process reads Atlas, finds the baseline at attempt 1, skips it, and continues with the remaining candidates."},
-  {t:22.8, n:"04", name:"Reject",   cap:"<b>Reject.</b> Direct top-k returns [1, 0] where the oracle expects [0, 1]. It is stored as a failure and never timed."},
-  {t:28.0, n:"05", name:"Remember", cap:"<b>Remember.</b> The next run retrieves 4 prior records before its first decision, skips the known failure, screens unstable sort, and stops at 3 of 5 evaluations."}
-];
-const EV = [];
-const ev = (t, type, p) => EV.push(Object.assign({t, type}, p||{}));
-const line = (t, html, cls) => ev(t, "line", {html, cls});
-
-function evaluate(run, c, t0, opts){
-  opts = opts||{};
-  // decision first
-  ev(t0-0.6, "card", {run, c, s:"deciding", note:"retrieved "+opts.retr+" record"+(opts.retr===1?"":"s")});
-  ev(t0-0.6, "doc", {coll:"decisions", cls:"dec", id:opts.dec, run, c, kv:[["candidate",'"'+c+'"'],["retrieved", String(opts.retr), "am"]]});
-  line(t0-0.55, 'decide  <span style="color:var(--fg)">'+c+'</span>  · retrieved '+opts.retr, "dim");
-  ev(t0, "card", {run, c, s:"checking", checkStart:t0, fails:opts.fails||[]});
-  if (opts.fails){
-    ev(t0+1.35, "card", {run, c, s:"rejected", note:"ties: expected [0,1] got [1,0]"});
-    ev(t0+1.6, "doc", {coll:"experiments", cls:"fail", id:EXPID[c], run, c, kv:[["candidate",'"'+c+'"'],["status",'"failed"',"bad"],["timing","none","bad"]]});
-    line(t0+1.4, 'reject  '+c+'  ties: expected [0,1] got [1,0] · not timed', "bad");
-    return;
-  }
-  ev(t0+1.3, "card", {run, c, s:"timing", timeStart:t0+1.3, timeEnd:t0+3.3});
-  const med = MED[run][c];
-  ev(t0+3.5, "card", {run, c, s:"committed", med, note:"attempt 1"});
-  ev(t0+3.5, "doc", {coll:"experiments", cls:"exp", id:EXPID[c], run, c, kv:[["candidate",'"'+c+'"'],["status",'"completed"',"ok"],["attempt","1"],["median_us",med.toFixed(1),"am"]]});
-  line(t0+3.55, 'commit  experiments/'+EXPID[c]+'  '+c+'  '+med.toFixed(1)+' µs', "ok");
-}
-
-// ---- run 2eb9f21a ----
-ev(0, "run", {run:"2eb9f21a"});
-ev(0, "ctl", {v:"running"});
-line(0.1, CMD+"run --budget-evals 4 --fault-after-commit", "cmd");
-line(0.9, "preflight  RTX 5070 Ti · 16,303 MiB · cc 12.0 · torch 2.8.0+cu128", "dim");
-line(1.4, "run 2eb9f21a…258d created · budget 4", "");
-evaluate("2eb9f21a","sort_stable",2.6,{retr:0,dec:"d4f29d20"});
-line(6.8, "FAULT  --fault-after-commit → os._exit(86)", "bad");
-ev(7.0, "ctl", {v:"dead", fx:true});
-ev(9.6, "ctl", {v:"idle"});
-line(9.6, "──── new process ────", "sep");
-line(10.0, CMD+"status --run-id 2eb9f21a", "cmd");
-line(10.7, "run 2eb9f21a  in_progress   1 experiment in Atlas", "");
-line(11.1, "  sort_stable  completed  attempt 1", "ok");
-line(11.8, CMD+"resume --run-id 2eb9f21a", "cmd");
-ev(11.8, "ctl", {v:"running"});
-ev(12.4, "card", {run:"2eb9f21a", c:"sort_stable", s:"restored", med:104.1, note:"from Atlas · not rerun"});
-line(12.4, "restore sort_stable from Atlas · attempt 1 · skip", "ok");
-evaluate("2eb9f21a","argsort_stable",13.8,{retr:1,dec:"3e74e0e7"});
-evaluate("2eb9f21a","packed_topk",18.4,{retr:2,dec:"bca1aee0"});
-evaluate("2eb9f21a","topk_sorted",23.4,{retr:3,dec:"b60ee09b",fails:["ties","negative_and_ties"]});
-line(25.9, "done  4/4 · lowest median argsort_stable 92.8 µs", "");
-line(26.4, "paired recheck: speedup not supported", "warn");
-ev(26.4, "ctl", {v:"idle"});
-// ---- run 21dbac51 ----
-ev(28.0, "run", {run:"21dbac51"});
-ev(28.0, "ctl", {v:"running"});
-line(28.0, "──── next run ────", "sep");
-line(28.2, CMD+"run --budget-evals 5", "cmd");
-line(28.8, "run 21dbac51…a030 created · budget 5", "");
-ev(29.3, "retrieve", {});
-line(29.3, "retrieve  4 prior records · context b25fc562", "warn");
-ev(30.0, "card", {run:"21dbac51", c:"topk_sorted", s:"skipped", note:"stored tie failure 63bff614"});
-line(30.0, "skip    topk_sorted   stored tie failure", "warn");
-ev(30.5, "card", {run:"21dbac51", c:"sort_unstable", s:"screened", note:"tie-risk neighbor"});
-line(30.5, "screen  sort_unstable tie-risk neighbor", "warn");
-evaluate("21dbac51","sort_stable",31.6,{retr:4,dec:"8516edfd"});
-evaluate("21dbac51","argsort_stable",36.0,{retr:5,dec:"c109e57f"});
-evaluate("21dbac51","packed_topk",40.4,{retr:6,dec:"d6538ca9"});
-line(44.6, "stopped 3/5 · known failure not repeated", "ok");
-ev(44.6, "ctl", {v:"idle"});
-EV.sort((a,b)=>a.t-b.t);
-const END = 48;
-
-/* ================= pure state at time t ================= */
-function stateAt(t){
-  const st = {run:"2eb9f21a", ctl:"running", lines:[], docs:[], cards:{}, retrieved:false, chapter:0, fxAt:null};
-  const reset = run => { st.cards = {}; CANDS.forEach(c=>st.cards[c]={s:(run==="2eb9f21a"&&c==="sort_unstable")?"untried":"queued"}); };
-  reset("2eb9f21a");
-  for (const e of EV){
-    if (e.t > t) break;
-    switch(e.type){
-      case "run": if (e.run!==st.run){ st.run=e.run; reset(e.run);} break;
-      case "ctl": st.ctl=e.v; if (e.fx) st.fxAt=e.t; break;
-      case "line": st.lines.push(e); break;
-      case "doc": st.docs.push(e); break;
-      case "retrieve": st.retrieved=true; break;
-      case "card": if (e.run===st.run){ const cur=st.cards[e.c]; Object.assign(cur, e, {s:e.s}); if(e.s!=="checking"){cur.checkStart=cur.checkStart;} } break;
-    }
-  }
-  CHAPTERS.forEach((c,i)=>{ if (t>=c.t) st.chapter=i; });
-  return st;
-}
-
-/* ================= render ================= */
-const $ = id => document.getElementById(id);
-const termEl=$("term"), candsEl=$("cands"), ledgerEl=$("ledger"), consoleEl=$("console");
-let renderedLines=[], renderedDocs=[], lastFx=null;
-
-// candidate cards (built once)
-const cardEls = {};
-CANDS.forEach(c=>{
-  const d=document.createElement("div"); d.className="card"; d.dataset.s="queued";
-  d.innerHTML='<span class="nm">'+c+'</span><span class="chip">queued</span><div class="row"><span class="checks">'+'<i></i>'.repeat(5)+'</span><svg class="spark" viewBox="0 0 100 22" preserveAspectRatio="none"><polygon class="area" points=""></polygon><polyline points=""></polyline></svg><span class="note"></span><span class="med"></span></div>';
-  candsEl.appendChild(d);
-  cardEls[c]={root:d, chip:d.querySelector(".chip"), checks:[...d.querySelectorAll(".checks i")], spark:d.querySelector(".spark"), poly:d.querySelector("polyline"), area:d.querySelector(".area"), note:d.querySelector(".note"), med:d.querySelector(".med"), sig:""};
-});
-const CASES=["ties","k_one","k_all","negative_and_ties","fixed_workload"];
-const LABEL={queued:"queued",untried:"not reached",deciding:"deciding",checking:"oracle",timing:"timing",committed:"committed",restored:"restored",rejected:"rejected",skipped:"skipped",screened:"screened"};
-
-function renderCard(c, cs, run, t){
-  const el = cardEls[c];
-  el.root.dataset.s = cs.s;
-  el.chip.textContent = LABEL[cs.s]||cs.s;
-  // checks
-  let nDone = 0;
-  if (cs.s==="checking") nDone = Math.min(5, Math.floor((t-cs.checkStart)/0.24)+1);
-  else if (["timing","committed","restored","rejected"].includes(cs.s)) nDone = 5;
-  const fails = cs.fails||[];
-  el.checks.forEach((i,k)=>{ i.className = k<nDone ? (fails.includes(CASES[k])?"f":"p") : ""; });
-  // sparkline
-  const samples = (S[run]||{})[c];
-  let shown = 0;
-  if (cs.s==="timing") shown = Math.max(1, Math.min(30, Math.ceil((t-cs.timeStart)/(cs.timeEnd-cs.timeStart)*30)));
-  else if ((cs.s==="committed"||cs.s==="restored") && samples) shown = 30;
-  if (samples && shown>0){
-    const lo=60, hi=400, pts=[];
-    for (let k=0;k<shown;k++){ const x=k/29*100, v=Math.min(hi,samples[k]); const y=22-((v-lo)/(hi-lo))*20-1; pts.push(x.toFixed(2)+","+y.toFixed(2)); }
-    el.poly.setAttribute("points", pts.join(" "));
-    el.area.setAttribute("points", "0,22 "+pts.join(" ")+" "+(((shown-1)/29)*100).toFixed(2)+",22");
-    el.spark.style.display="";
-  } else { el.poly.setAttribute("points",""); el.area.setAttribute("points",""); el.spark.style.display = (cs.s==="queued"||cs.s==="untried")?"":"none"; }
-  // note & median
-  const showNote = ["deciding","rejected","skipped","screened"].includes(cs.s) || (cs.s==="checking");
-  el.note.textContent = cs.s==="checking" ? (nDone<5? "check "+CASES[Math.max(0,nDone-1)] : "fixed_workload sha256") : (showNote? (cs.note||"") : "");
-  el.note.style.display = (showNote)?"":"none";
-  if (cs.s==="timing"){ el.med.innerHTML = '<small>sample</small> '+shown+'/30'; }
-  else if (cs.med && (cs.s==="committed"||cs.s==="restored")) el.med.innerHTML = cs.med.toFixed(1)+' <small>µs</small>';
-  else el.med.innerHTML = "";
-  el.med.style.display = el.med.innerHTML? "":"none";
-  if (cs.s==="restored") { el.note.style.display=""; el.note.textContent = cs.note; }
-}
-
-function docHTML(d){
-  const kv = d.kv.map(([k,v,c])=>'<div><span class="k">'+k+':</span> <span class="v '+(c||"")+'">'+v+'</span></div>').join("");
-  return '<div class="h"><span class="coll">'+d.coll+'</span><span class="id">'+d.run+':'+d.id+'</span></div>'+kv;
-}
-
-function render(t, animate){
-  const st = stateAt(t);
-  // run label
-  $("runlabel").textContent = "run "+st.run;
-  // controller
-  const cs=$("ctlstate"); cs.className="state "+st.ctl; cs.textContent = st.ctl==="dead"?"exit 86":st.ctl;
-  consoleEl.classList.toggle("is-dead", st.ctl==="dead");
-  if (st.fxAt!==null && st.fxAt!==lastFx && animate && t-st.fxAt<0.5 && !REDUCED){
-    consoleEl.classList.remove("crash"); void consoleEl.offsetWidth; consoleEl.classList.add("crash");
-  }
-  lastFx = st.fxAt;
-  // terminal (append-only when possible)
-  const prefixOk = renderedLines.length<=st.lines.length && renderedLines.every((l,i)=>l===st.lines[i]);
-  if (!prefixOk){ termEl.innerHTML=""; renderedLines=[]; }
-  for (let i=renderedLines.length;i<st.lines.length;i++){
-    const l=st.lines[i], d=document.createElement("div");
-    d.className="ln "+(l.cls||"")+(animate && prefixOk?" new":""); d.innerHTML=l.html; termEl.appendChild(d); renderedLines.push(l);
-  }
-  // keep a caret at the end
-  let caret = termEl.querySelector(".caret-ln"); if (caret) caret.remove();
-  if (st.ctl!=="dead"){ caret=document.createElement("div"); caret.className="ln caret-ln"; caret.innerHTML='<span class="caret"></span>'; termEl.appendChild(caret); }
-  while (termEl.children.length>22) { termEl.removeChild(termEl.firstChild); }
-  // cards
-  CANDS.forEach(c=>renderCard(c, st.cards[c], st.run, t));
-  $("mem").classList.toggle("on", st.retrieved);
-  // ledger (newest first, append-only)
-  const dOk = renderedDocs.length<=st.docs.length && renderedDocs.every((d,i)=>d===st.docs[i]);
-  if (!dOk){ ledgerEl.innerHTML=""; renderedDocs=[]; }
-  for (let i=renderedDocs.length;i<st.docs.length;i++){
-    const d=st.docs[i], el=document.createElement("div");
-    el.className="doc "+d.cls+(animate&&dOk?" new":""); el.dataset.run=d.run; el.innerHTML=docHTML(d);
-    ledgerEl.insertBefore(el, ledgerEl.firstChild); renderedDocs.push(d);
-  }
-  [...ledgerEl.children].forEach(el=>{
-    const prev = el.dataset.run!==st.run;
-    el.classList.toggle("prev", prev);
-    el.classList.toggle("retr", st.retrieved && prev && el.classList.contains("dec")===false);
-  });
-  $("nexp").textContent = st.docs.filter(d=>d.coll==="experiments").length;
-  $("ndec").textContent = st.docs.filter(d=>d.coll==="decisions").length;
-  // chapters
-  const ch = CHAPTERS[st.chapter];
-  $("chapn").textContent=ch.n; $("chapt").textContent=ch.name;
-  const capEl=$("caption"); if (capEl.dataset.k!==ch.n){ capEl.dataset.k=ch.n; capEl.innerHTML=ch.cap; }
-  chapEls.forEach((b,i)=>{
-    const s=CHAPTERS[i].t, e=(CHAPTERS[i+1]||{t:END}).t;
-    const p=Math.max(0,Math.min(1,(t-s)/(e-s)));
-    b.bar.style.width=(p*100)+"%";
-    b.el.classList.toggle("cur", i===st.chapter); b.el.classList.toggle("done", t>=e);
-  });
-  const sec=Math.floor(t); $("clock").textContent = "00:"+String(sec).padStart(2,"0")+" / 00:"+END;
-}
-
-/* ================= playback ================= */
-const chapWrap=$("chapters"); const chapEls=[];
-CHAPTERS.forEach((c,i)=>{
-  const b=document.createElement("button"); b.className="chap"; b.type="button";
-  b.innerHTML='<span class="bar"><i></i></span><span class="lbl"><b>'+c.n+'</b><span>'+c.name+'</span></span>';
-  b.setAttribute("aria-label","Jump to "+c.name);
-  b.addEventListener("click",()=>{ seek(c.t+0.001); play(); });
-  chapWrap.appendChild(b); chapEls.push({el:b, bar:b.querySelector(".bar i")});
-});
-let T=0, playing=false, rate=1, last=0, raf=0;
-function frame(now){
-  if (!playing) return;
-  const dt = Math.min(0.1,(now-last)/1000); last=now;
-  T += dt*rate;
-  if (T>=END){ T=END; render(T,true); pause(); return; }
-  render(T,true);
-  raf=requestAnimationFrame(frame);
-}
-function play(){ if (T>=END) seek(0); if (playing) return; playing=true; last=performance.now(); raf=requestAnimationFrame(frame); setIcon(); }
-function pause(){ playing=false; cancelAnimationFrame(raf); setIcon(); }
-function seek(t){ T=t; render(T,false); }
-function setIcon(){
-  $("playico").innerHTML = playing ? '<path d="M4 3h3v10H4zM9 3h3v10H9z"/>' : '<path d="M4 2.5v11l9-5.5z"/>';
-  $("play").setAttribute("aria-label", playing?"Pause":"Play");
-}
-$("play").addEventListener("click",()=> playing?pause():play());
-$("restart").addEventListener("click",()=>{ seek(0); play(); });
-$("speed").addEventListener("click",e=>{ rate = rate===1?2:(rate===2?0.5:1); e.currentTarget.textContent = (rate===0.5?"½":rate)+"×"; });
-["cta-replay","cta-replay2"].forEach(id=>$(id).addEventListener("click",()=>{ seek(0); setTimeout(play, 450); }));
-document.addEventListener("keydown",e=>{
-  if (e.target.closest && e.target.closest("input,textarea")) return;
-  if (e.code==="Space" && consoleInView){ e.preventDefault(); playing?pause():play(); }
-  if (e.key==="ArrowRight"){ const n=CHAPTERS.find(c=>c.t>T+0.01); if(n){seek(n.t+0.001);} }
-  if (e.key==="ArrowLeft"){ const p=[...CHAPTERS].reverse().find(c=>c.t<T-0.6); seek(p?p.t+0.001:0); }
-});
-let consoleInView=true;
-
-// initial frame: a meaningful still (mid-baseline), then autoplay when visible
-if (REDUCED){ seek(26.5); }
-else {
-  seek(0);
-  let started=false;
-  const io = new IntersectionObserver(es=>{ es.forEach(en=>{ consoleInView=en.isIntersecting; if(en.isIntersecting && !started){ started=true; setTimeout(play, 700);} }); },{threshold:.25});
-  io.observe(consoleEl);
-}
-
-/* ================= timing chart ================= */
-(function chart(){
-  const svg=$("chart"), W=900, H=330, L=150, R=30, top=24;
-  const lo=60, hi=400, x=v=>L+(v-lo)/(hi-lo)*(W-L-R);
-  const rows=[["sort_stable","2eb9f21a"],["sort_stable","21dbac51"],["argsort_stable","2eb9f21a"],["argsort_stable","21dbac51"],["packed_topk","2eb9f21a"],["packed_topk","21dbac51"]];
-  const rowH=44; let h='';
-  [100,150,200,250,300,350,400].forEach(v=>{ h+='<line class="grid" x1="'+x(v)+'" x2="'+x(v)+'" y1="'+(top-6)+'" y2="'+(top+rowH*6)+'"/><text x="'+x(v)+'" y="'+(top+rowH*6+18)+'" text-anchor="middle">'+v+'</text>'; });
-  h+='<text x="'+(W-R)+'" y="'+(top+rowH*6+34)+'" text-anchor="end">µs</text>';
-  rows.forEach(([c,run],i)=>{
-    const cy=top+rowH*i+rowH/2, b=run==="21dbac51";
-    if(!b) h+='<text class="cn" x="0" y="'+(cy+rowH/2+4)+'">'+c+'</text>';
-    h+='<text x="'+(L-12)+'" y="'+(cy+3)+'" text-anchor="end">'+run+'</text>';
-    const s=S[run][c];
-    s.forEach((v,k)=>{ const jitter=((k*37)%13-6)*1.1; h+='<circle class="dot'+(b?' b':'')+'" data-x="'+x(Math.min(hi,v)).toFixed(1)+'" cx="'+x(Math.min(hi,v)).toFixed(1)+'" cy="'+(cy+jitter).toFixed(1)+'" r="3.4"/>'; });
-    const m=MED[run][c];
-    h+='<line class="medtick" x1="'+x(m)+'" x2="'+x(m)+'" y1="'+(cy-14)+'" y2="'+(cy+14)+'"/><text class="medl" x="'+(x(m)+6)+'" y="'+(cy-8)+'">'+m.toFixed(1)+'</text>';
-    if (i%2===1 && i<5) h+='<line class="grid" x1="0" x2="'+(W-R)+'" y1="'+(cy+rowH/2)+'" y2="'+(cy+rowH/2)+'" opacity=".6"/>';
-  });
-  svg.innerHTML=h;
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // console replay
+  var lines=document.querySelectorAll('#log div'),pills=document.querySelectorAll('.pill');
+  function show(i){lines[i].classList.add('on');pills.forEach(function(p){if(+p.dataset.i<=i)p.classList.add('on')})}
+  if(reduce){for(var j=0;j<lines.length;j++)show(j)}
+  else{var i=0;(function tick(){if(i<lines.length){show(i++);setTimeout(tick,i<3?300:620)}})()}
+  // staggered scroll reveal
+  var els=document.querySelectorAll('section h2,section .lead,section .eyebrow,.card,.step,.locked,table,.links2,.stats .stat');
+  els.forEach(function(e){e.classList.add('rv')});
+  if(!reduce&&'IntersectionObserver' in window){
+    var ro=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting){
+      var sib=[].slice.call(en.target.parentNode.children).filter(function(c){return c.classList.contains('rv')});
+      en.target.style.transitionDelay=Math.min(sib.indexOf(en.target),5)*70+'ms';
+      en.target.classList.add('in');ro.unobserve(en.target)}})},{threshold:.15});
+    els.forEach(function(e){ro.observe(e)});
+  } else els.forEach(function(e){e.classList.add('in')});
 })();
-
-/* ================= GSAP choreography ================= */
-if (window.gsap && !REDUCED){
-  gsap.registerPlugin(ScrollTrigger);
-  // hero: words rise from a visible resting state
-  gsap.from("#h1 .w",{yPercent:8,duration:.65,ease:"expo.out",stagger:.04,delay:.05});
-  gsap.from(".hero .reveal",{y:8,duration:.6,ease:"power3.out",stagger:.06,delay:.12});
-  gsap.from("#console",{y:40,scale:.975,opacity:.4,duration:1.2,ease:"expo.out",delay:.35});
-  // scar underline on "crash."
-  // section reveals
-  gsap.utils.toArray("section.blk .eyebrow, section.blk h2, section.blk .sub, section.blk .frame, .oc, .honest, .fact").forEach(el=>{
-    gsap.from(el,{y:26,opacity:.55,duration:.9,ease:"power3.out",scrollTrigger:{trigger:el,start:"top 88%",once:true}});
-  });
-  // loop runner
-  const runner=document.getElementById("runner"), len=runner.getTotalLength();
-  const seg=len*0.12; runner.style.strokeDasharray=seg+" "+(len-seg);
-  const nodes=[...document.querySelectorAll(".loopsvg .node")];
-  const pos=[0.08,0.42,0.58,0.92]; // approximate positions of nodes along path
-  gsap.fromTo(runner,{strokeDashoffset:seg},{strokeDashoffset:seg-len,duration:6,ease:"none",repeat:-1,
-    onUpdate(){ const p=(this.progress()+0.0)%1; nodes.forEach((n,i)=>{ const d=Math.min(Math.abs(p-pos[i]),1-Math.abs(p-pos[i])); n.classList.toggle("lit", d<0.08); }); }});
-  // tie swap
-  const tl=gsap.timeline({scrollTrigger:{trigger:"#tie",start:"top 75%",once:true}});
-  tl.from("#sw0",{x:66,duration:.7,ease:"back.out(2)"},0).from("#sw1",{x:-66,duration:.7,ease:"back.out(2)"},0)
-    .from("#stamp",{scale:1.8,opacity:.2,rotation:-12,duration:.5,ease:"back.out(3)"},.6);
-  // chart dots fly in from the left
-  const dots=gsap.utils.toArray("#chart .dot");
-  gsap.from(dots,{attr:{cx:150},opacity:.1,duration:1.1,ease:"expo.out",stagger:{each:.004,from:"random"},scrollTrigger:{trigger:"#chart",start:"top 80%",once:true}});
-  // outcome numbers pop
-  gsap.from(".oc .big",{scale:.85,opacity:.6,duration:.8,ease:"back.out(2)",stagger:.12,scrollTrigger:{trigger:".outcomes",start:"top 85%",once:true}});
-}
+(function(){
+  var max=50, bars=document.querySelectorAll('#chart .bar i');
+  function fill(){bars.forEach(function(b){b.style.width=(parseFloat(b.dataset.v)/max*100)+'%'})}
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){fill();io.disconnect()}},{threshold:.3});
+    io.observe(document.getElementById('chart'));
+  } else fill();
 })();
 </script>
 </body>
