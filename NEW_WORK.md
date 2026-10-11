@@ -7,5 +7,6 @@ This repository began empty. The work built for this event is:
 - A small structured memory policy that retrieves both success and failure records and refuses known invalid or duplicate candidates in `atlas_gpu_harness/policy.py`.
 - A CLI controller, single-GPU worker lock, durable-result-first progression, explicit injected crash, restart, status, and evidence export in `atlas_gpu_harness/__main__.py`.
 - Focused local controller tests and reproducible demo instructions.
+- A controlled comparison that changes only access to a fixed prior Atlas history, with reversed execution order, equal correct-alternative checks, raw exports, and independent metric recomputation in `scripts/measure_harness.py` and `scripts/summarize_experiments.py`. Evaluator version 3 corrects warmup on both sides of paired GPU comparisons.
 
 PyTorch performs every GPU operator and supplies CUDA events. PyMongo is the Atlas client. No upstream kernel, model, benchmark, or published latency is represented as original work. The benchmark numbers in our evidence files come only from this desktop's actual execution.

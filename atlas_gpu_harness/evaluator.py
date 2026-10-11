@@ -23,7 +23,7 @@ CONTRACT = {
     "unit": "microseconds",
     "timing": "CUDA events, one operator call per sample, end event synchronized",
 }
-EVALUATOR_VERSION = "2"
+EVALUATOR_VERSION = "3"
 CANDIDATES = ("sort_stable", "argsort_stable", "packed_topk", "topk_sorted", "sort_unstable")
 
 
@@ -174,6 +174,11 @@ def evaluate(candidate: str) -> dict:
     samples = _samples(scores, CONTRACT["k"], candidate, CONTRACT["samples"])
     evidence["timing"] = _summary(samples)
     if candidate != "sort_stable":
+        # Both sides need warmup: the baseline may not have run in this worker.
+        for _ in range(CONTRACT["warmup"]):
+            _operator(scores, CONTRACT["k"], "sort_stable")
+            _operator(scores, CONTRACT["k"], candidate)
+        torch.cuda.synchronize()
         # Alternating order guards against a single hot/cold run being called a win.
         base, contender = [], []
         for i in range(12):

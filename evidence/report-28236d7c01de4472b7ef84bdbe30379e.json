@@ -1,0 +1,617 @@
+{
+  "run": {
+    "_id": "28236d7c01de4472b7ef84bdbe30379e",
+    "objective": "exact top-k GPU operator search",
+    "status": "completed",
+    "budget_evals": 4,
+    "context": {
+      "gpu": "NVIDIA GeForce RTX 5070 Ti",
+      "vram_bytes": 17094475776,
+      "compute_capability": [
+        12,
+        0
+      ],
+      "driver_and_vram_query": "591.86, 16303 MiB",
+      "driver_supported_cuda": "13.1",
+      "nvcc": "not installed",
+      "torch": "2.8.0+cu128",
+      "torch_cuda_toolkit": "12.8",
+      "python": "3.11.14",
+      "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+      "repository_commit": "6ac36fb7e21b472c48f749bb7e5655feb0b65591",
+      "evaluator_version": "3",
+      "contract": {
+        "version": "topk-exact-v1",
+        "operator": "1d top-k indices, score descending, lower index first on ties",
+        "shape": [
+          16384
+        ],
+        "dtype": "float32",
+        "layout": "contiguous",
+        "k": 64,
+        "seed": 20261011,
+        "warmup": 10,
+        "samples": 30,
+        "unit": "microseconds",
+        "timing": "CUDA events, one operator call per sample, end event synchronized"
+      }
+    },
+    "context_hash": "06ab1468368fa30d148ad2f2c30b72b490b5e5889a57d052064e47eb66eb77d2",
+    "policy_version": "deterministic-memory-v1",
+    "created_at": "2026-10-11 20:42:55.054000",
+    "best_validated_experiment": "28236d7c01de4472b7ef84bdbe30379e:1391d87a1e929ec56af55d1d26231ab202f38ac93d0cfa8b82d5b8babf660064",
+    "updated_at": "2026-10-11 20:43:24.068000"
+  },
+  "experiments": [
+    {
+      "_id": "28236d7c01de4472b7ef84bdbe30379e:1391d87a1e929ec56af55d1d26231ab202f38ac93d0cfa8b82d5b8babf660064",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "context_hash": "06ab1468368fa30d148ad2f2c30b72b490b5e5889a57d052064e47eb66eb77d2",
+      "candidate": "sort_stable",
+      "status": "completed",
+      "attempt": 1,
+      "created_at": "2026-10-11 20:42:55.505000",
+      "started_at": "2026-10-11 20:42:55.580000",
+      "finished_at": "2026-10-11 20:42:56.954000",
+      "result": {
+        "candidate": "sort_stable",
+        "correct": true,
+        "checks": [
+          {
+            "case": "ties",
+            "expected": [
+              0,
+              1
+            ],
+            "actual": [
+              0,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_one",
+            "expected": [
+              1
+            ],
+            "actual": [
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_all",
+            "expected": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "actual": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "negative_and_ties",
+            "expected": [
+              0,
+              2
+            ],
+            "actual": [
+              0,
+              2
+            ],
+            "passed": true
+          },
+          {
+            "case": "fixed_workload",
+            "expected_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "actual_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "passed": true
+          }
+        ],
+        "input_sha256": "fe936efefa2361cc9c7a6df22413d202c09531c51113d0a8eae4deb81b7eb986",
+        "contract_sha256": "0a2b23898bdc51ca57cfea002ee7a86c10338b35d58ca87164add7b04cd54029",
+        "timing": {
+          "samples_us": [
+            125.56800246238708,
+            89.05600011348724,
+            86.43200248479843,
+            100.35199671983719,
+            75.58400183916092,
+            81.69600367546082,
+            95.13600170612335,
+            86.2400010228157,
+            81.63200318813324,
+            91.32800251245499,
+            95.51999717950821,
+            81.18399977684021,
+            76.31999999284744,
+            73.08799773454666,
+            140.19200205802917,
+            86.97599917650223,
+            104.06400263309479,
+            87.67999708652496,
+            89.53599631786346,
+            86.59200370311737,
+            88.128000497818,
+            86.496002972126,
+            87.71199733018875,
+            93.98400038480759,
+            81.69600367546082,
+            76.9599974155426,
+            78.94399762153625,
+            73.69600236415863,
+            100.41599720716476,
+            130.49599528312683
+          ],
+          "count": 30,
+          "median_us": 87.3279981315136,
+          "min_us": 73.08799773454666,
+          "max_us": 140.19200205802917,
+          "p05_us": 73.08799773454666,
+          "p95_us": 130.49599528312683
+        }
+      }
+    },
+    {
+      "_id": "28236d7c01de4472b7ef84bdbe30379e:b6f9fb9ecf48fe634e6708235cc7f40e103bbd2ad1c304bc9889adb09c22f9d5",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "context_hash": "06ab1468368fa30d148ad2f2c30b72b490b5e5889a57d052064e47eb66eb77d2",
+      "candidate": "argsort_stable",
+      "status": "completed",
+      "attempt": 1,
+      "created_at": "2026-10-11 20:43:15.463000",
+      "started_at": "2026-10-11 20:43:15.536000",
+      "finished_at": "2026-10-11 20:43:16.825000",
+      "result": {
+        "candidate": "argsort_stable",
+        "correct": true,
+        "checks": [
+          {
+            "case": "ties",
+            "expected": [
+              0,
+              1
+            ],
+            "actual": [
+              0,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_one",
+            "expected": [
+              1
+            ],
+            "actual": [
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_all",
+            "expected": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "actual": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "negative_and_ties",
+            "expected": [
+              0,
+              2
+            ],
+            "actual": [
+              0,
+              2
+            ],
+            "passed": true
+          },
+          {
+            "case": "fixed_workload",
+            "expected_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "actual_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "passed": true
+          }
+        ],
+        "input_sha256": "fe936efefa2361cc9c7a6df22413d202c09531c51113d0a8eae4deb81b7eb986",
+        "contract_sha256": "0a2b23898bdc51ca57cfea002ee7a86c10338b35d58ca87164add7b04cd54029",
+        "timing": {
+          "samples_us": [
+            109.63200032711029,
+            147.5519984960556,
+            198.4959989786148,
+            80.44800162315369,
+            98.65599870681763,
+            108.06400328874588,
+            93.28000247478485,
+            102.62399911880493,
+            87.52000331878662,
+            158.01599621772766,
+            89.88799899816513,
+            83.77599716186523,
+            131.48799538612366,
+            77.7600035071373,
+            78.17599922418594,
+            89.9839997291565,
+            85.4720026254654,
+            101.34399682283401,
+            107.19999670982361,
+            107.00800269842148,
+            87.64799684286118,
+            79.99999821186066,
+            103.07200253009796,
+            156.99200332164764,
+            90.59199690818787,
+            90.91199934482574,
+            89.08800035715103,
+            93.85599941015244,
+            88.44800293445587,
+            109.11999642848969
+          ],
+          "count": 30,
+          "median_us": 93.56800094246864,
+          "min_us": 77.7600035071373,
+          "max_us": 198.4959989786148,
+          "p05_us": 77.7600035071373,
+          "p95_us": 158.01599621772766
+        },
+        "paired_recheck": {
+          "baseline": {
+            "samples_us": [
+              99.80800002813339,
+              82.2720006108284,
+              88.0960002541542,
+              107.29599744081497,
+              88.54400366544724,
+              87.80799806118011,
+              88.86399865150452,
+              85.4720026254654,
+              89.59999680519104,
+              86.33600175380707,
+              94.68799829483032,
+              106.81600123643875
+            ],
+            "count": 12,
+            "median_us": 88.70400115847588,
+            "min_us": 82.2720006108284,
+            "max_us": 107.29599744081497,
+            "p05_us": 82.2720006108284,
+            "p95_us": 107.29599744081497
+          },
+          "candidate": {
+            "samples_us": [
+              98.94400089979172,
+              98.14400225877762,
+              92.54399687051773,
+              99.74399954080582,
+              154.08000349998474,
+              108.83200168609619,
+              95.93600034713745,
+              90.27200192213058,
+              106.55999928712845,
+              89.72799777984619,
+              115.13599753379822,
+              90.14400094747543
+            ],
+            "count": 12,
+            "median_us": 98.54400157928467,
+            "min_us": 89.72799777984619,
+            "max_us": 154.08000349998474,
+            "p05_us": 89.72799777984619,
+            "p95_us": 154.08000349998474
+          },
+          "speedup_supported": false
+        }
+      }
+    },
+    {
+      "_id": "28236d7c01de4472b7ef84bdbe30379e:cbbe8ca68cd3fc7c2722d45264ce54c3c1a6494d89728a3e6f18e51c4936c2a5",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "context_hash": "06ab1468368fa30d148ad2f2c30b72b490b5e5889a57d052064e47eb66eb77d2",
+      "candidate": "packed_topk",
+      "status": "completed",
+      "attempt": 1,
+      "created_at": "2026-10-11 20:43:17.335000",
+      "started_at": "2026-10-11 20:43:17.408000",
+      "finished_at": "2026-10-11 20:43:18.869000",
+      "result": {
+        "candidate": "packed_topk",
+        "correct": true,
+        "checks": [
+          {
+            "case": "ties",
+            "expected": [
+              0,
+              1
+            ],
+            "actual": [
+              0,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_one",
+            "expected": [
+              1
+            ],
+            "actual": [
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_all",
+            "expected": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "actual": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "negative_and_ties",
+            "expected": [
+              0,
+              2
+            ],
+            "actual": [
+              0,
+              2
+            ],
+            "passed": true
+          },
+          {
+            "case": "fixed_workload",
+            "expected_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "actual_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "passed": true
+          }
+        ],
+        "input_sha256": "fe936efefa2361cc9c7a6df22413d202c09531c51113d0a8eae4deb81b7eb986",
+        "contract_sha256": "0a2b23898bdc51ca57cfea002ee7a86c10338b35d58ca87164add7b04cd54029",
+        "timing": {
+          "samples_us": [
+            243.23199689388275,
+            217.66400337219238,
+            218.30399334430695,
+            328.2879889011383,
+            329.53599095344543,
+            284.38401222229004,
+            212.0639979839325,
+            230.20799458026886,
+            241.7600005865097,
+            269.98400688171387,
+            277.1199941635132,
+            309.3760013580322,
+            220.67199647426605,
+            137.95199990272522,
+            214.9440050125122,
+            215.10399878025055,
+            326.7199993133545,
+            239.1359955072403,
+            219.90400552749634,
+            217.21599996089935,
+            214.01600539684296,
+            213.95200490951538,
+            224.35200214385986,
+            221.95200622081757,
+            226.75199806690216,
+            219.35999393463135,
+            244.03199553489685,
+            211.84000372886658,
+            212.41599321365356,
+            212.41599321365356
+          ],
+          "count": 30,
+          "median_us": 221.3120013475418,
+          "min_us": 137.95199990272522,
+          "max_us": 329.53599095344543,
+          "p05_us": 137.95199990272522,
+          "p95_us": 328.2879889011383
+        },
+        "paired_recheck": {
+          "baseline": {
+            "samples_us": [
+              112.22399771213531,
+              87.10400015115738,
+              94.55999732017517,
+              88.0960002541542,
+              85.56800335645676,
+              93.1520015001297,
+              125.59999525547028,
+              85.9839990735054,
+              86.20800077915192,
+              89.08800035715103,
+              87.77599781751633,
+              100.41599720716476
+            ],
+            "count": 12,
+            "median_us": 88.59200030565262,
+            "min_us": 85.56800335645676,
+            "max_us": 125.59999525547028,
+            "p05_us": 85.56800335645676,
+            "p95_us": 125.59999525547028
+          },
+          "candidate": {
+            "samples_us": [
+              247.871994972229,
+              219.13599967956543,
+              236.38400435447693,
+              219.07199919223785,
+              216.22399985790253,
+              216.12800657749176,
+              223.29600155353546,
+              213.59999477863312,
+              219.9999988079071,
+              221.5999960899353,
+              219.87199783325195,
+              211.35999262332916
+            ],
+            "count": 12,
+            "median_us": 219.5039987564087,
+            "min_us": 211.35999262332916,
+            "max_us": 247.871994972229,
+            "p05_us": 211.35999262332916,
+            "p95_us": 247.871994972229
+          },
+          "speedup_supported": false
+        }
+      }
+    },
+    {
+      "_id": "28236d7c01de4472b7ef84bdbe30379e:4d698050aae247ef102d9814f404cb32e77f2c4ee45b2115f24e439c7c6467d2",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "context_hash": "06ab1468368fa30d148ad2f2c30b72b490b5e5889a57d052064e47eb66eb77d2",
+      "candidate": "topk_sorted",
+      "status": "failed",
+      "attempt": 1,
+      "created_at": "2026-10-11 20:43:19.378000",
+      "started_at": "2026-10-11 20:43:19.452000",
+      "finished_at": "2026-10-11 20:43:05.875000",
+      "result": {
+        "candidate": "topk_sorted",
+        "correct": false,
+        "checks": [
+          {
+            "case": "ties",
+            "expected": [
+              0,
+              1
+            ],
+            "actual": [
+              1,
+              0
+            ],
+            "passed": false
+          },
+          {
+            "case": "k_one",
+            "expected": [
+              1
+            ],
+            "actual": [
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_all",
+            "expected": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "actual": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "negative_and_ties",
+            "expected": [
+              0,
+              2
+            ],
+            "actual": [
+              2,
+              0
+            ],
+            "passed": false
+          },
+          {
+            "case": "fixed_workload",
+            "expected_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "actual_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "passed": true
+          }
+        ],
+        "input_sha256": "fe936efefa2361cc9c7a6df22413d202c09531c51113d0a8eae4deb81b7eb986",
+        "contract_sha256": "0a2b23898bdc51ca57cfea002ee7a86c10338b35d58ca87164add7b04cd54029"
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "_id": "9a769acc05f647e0b4e9e5b28d0c5a09",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "retrieved_experiment_ids": [],
+      "candidate": "sort_stable",
+      "hypothesis": "Establish a stable exact top-k baseline",
+      "reason": "No baseline committed for this run",
+      "predicted_outcome": "unknown; evaluator decides",
+      "policy_version": "deterministic-memory-v1",
+      "created_at": "2026-10-11 20:42:55.432000"
+    },
+    {
+      "_id": "f71731e25e014cc3af6bfc5e3fa6b15a",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "retrieved_experiment_ids": [
+        "28236d7c01de4472b7ef84bdbe30379e:1391d87a1e929ec56af55d1d26231ab202f38ac93d0cfa8b82d5b8babf660064"
+      ],
+      "candidate": "argsort_stable",
+      "hypothesis": "Stable argsort may execute faster with the same tie contract",
+      "reason": "The stored baseline provides a correctness and latency reference",
+      "predicted_outcome": "unknown; evaluator decides",
+      "policy_version": "deterministic-memory-v1",
+      "created_at": "2026-10-11 20:43:15.389000"
+    },
+    {
+      "_id": "5ae937d6764f422fb6e661a510e9fcd2",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "retrieved_experiment_ids": [
+        "28236d7c01de4472b7ef84bdbe30379e:b6f9fb9ecf48fe634e6708235cc7f40e103bbd2ad1c304bc9889adb09c22f9d5",
+        "28236d7c01de4472b7ef84bdbe30379e:1391d87a1e929ec56af55d1d26231ab202f38ac93d0cfa8b82d5b8babf660064"
+      ],
+      "candidate": "packed_topk",
+      "hypothesis": "Encode score and tie index into a sortable 64-bit key, then partial top-k",
+      "reason": "Stable alternatives are measured; this tests a bounded partial selection with exact IDs",
+      "predicted_outcome": "unknown; evaluator decides",
+      "policy_version": "deterministic-memory-v1",
+      "created_at": "2026-10-11 20:43:17.260000"
+    },
+    {
+      "_id": "0394607aae1a47d0a8a51b9990fe0ec3",
+      "run_id": "28236d7c01de4472b7ef84bdbe30379e",
+      "retrieved_experiment_ids": [
+        "28236d7c01de4472b7ef84bdbe30379e:cbbe8ca68cd3fc7c2722d45264ce54c3c1a6494d89728a3e6f18e51c4936c2a5",
+        "28236d7c01de4472b7ef84bdbe30379e:b6f9fb9ecf48fe634e6708235cc7f40e103bbd2ad1c304bc9889adb09c22f9d5",
+        "28236d7c01de4472b7ef84bdbe30379e:1391d87a1e929ec56af55d1d26231ab202f38ac93d0cfa8b82d5b8babf660064"
+      ],
+      "candidate": "topk_sorted",
+      "hypothesis": "Partial top-k may be faster, but tie behavior needs checking",
+      "reason": "Try a distinct PyTorch operator and reject it if exact IDs differ",
+      "predicted_outcome": "unknown; evaluator decides",
+      "policy_version": "deterministic-memory-v1",
+      "created_at": "2026-10-11 20:43:19.305000"
+    }
+  ],
+  "note": "Only measured CUDA results are evidence; no LLM or custom kernel is claimed."
+}

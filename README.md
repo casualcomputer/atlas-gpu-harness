@@ -1,183 +1,150 @@
 # Atlas GPU Harness
 
-**GPU experiments that remember their mistakes and survive a controller crash.**
+**An experiment notebook that helps a program avoid repeating its mistakes.**
 
-A GPU optimization run has just finished an experiment when its controller dies. If progress lived only in that process, the next run can pay to repeat the same work. There is a second trap: a promising implementation can return the wrong answer, or a noisy timing sample can make it look like a breakthrough. An optimizer needs to preserve what it has proved and use that evidence in its next decision.
+An engineer asks a computer to find a faster way to perform a calculation used in AI. The computer tries different methods. Some return the wrong answer. Others look faster only because timings fluctuate. If the program stops unexpectedly, it can also lose track of completed work and repeat tests whose answers were already known.
 
-Atlas GPU Harness makes that loop concrete: **check exact correctness → measure CUDA execution → commit the evidence to MongoDB Atlas → retrieve it before choosing the next experiment.** We built a small Python CLI around a real RTX 5070 Ti and five predefined PyTorch candidates for one exact top-k workload.
+We built an **experiment manager with a saved lab notebook**. It checks each answer, measures correct alternatives against a reference, saves the evidence in MongoDB Atlas, and reads those notes before deciding what to try next. After an interruption, it continues from saved work.
 
-The demonstration already worked: an intentional crash preserved the committed baseline without a rerun; an incorrect candidate was rejected before timing; and a later run retrieved that failure and avoided repeating it. The paired measurements did not establish a speedup. Preserved work and evidence changing future behavior are the demonstrated outcomes.
+**Measured result:** in two controlled comparisons on a real RTX 5070 Ti, access to previous evidence reduced attempts from **4 to 3 — 25% fewer attempts — while checking the same three correct alternatives**. One known-invalid test was avoided in each comparison. This measures less repeated experimental work; no repeatable speedup of the calculation itself was established.
 
-[Verified results](EVIDENCE.md) · [System design and Atlas queries](ARCHITECTURE.md) · [Live demo](DEMO.md) · [Original contributions](NEW_WORK.md) · [Attribution](ATTRIBUTION.md)
+[Experiment design and results](EXPERIMENTS.md) · [Hackathon review](HACKATHON_REVIEW.md) · [Three-minute demo](DEMO.md) · [Technical system design](ARCHITECTURE.md) · [Original work](NEW_WORK.md)
 
-## Hackathon fit
+## Are we writing faster GPU kernels?
 
-**Primary target: Statement 2 — Long Horizon Engineering**, from the supplied Harness Engineering & Model Wrangling participant guide, October 11, 2026.
+The intended optimization goal is faster GPU code with the same correct answer. A GPU kernel is a program executed on the GPU; writing or tuning kernels is one way to pursue that goal. **This build manages and evaluates experiments. It does not generate new CUDA or Triton kernels.** It tests five predefined implementations composed from PyTorch operations, including a packed-key alternative we wrote using those operations. A kernel-writing agent could supply future alternatives, but it is not part of the demonstrated system.
 
-| Track requirement | What this prototype demonstrates |
-| --- | --- |
-| Preserve coherent memory through a long task | Atlas stores experiment results and decision references outside the controller process. A restart reconstructs progress from those records. |
-| Learn from hard metric signals | Exact correctness controls eligibility; CUDA samples record performance; a stored tie failure changes later candidate selection. |
-| Keep working toward a goal | The controller resumes the same run, honors its evaluation budget, and stops when the budget or eligible candidates are exhausted. |
+So far, the measured improvement is in the experiment workflow: fewer repeated tests. Faster GPU calculation remains an unachieved outcome. We should present both the useful working mechanism and that limitation clearly.
 
-This is a focused demonstration of those mechanisms. The current policy is deterministic; there is no LLM, multi-day run, or billion-token memory demonstration. The fixed policy does not rewrite its rules or architecture, so Recursive Harnessing and the Raindrop RSI prize are not demonstrated by this build. Track acceptance is the judges' decision.
+## The problem, solution, and proof
 
-**Finalist eligibility also requires the event-provided Atlas Sandbox cluster.** Actual Atlas reads and writes are verified; membership of the supplied cluster in the event's Sandbox project still needs a visual check. This repository is public. An accessible one-minute video and the event submission must still be completed. The main product is the experiment controller and CLI.
+The intended user is an engineer running repeated GPU optimization experiments. A GPU is the processor that performs many AI calculations. The small demonstration here asks it to find the 64 highest-scoring positions among 16,384 scores, with a fixed rule for tied scores.
 
-## What is long horizon about it?
+| Problem | What the manager does | What we observed |
+| --- | --- | --- |
+| Repeat a mistake already discovered | Read the saved failure before choosing the next test | With memory: 3 attempts. Without it: 4. Same three correct alternatives checked in both repeated comparisons. |
+| Lose progress after the program stops | Save each result before moving on; reload it on restart | After a deliberate stop, the completed reference test remained at one attempt while unfinished work continued. |
+| Treat a wrong answer as an improvement | Compare every answer with an independent reference calculation | A method returned tied positions in the wrong order. It was rejected before timing. |
+| Mistake timing noise for progress | Warm both methods, repeat measurements, and alternate which is timed first | An apparent initial improvement did not survive paired checks. No speedup was claimed. |
 
-The problem appears when a task must outlive one running process: completed work, failures, the goal, and the remaining budget must survive. Atlas provides that continuity. A restarted controller reloads completed experiments; a later compatible run can retrieve a previous correctness failure before choosing more work.
+The broader problem is real: [Anthropic describes lost continuity and repeated recovery work in long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), and [KernelBench evaluates GPU optimization on both correctness and speed](https://arxiv.org/abs/2502.10517). These support the engineering need; our small experiment does not establish customer demand, production savings, or return on investment.
 
-**This build has durable experiment memory, not a long LLM context window.** There is no LLM in the current controller. The code's `context_hash` means a fingerprint of the GPU, software, and evaluation contract; it does not refer to conversation tokens. Each decision reads at most 50 compatible historical terminal experiments plus all current-run records. Older failures outside that history window are not guaranteed to influence a new run.
-
-The demonstrated sequence is: **run → save evidence → controller dies → reload evidence → continue**, followed by **new run → retrieve an earlier failure → skip that candidate**. This is a necessary mechanism for long-horizon engineering. Our short, five-candidate demonstration does not establish sustained reasoning, multi-day operation, or billion-token memory.
-
-## What we built
-
-A harness is the supervisor around an optimization attempt: it chooses permitted work, enforces how work is judged, preserves results, and decides what to do next. This harness searches a small allowlist of GPU operator implementations. PyTorch executes the operators; Atlas holds durable state; the Python controller connects measurement to the next decision.
+## How it works, in ordinary language
 
 ```mermaid
 flowchart TD
-    A[(Atlas memory: runs, experiments, decisions)]
-    subgraph Desktop[Your desktop]
-        P[Choose next eligible GPU candidate]
-        V[Compare GPU output with independent CPU answer]
-        T[Measure correct candidate with CUDA events]
-        R[Controller crashes and restarts]
-    end
-    A -->|Read previous results and failures| P
-    P -->|Record choice and evidence IDs| A
-    P --> V
-    V -->|Correct| T
-    V -->|Wrong: save failure without timing| A
-    T -->|Save checks and raw timings before progress update| A
-    R -->|Reload completed work and resume| A
+    N[(Saved lab notebook in MongoDB Atlas)]
+    R[Read what previous tests established]
+    C[Choose an alternative worth testing]
+    A[Run it and check the answer]
+    T[Compare its speed with the reference]
+    S[Program stops and restarts]
+    N --> R
+    R --> C
+    C --> A
+    A -->|Right answer| T
+    A -->|Wrong answer: save the failure| N
+    T -->|Save measurements and conclusion| N
+    S -->|Recover finished work| R
 ```
 
-Read the loop as **remember → choose → check → measure → save**. The restart path returns to saved evidence. The detailed component sequence, ownership checks, and recovery semantics are in [ARCHITECTURE.md](ARCHITECTURE.md).
+The experiment manager runs on the desktop. PyTorch performs the GPU calculations. Atlas stores the notebook in three collections:
 
-**Atlas hosts the records and retrieval. GPU execution happens on this desktop.** No model weights, GPU compute service, or vector index is hosted in Atlas by this project.
-
-1. **Freeze the task.** Use 16,384 contiguous float32 scores, `k=64`, a fixed seed, and exact output indices ordered by descending score and ascending original index on ties.
-2. **Retrieve before proposing.** Read the latest 50 compatible completed/failed experiments, then include all current-run records. Skip committed candidates in this run and known correctness failures from earlier compatible runs.
-3. **Record the decision.** Store the retrieved experiment IDs, candidate, hypothesis, reason, and policy version before execution.
-4. **Check before timing.** A worker compares GPU indices with an independent Python CPU oracle on ties, negative values, boundary cases, and the fixed workload. Incorrect output receives no latency result.
-5. **Measure and commit.** Correct candidates receive 10 warmups and 30 CUDA event samples. Nonbaseline candidates receive 12 alternating baseline/candidate pairs. Commit the result to Atlas before updating run progress.
-6. **Resume from evidence.** After a crash, count Atlas experiment records and reconstruct the best correct result. A completed experiment is skipped. An interrupted, uncommitted attempt may be retried.
-
-The code is intentionally small: [controller](atlas_gpu_harness/__main__.py), [Atlas store](atlas_gpu_harness/store.py), [policy](atlas_gpu_harness/policy.py), and [evaluator](atlas_gpu_harness/evaluator.py).
-
-## How Atlas tracks experiments and changes behavior
-
-Database: `atlas_gpu_harness`. The three persistent collections answer different questions:
-
-| Collection | Question it answers | Stored evidence |
-| --- | --- | --- |
-| `runs` | What are we trying to finish? | Objective, budget, status, environment and evaluation contract, compatibility hash, policy version, best correct experiment ID. |
-| `experiments` | What actually happened? | Candidate, status, attempt count, correctness cases, expected/actual outputs or hashes, raw timing samples, summaries, paired recheck, errors, timestamps. |
-| `decisions` | What evidence was available for this choice? | Retrieved experiment IDs, chosen candidate, hypothesis, reason, policy version, timestamp. Predicted performance is labeled unknown; measured outcomes live in the experiment record. |
-
-An experiment's `_id` combines the run ID with a SHA-256 fingerprint of its candidate and evaluation context. MongoDB's unique `_id` prevents duplicate documents for that identity within a run. A conditional update with an owner token guards completion; writes use majority acknowledgment. These are single-document operations, not a transaction covering the whole run.
-
-The lifecycle is `queued → running → completed / failed`. The controller deliberately persists the experiment result **before** its progress summary. Fault injection exits with code 86 in that gap. Resume reads experiment documents as the source of truth, so a stale run summary does not erase completed work.
-
-A concrete memory example from the real exports:
-
-- In [run 2eb9…](evidence/report-2eb9f21a2e374f358c4a42b9fbe2258d.json), direct `topk_sorted` returned `[1, 0]` for a tie case whose required indices were `[0, 1]`. The failed experiment stayed in Atlas and was never timed.
-- The first decision in [run 21db…](evidence/report-21dbac5116a04dafa1ddaed17ea34030.json) retrieved four earlier experiment IDs, including that failure.
-- The fixed policy skipped the known-invalid candidate and also screened out unstable sort as a related tie risk. The second run finished after three evaluations from a budget of five.
-
-Atlas is therefore part of the execution loop: stored evidence changes which GPU work is allowed next. Successful baselines are intentionally measured again in a **new** run; deduplication of completed work applies within the same run. Decisions record selected candidates and all retrieved IDs; skipped candidates do not have separate decision documents. See [the full schema, query, and recovery sequence](ARCHITECTURE.md).
-
-## Proof, with limits
-
-| Pain point | Validation we performed | Observed outcome |
-| --- | --- | --- |
-| A crash can lose completed work | Exit after result commit, read status in a fresh process, resume the same run | Baseline remained at attempt 1; the other candidates continued. |
-| An invalid implementation can become a false winner | Compare exact indices against the CPU oracle before timing | Direct top-k failed both tie fixtures, received no timing, and was excluded from best-result selection. |
-| Future runs can repeat a known mistake | Start a new compatible run after storing the failure | One known-bad candidate was skipped and one related risky candidate screened out; 3/5 evaluations were used. |
-| A favorable median can be mistaken for a repeatable gain | Alternate baseline and contender measurements | The recheck rejected a speedup claim despite a lower initial argsort median. |
-
-Actual results from the four-candidate recovery run on the RTX 5070 Ti:
-
-| Candidate | Exact correctness | Median latency | Speedup supported by paired recheck? |
-| --- | --- | ---: | --- |
-| Stable sort baseline | Pass | 104.1 µs | Reference |
-| Stable argsort | Pass | 92.8 µs | No |
-| Packed-key partial top-k | Pass | 222.9 µs | No |
-| Direct PyTorch top-k | Fail on ties | Not timed | Ineligible |
-
-The packed-key candidate encodes score order and tie index in a 64-bit key, then uses PyTorch top-k. It passed the checks and was slower on this workload. The report retains that negative result. A selected `best_experiment` is the correct candidate with the lowest measured median; that field alone does not establish a repeatable speedup.
-
-Five tests passed: four controller/store tests using test doubles, plus one real CUDA property test covering 56 small packed-key cases. Real GPU and Atlas execution are documented separately in [EVIDENCE.md](EVIDENCE.md), with [raw public exports](evidence/). No GPU-hour savings, dollar savings, broad workload improvement, or long-duration reliability claim has been measured.
-
-## Why this harness alongside existing frameworks?
-
-The reason to choose this prototype is to inspect and reproduce the entire path from **exact GPU output → durable experiment evidence → next permitted action**. The distinctive work is the integration and its task-specific correctness rules. Tracking, persistence, and optimization frameworks already provide valuable building blocks:
-
-| Existing tool | What it already provides | Our design choice for this prototype |
-| --- | --- | --- |
-| [LangGraph](https://docs.langchain.com/oss/python/langgraph/persistence) | Checkpointed thread state, persistent memory, recovery and continuity. | It could host this workflow. A small CLI controller is sufficient for five fixed candidates; the GPU evaluator, compatibility rules, and failure policy would still be needed. |
-| [Optuna](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/001_rdb.html) | Persistent optimization studies with trial history and resume; [samplers and pruners](https://optuna.readthedocs.io/en/stable/tutorial/10_key_features/003_efficient_optimization_algorithms.html) guide larger searches. | The current space is a short explicit allowlist. Exact-output eligibility and Atlas evidence-to-decision links are the work we needed to demonstrate. A larger search could use Optuna. |
-| [MLflow](https://www.mlflow.org/docs/latest/tracking/) | Tracking for runs, parameters, metrics, code versions, and artifacts. | It could track these results. Here, Atlas records directly drive recovery and candidate filtering inside the controller. |
-
-We reused **PyTorch, PyMongo, filelock, and python-dotenv**, plus mongomock for focused tests. The installed CUDA PyTorch environment gave us a working evaluator without installing a compiler or a full inference framework. See [ATTRIBUTION.md](ATTRIBUTION.md).
-
-## What to show the judges
-
-The supplied guide weights round one as follows; round two weights all four categories equally.
-
-| Criterion | Evidence to show |
+| Atlas collection | Plain-language purpose |
 | --- | --- |
-| Impact potential — 20% | The concrete risks of lost experiments, repeated incorrect work, and false performance claims; show the preserved baseline and remembered rejection. Broader compute savings are an intended benefit. |
-| Technical demo — 35% | A real GPU result committed to Atlas, deliberate controller exit, fresh status read, and resume with unchanged baseline attempt count. |
-| Creativity — 15% | A correctness failure becomes control input for the next run, with inspectable links from the decision back to experiment records. |
-| Implementation difficulty — 30% | Independent oracle, CUDA measurements, packed-key candidate, stable experiment identity, guarded completion, subprocess isolation, and reconstruction after a crash. |
+| `runs` | The goal, testing budget, environment, and progress. |
+| `experiments` | What was tried, whether its answer was correct, measurements, and errors. |
+| `decisions` | What was chosen next, why, and which earlier test records were available. |
 
-The [three-minute demo](DEMO.md) makes the implementation visible. [NEW_WORK.md](NEW_WORK.md) identifies the code built during the event. PyTorch supplies the GPU operators and CUDA events; the policy is deterministic.
+Atlas is used before the next decision, so its records change behavior. It does not host our GPU computation. [ARCHITECTURE.md](ARCHITECTURE.md) provides the exact data model, ownership checks, recovery sequence, and Data Explorer filters.
 
-## Reproduce the demo
+## How we measured improvement fairly
 
-Verified environment: WSL2, RTX 5070 Ti (16,303 MiB VRAM, compute capability 12.0), driver 591.86, Python 3.11.14, PyTorch 2.8.0+cu128. The driver reports support for CUDA 13.1; the installed PyTorch wheel uses CUDA 12.8. `nvcc` was absent. See the [preflight manifest](evidence/preflight.json).
+We use three separate references so that a correct answer, a faster calculation, and a more efficient experiment process cannot be confused:
 
-On another CUDA system, install a suitable PyTorch wheel using the [official selector](https://pytorch.org/get-started/locally/), then install the project dependencies. On the verified desktop we reused the existing environment:
+| Reference | How it is established | What it can prove |
+| --- | --- | --- |
+| Correct answer | An independent CPU implementation sorts by score and then original index. | Whether a GPU alternative satisfies the fixed answer rules. CPU time is not used as the GPU speed baseline. |
+| GPU speed baseline | PyTorch stable sort on the same GPU, selecting its first 64 indices. It is fixed before comparison, warmed, and remeasured next to each alternative. | Whether the alternative is repeatably faster than this specified reference. |
+| Workflow comparison | The same experiment manager with access to previous-run evidence disabled. Current-run memory stays enabled. | Whether prior evidence reduces attempts while preserving the same validated alternatives. |
+
+We tested the notebook's contribution by changing **only access to previous-run evidence**. Both versions used the same program, five allowed methods, input, GPU, answer checks, timing rules, and testing budget. Both could remember results within their current run.
+
+| Scientific design element | What we did |
+| --- | --- |
+| Hypothesis | Remembering a known failure avoids repeating it while preserving the same validated alternatives. |
+| Comparison | Previous-run memory disabled versus enabled, using the same frozen set of real Atlas records. |
+| Primary measure | Actual test attempts needed to assess the same three correct alternatives; fewer is better. |
+| Quality safeguards | Same correct alternatives evaluated; no incorrect result accepted; no worker errors. |
+| Repetition | Run without/with memory, then reverse the order and repeat. |
+| Result | 4 → 3 attempts in both comparisons: `(4 - 3) / 4 = 25%` fewer. |
+
+This is conditional on relevant prior evidence being available. Its original acquisition cost is excluded. The five-attempt budget is not the comparison denominator. The measured elapsed times also decreased, but two short comparisons do not establish general runtime or GPU-cost savings. See [raw records](evidence/harness-ablation.json), the [recomputed summary](evidence/experiment-summary.json), and the full [experimental design](EXPERIMENTS.md).
+
+We separately tested **whether the calculation became faster**. After fixing warmup for both reference and alternative, stable argsort's median paired effect ranged from **6.8% slower to 1.1% faster** across five runs; it won only 3–6 of 12 comparisons in each run. That inconsistent direction does not support a speedup. The policy currently uses correctness failures to filter a fixed search order; latency is measured and reported, not used to invent a new search strategy.
+
+## Which track does this fit?
+
+**Statement 2 — Long Horizon Engineering is the closest fit.** The demonstrated part is preserving progress beyond one running program and using measured evidence in later decisions.
+
+There is no long-context language model in this build. Its policy is deterministic, its search has five predefined methods, and its demonstration lasts minutes. Historical retrieval is bounded to 50 compatible completed/failed experiments plus the current run's records. The prototype does not establish billion-token memory, multi-day reasoning, or autonomous invention of GPU kernels.
+
+The fixed rules do not rewrite themselves, so Recursive Harnessing is not demonstrated. Track acceptance is the judges' decision. The event also requires the supplied **Atlas Sandbox** for finalist eligibility: real Atlas reads/writes are verified, but project membership still needs visual confirmation. The public repository is ready; accessible video upload and event submission remain outstanding.
+
+## Why build this when other tools exist?
+
+| Existing tool | What it provides | Our narrow contribution |
+| --- | --- | --- |
+| [LangGraph](https://docs.langchain.com/oss/python/langgraph/persistence) | Persistent state, memory, and recovery. | A concrete GPU experiment loop whose answers, measurements, remembered failures, and restart behavior can be inspected together. |
+| [Optuna](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/001_rdb.html) | Persistent optimization studies and trial history. | Exact answer rules and failure reuse for a small predefined set; a larger search could use Optuna. |
+| [MLflow](https://www.mlflow.org/docs/latest/tracking/) | Tracking for experiments, metrics, and artifacts. | Stored evidence directly controls which experiment this program performs next. |
+
+These frameworks could support an expanded version. We reused PyTorch, PyMongo, filelock, and python-dotenv to produce one working path quickly. The original contribution is the integration, evaluator, recovery behavior, packed-key alternative, and controlled comparison—not a claim to have invented persistence. See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md).
+
+## What the judges can observe
+
+The supplied guide weights the first round as impact 20%, technical demo 35%, creativity 15%, and implementation difficulty 30%; round two weights them equally. The presentation should show the user's problem, the fair comparison, and the working result before discussing internals.
+
+Our strongest proof is **the same correct alternatives assessed with fewer repeated tests**, supported by real Atlas records and a live restart. Technical depth comes from independent answer checking, GPU measurement, guarded result writes, and recovery. Impact remains narrow: no customer or production savings study has been performed. [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md) documents the organizer guidance and relevant public skills reviewed, their application, and the remaining competitive gaps.
+
+## Run it yourself
+
+Verified machine: WSL2, RTX 5070 Ti, 16,303 MiB VRAM, Python 3.11.14, PyTorch 2.8.0+cu128. The driver supports CUDA 13.1; the PyTorch wheel uses CUDA 12.8. No CUDA compiler was installed. See [the current manifest](evidence/preflight-v3.json).
+
+Use a working CUDA PyTorch environment. On this desktop we reused an existing installation:
 
 ```bash
 cd /mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent
 /home/henryl/miniconda3/envs/henry_benchmark/bin/python -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m atlas_gpu_harness preflight
-.venv/bin/python -m atlas_gpu_harness baseline
 ```
 
-For Atlas:
-
-1. Join the **event-provided Atlas Sandbox** using the invitation and select that project.
-2. Create a database user with `readWrite` access to `atlas_gpu_harness`, and allow this desktop's public outbound IP in the project's IP Access List.
-3. Copy the cluster's Python driver URI, replace its credential placeholders, and save it as `MONGODB_URI=...` in the ignored `.env` file. URL-encode special characters in the password. `.env.example` contains placeholders only.
-4. Run the live ping and write/read/delete check. Open Data Explorer at `atlas_gpu_harness` to inspect the records.
+On another machine, install an appropriate wheel using the [official PyTorch selector](https://pytorch.org/get-started/locally/). Join the event's Atlas Sandbox, create a database user with `readWrite` on `atlas_gpu_harness`, and allow the desktop's public outbound IP. Save its driver URI as `MONGODB_URI=...` in the ignored `.env` file; `.env.example` contains placeholders.
 
 ```bash
 .venv/bin/python -m atlas_gpu_harness atlas-check
 .venv/bin/python -m unittest discover -s tests -v
 
-# Intentionally exits 86 AFTER committing the first result.
+# Deliberately exits 86 after saving the first result.
 .venv/bin/python -m atlas_gpu_harness run --budget-evals 4 --fault-after-commit
-# Copy its printed RUN_ID into the following commands.
+# Substitute the printed run ID below.
 .venv/bin/python -m atlas_gpu_harness status --run-id RUN_ID
 .venv/bin/python -m atlas_gpu_harness resume --run-id RUN_ID
 .venv/bin/python -m atlas_gpu_harness export --run-id RUN_ID
 
-# A new run can use compatible failure history from earlier runs.
-.venv/bin/python -m atlas_gpu_harness run --budget-evals 5
+# Compare access to one compatible saved run, without altering its records.
+.venv/bin/python scripts/measure_harness.py \
+  --seed-run-id SEED_RUN_ID --output artifacts/new-comparison.json
+
+# Recompute the published numbers without Atlas or GPU access.
+.venv/bin/python scripts/summarize_experiments.py
 ```
 
-Existing failure history can cause a new run to finish below its budget. To show the original rejection, inspect the saved failed experiment; do not delete history just to reproduce it. The 59-second captioned backup can be recreated with [scripts/make_demo_video.py](scripts/make_demo_video.py); [DEMO.md](DEMO.md) covers recording and submission.
+The live comparison needs a completed, compatible seed containing the observed tie failure; [EXPERIMENTS.md](EXPERIMENTS.md) gives the published IDs. Five tests passed after the measurement correction, followed by a real recovery run and four real comparison runs. Existing failure history can cause a run to finish below budget; inspect the original failure instead of deleting it to stage the demo.
 
-## Boundaries and next steps
+## Scope of the guarantees
 
-This is one operator, one primary workload, one desktop, and a fixed five-candidate policy. Local locks require the same host and artifacts directory. An interrupted uncommitted evaluation may execute again; completed results are committed idempotently within a run. There is no distributed scheduler or exactly-once GPU execution guarantee.
+One desktop, one primary workload, a fixed policy, and local file locks. An interrupted experiment whose result was not saved can run again. The record identity prevents duplicate committed work within a run; it does not guarantee exactly-once GPU execution.
 
-Compatibility uses GPU name, compute capability, Torch/CUDA versions, evaluator version, and the complete evaluation contract. Driver, Git revision, and Python version are recorded but excluded from that hash. Meaningful evaluator changes require a version bump; the current hash is not a complete environment or source-code identity. Historical retrieval is bounded to 50 compatible terminal experiments plus current-run records.
-
-The next useful extensions would be source-complete compatibility checks, a larger workload suite, and a constrained model proposer or established search framework using the same fixed evaluator. Those extensions are not part of the demonstrated build.
+The compatibility hash includes the GPU, Torch/CUDA versions, evaluator version, and evaluation contract, but excludes recorded driver, Git revision, and Python metadata. Evaluator changes require a version bump. Version 3 corrects paired warmup; version-2 reports remain historical evidence. The lowest initial median is not a confirmed speedup, and remembered failures outside the bounded retrieval window may not influence later runs.
