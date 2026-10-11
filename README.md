@@ -8,7 +8,20 @@ We ran **Kimi-Linear-48B-A3B Q4_K_M, a 30.06 GB file, on a 16 GB RTX 5070 Ti**. 
 
 **Our contribution is the coding experiment around that engine:** a local agent writes a Python placement policy, the harness tests it against automatic fitting, and measured answers, memory, speed, and errors become feedback for the next attempt. Atlas preserves the code-to-result history. Reserved questions decide whether to accept the candidate or keep the baseline, and a confirmed choice becomes a reusable launch recipe.
 
-[59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
+[59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [Deployment engineer](DEPLOYMENT_ENGINEER.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
+
+## What the framework does
+
+Atlas GPU Harness is an **LLM deployment experiment framework**. It starts with a model artifact, available GPU/RAM/SSD capacity, and a fixed workload; proposes a runtime configuration; records answers, latency, resource use, and failures; and uses those results to choose the next experiment. A proposed setting is a hypothesis, not an optimization claim. The measured MoE loop confirms its final choice on reserved tasks; the newer deployment path reports preliminary benchmark outcomes.
+
+There are two paths with different levels of evidence:
+
+| Path | Implemented workflow | Current evidence |
+| --- | --- | --- |
+| **MoE placement loop** | A local coding model writes a constrained `n_cpu_moe` policy; llama.cpp runs the same GGUF under automatic fitting and proposed placements; MongoDB Atlas stores trials, failures, decisions, and a resumable recommendation. | Completed Kimi and Qwen trials below. The engine baseline won; no generated speedup is claimed. |
+| **Deployment engineer** | Searches first-party vLLM, SGLang, Ollama, and Unsloth documentation indexes; plans source-cited GPU, RAM, SSD, and MoE experiments; benchmarks a running local OpenAI-compatible endpoint; and compares saved JSON outcomes. Unsloth supplies export guidance rather than a serving backend. | Planner and benchmark contract are tested. Live vLLM/SGLang deployment results and Atlas-backed resume for this path are not yet demonstrated. See the [operator guide](DEPLOYMENT_ENGINEER.md). |
+
+**Long horizon means continuity across experiments, not a longer model context window.** The demonstrated placement loop saves measurements in Atlas, retrieves compatible tuning evidence for the next coding attempt, and can resume after interruption without repeating committed trials. Its coding model has a 4,096-token context capacity. The newer deployment path can consume prior benchmark JSON to propose the next configuration, but its results are not yet part of that Atlas resume loop. The measured long-horizon claim therefore rests on the placement loop and remains bounded to a few attempts, not autonomous days of work.
 
 ## What is running today?
 

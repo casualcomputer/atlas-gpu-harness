@@ -4,6 +4,8 @@ The current system runs a bounded experiment on one desktop: **generate Python c
 
 The original PyTorch operator experiment remains a separate CLI path. Its measurements and deliberate-crash demonstration are documented in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md). This document describes the consumer inference path.
 
+The newer [deployment engineer](DEPLOYMENT_ENGINEER.md) is a separate path in `atlas_gpu_harness/deployment_engineer.py`: it discovers official runtime documentation, proposes vLLM/SGLang/Ollama launch experiments from a hardware inventory and prior JSON results, benchmarks a running local endpoint, and compares outcomes. It does not yet write those results to Atlas, generate placement code for those engines, or provide the held-out confirmation and resume guarantees described below. Unsloth is used for artifact preparation guidance, not as a serving engine in this path.
+
 ## 1. The user problem and system boundary
 
 A model file can be larger than a 16 GB GPU's memory. System RAM can hold some weights, but a usable placement also depends on engine allocations, context memory, speed, and correct outputs. The harness evaluates a supported local model on the actual machine and records the outcome instead of treating an estimated fit as success.
