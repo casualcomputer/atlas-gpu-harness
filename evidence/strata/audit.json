@@ -1,0 +1,21 @@
+{
+  "run_id": "e5359ac4eb6d42358187f0530d66b1d9",
+  "read_at": "2026-10-11 23:33:06.978637+00:00",
+  "status": "completed",
+  "experiment_count": 18,
+  "decision_count": 18,
+  "resolved_evidence_links": 153,
+  "dangling_references": 0,
+  "references_only_preceding_results": true,
+  "all_attempts_one": true,
+  "recovered_experiment_ids": [
+    "e5359ac4eb6d42358187f0530d66b1d9:tuning-32768-0-default"
+  ],
+  "native_engine_successes": 18,
+  "verified_32768_inputs": 18,
+  "all_eight_settings_correct": 18,
+  "arithmetic_total_correct": 0,
+  "full_correctness_passes": 0,
+  "source_and_prompt_hashes_verified": true,
+  "recommendation": null
+}

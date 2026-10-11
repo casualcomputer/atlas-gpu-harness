@@ -21,3 +21,15 @@ The UI's two older-run dot plots contain 180 displayed timing samples rounded to
 ## Scope of the integration
 
 The tested single-controller flow persists a result before updating run progress, retrieves compatible prior experiments, stores evidence IDs with decisions, and can resume after a deliberate post-commit exit; see [EVIDENCE.md](EVIDENCE.md). The live reads above confirm the records and links exist now. They do not establish event Sandbox membership, production concurrency behavior, or a speedup. `AtlasStore.start()` can reclaim a `running` experiment without a distributed lease; the local file lock constrains this demo to one controller on one machine. The deployment planner still needs Atlas-backed trial storage and resume before it can make the same durability claim.
+
+## Native Strata 32K run
+
+An independent live read on October 11, 2026 verified run `e5359ac4eb6d42358187f0530d66b1d9` after all trials completed. The [audit receipt](evidence/strata/audit.json) records:
+
+- 18 real native inference results and 18 decisions; every experiment remains at attempt 1.
+- 153 evidence references, all resolved and pointing to results committed before their decision.
+- The first trial was committed, the controller exited deliberately, and resume recovered that record without executing it again.
+- Every engine response reports 32,768 input tokens and zero reused prompt tokens. All saved input artifacts and the runner source match their recorded SHA-256 checksums.
+- All 18 outputs retrieved every final setting correctly; none computed the requested total correctly. The run is complete with `recommendation: null`; completion does not imply a passing candidate.
+
+These are real Strata `default`, `cpu_4`, `cpu_7`, `adaptive_160`, and `no_pcie` trials. They are separate from the earlier PyTorch `sort_stable`/`argsort_stable` experiment. The [new UI](demo-ui/strata.html) reads the [Atlas export](evidence/strata/latest.json) after each committed result and exposes its commands, answers, counters and prompt downloads. It receives no database credentials. Strata’s policy grid is predetermined; the ledger is used for resume, evidence lineage and gated selection, not an LLM-generated policy loop.

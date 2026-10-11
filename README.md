@@ -2,7 +2,7 @@
 
 **An LLM deployment agent: it runs open models on real inference engines, benchmarks every configuration for correctness, memory and speed, and records each experiment in MongoDB Atlas — so a setting reaches production only when the evidence holds.**
 
-**[▶ Live demo](demo-ui/index.html)** · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
+**[▶ Live demo](demo-ui/index.html)** · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
 | | |
 | --- | --- |
@@ -10,6 +10,12 @@
 | **Agent behaviour** | The coding agent read its own failure from Atlas and rewrote its policy (+30.73% over its first attempt). That was still 36.94% slower than the engine default, so the harness kept the default. |
 | **Honesty gate** | On Qwen3.5-35B-A3B, a +3.56% / +1.92% "speedup" missed the 5% confirmation rule and was rejected. **No unproven speedup is ever promoted.** |
 | **Durability** | Resuming a finished run returns its saved recipe from Atlas in 7.80 s without re-running anything; the saved recipe relaunches and serves correct answers. |
+
+## 32K Strata policy demo
+
+The native Strata v0.1.43 adapter runs Qwen3.8-Flash-Next IQ2_XS on the same RTX 5070 Ti with 64 GB host RAM. It compares five documented CPU worker, expert-cache and PCIe policies, with three repeats per policy and **32,768 actual input tokens throughout**. The grid is deterministic; these policies come from Strata’s calibration source. Atlas stores raw answers, counters, timings, resources and decision evidence, and the UI reads those records back. The completed tuning grid shows an observed 6.2% median decode difference for adaptive caching versus default, but arithmetic failures prevent a validated recommendation; all 18 tuning and fresh-prompt requests retrieved every setting correctly. [Protocol and measured results](STRATA_EXPERIMENT.md).
+
+Long inputs and long experiment histories are separate capabilities: this suite exercises 32K inputs, while Atlas preserves continuity across restarts. Ollama is not an inference target; it remains the earlier coding loop’s model provider. Maya remains a research target.
 
 ## Why this matters
 
@@ -50,10 +56,11 @@ flowchart LR
 | Execute & measure | `inference_backend.py` | Owns the llama.cpp process; exact-answer scoring, 250 ms memory sampling, decode speed, latency, errors |
 | Orchestrate | `inference.py` | Budgeted search, baseline-first, held-out confirmation, resume from Atlas, recommendation |
 | Deploy | `inference_serve.py` | Relaunches a confirmed recipe after compatibility checks |
+| Strata policy experiments | `strata_experiment.py` | Native Strata, fixed 32K inputs, repeated policy comparisons, answer checks and Atlas resume |
 | Plan other engines | `deployment_engineer.py` | Source-cited vLLM / SGLang experiment plans and an OpenAI-compatible endpoint benchmark |
 | Memory | `store.py` + Atlas | `runs`, `experiments`, `decisions`; every decision lists the experiment IDs it retrieved |
 
-**Controls that keep long runs honest.** The agent may change only one setting (`n_cpu_moe`). Model file, engine build, context (4,096), threads, decoding, prompts and acceptance rules are locked. A context hash over hardware, engine, source and model identity prevents evidence from being reused where it does not apply. Confirmation questions never enter the agent's feedback.
+**Controls that keep long runs honest.** In the earlier llama.cpp coding loop, the agent may change only one setting (`n_cpu_moe`). Model file, engine build, context (4,096), threads, decoding, prompts and acceptance rules are locked. A context hash over hardware, engine, source and model identity prevents evidence from being reused where it does not apply. Confirmation questions never enter the agent's feedback.
 
 ### How MongoDB Atlas is used
 
@@ -89,7 +96,7 @@ Limits: short exact-answer tasks, not a production throughput or general-quality
 | llama.cpp (GGUF) | MoE expert placement vs. engine auto-fit | **Measured** — two full MoE runs |
 | vLLM (HF weights) | GPU memory utilization, KV cache, CPU offload, expert parallelism, batching | Planner and endpoint benchmark implemented; no live result yet ([guide](DEPLOYMENT_ENGINEER.md)) |
 | SGLang (HF weights) | Memory fraction, KV dtype, CPU offload, EP size, MoE backends | Planner and endpoint benchmark implemented; no live result yet |
-| Strata | Adaptive VRAM/RAM/PCIe expert tiers | Research and experiment in progress ([notes](STRATA_MAYA_RESEARCH.md)) |
+| Strata | CPU worker count, adaptive expert-cache promotions, PCIe offload | Real 32K policy measurements ([dashboard](demo-ui/strata.html), [protocol](STRATA_EXPERIMENT.md)) |
 
 ## Judging criteria
 
@@ -100,12 +107,12 @@ Limits: short exact-answer tasks, not a production throughput or general-quality
 | **Creativity (15%)** | A coding agent proposes deployment policies while the harness — not the agent — decides what is true. Atlas is the agent's memory and the audit trail. |
 | **Difficulty (30%)** | Owned engine processes, sandboxed generated code, memory sampling, held-out confirmation, context hashing, crash-safe resume across a larger-than-VRAM model. |
 
-**Track fit.** *Long Horizon Engineering*: durable experiment memory, metric-driven decisions and resume across interruptions. *Recursive Harnessing*: the policy code is regenerated from measured feedback, while the evaluator stays fixed. Long horizon here means continuity across experiments, not the model's context window.
+**Track fit.** *Long Horizon Engineering*: durable experiment memory, metric-driven decisions and resume across interruptions. *Recursive Harnessing*: the policy code is regenerated from measured feedback, while the evaluator stays fixed. Atlas preserves long experiment histories; the separate Strata suite also exercises 32K model inputs.
 
 ## Roadmap
 
-1. **Now:** controlled deployment loop on llama.cpp, measured on two MoE models.
-2. **Next:** live vLLM and SGLang benchmarks under the same contract, recorded in the same Atlas ledger; Strata expert-tier policies at 32K–128K inputs.
+1. **Now:** controlled deployment loop on llama.cpp, measured on two MoE models, plus native Strata policy experiments at 32K.
+2. **Next:** live vLLM and SGLang benchmarks under the same contract, recorded in the same Atlas ledger.
 3. **Vision:** parallel agents exploring configurations across NVIDIA, AMD and Intel fleets and controlling their own experiments, so new open models run efficiently on day one.
 
 ## Demo website
@@ -175,4 +182,4 @@ These cover generated-code restrictions, metadata, orchestration, measurements, 
 
 ## Credits
 
-Inference and CPU/GPU offload: [llama.cpp](https://github.com/ggml-org/llama.cpp). Models: Moonshot AI (Kimi Linear) with Bartowski GGUF quantization; Qwen with Unsloth GGUF quantization. Coding model: Ollama `gemma3:12b`. Inspiration for expert-tier policies: [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya). See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md) for what was built during the event. An earlier PyTorch operator prototype and its evidence remain in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md).
+Inference and CPU/GPU offload: [llama.cpp](https://github.com/ggml-org/llama.cpp). Models: Moonshot AI (Kimi Linear) with Bartowski GGUF quantization; Qwen with Unsloth GGUF quantization. Coding model: Ollama `gemma3:12b`. Native expert-policy engine: [Strata](https://github.com/Niko1221/Strata). Additional research: [Project Maya](https://github.com/mw00/project-maya). See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md) for what was built during the event. An earlier PyTorch operator prototype and its evidence remain in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md).

@@ -30,4 +30,4 @@ Across tracks, use the same machine state as far as possible; alternate run orde
 
 ## Current status
 
-No Strata or Maya engine or model has been installed or benchmarked by this repository. No result here establishes a policy faster than llama.cpp on Kimi. The direct next step is to prove a richer Kimi-compatible policy or to start the separate supported-model engine comparisons above, then show their evidence as distinct experiments.
+Follow-up: the repository now installs native Windows Strata v0.1.43 and integrates its supported Qwen model with the Atlas experiment ledger. The [new protocol and result record](STRATA_EXPERIMENT.md) owns the status of this run. Maya remains uninstalled. The Strata policy comparisons do not establish a speedup over llama.cpp on Kimi.

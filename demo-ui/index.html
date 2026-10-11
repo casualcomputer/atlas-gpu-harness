@@ -167,7 +167,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
 <nav><div class="wrap">
   <a class="brand" href="#top"><i></i>Atlas GPU Harness</a>
   <div class="links">
-    <a href="#problem">Problem</a><a href="#how">How it works</a><a href="#atlas">Atlas</a><a href="#proof">Proof</a><a href="#engines">Engines</a><a href="#roadmap">Roadmap</a>
+    <a href="/demo-ui/strata.html">32K policy lab</a><a href="#problem">Problem</a><a href="#how">How it works</a><a href="#atlas">Atlas</a><a href="#proof">Proof</a><a href="#engines">Engines</a><a href="#roadmap">Roadmap</a>
   </div>
   <a class="gh" href="https://github.com/casualcomputer/atlas-gpu-harness">GitHub</a>
 </div></nav>
@@ -178,7 +178,8 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   <h1>The LLM deployment agent <span class="accent">that never forgets an experiment.</span></h1>
   <p class="lead">It launches an open model on a real inference engine, tries configurations, and checks every answer, memory peak and speed. Every result is written to <b style="color:var(--text)">MongoDB Atlas</b> before the next step, and every new attempt starts from what Atlas returns. A setting is promoted only if it beats the engine default on questions it has never seen.</p>
   <div class="cta">
-    <a class="btn primary" href="#proof">See the measured results →</a>
+    <a class="btn primary" href="/demo-ui/strata.html">Explore real 32K Strata trials →</a>
+    <a class="btn" href="#proof">Earlier Kimi results</a>
     <a class="btn" href="#atlas">How Atlas is used</a>
   </div>
   </div>
@@ -200,7 +201,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
     <div class="foot"><span class="pill" data-i="3">BASELINE</span><span class="pill" data-i="5">PROPOSE</span><span class="pill" data-i="6">ATLAS MEMORY</span><span class="pill" data-i="9">CONFIRM</span><span class="pill" data-i="10">RECIPE</span></div>
   </div>
  </div>
-  <div class="strip"><b>ENGINES</b><span class="m">llama.cpp · measured</span><span class="p">vLLM · planned</span><span class="p">SGLang · planned</span><span class="p">Strata · in progress</span><span class="m">MongoDB Atlas · ledger</span></div>
+  <div class="strip"><b>ENGINES</b><span class="m">llama.cpp · measured</span><span class="p">vLLM · planned</span><span class="p">SGLang · planned</span><span class="p">Strata · 32K measured</span><span class="m">MongoDB Atlas · ledger</span></div>
 
   <div class="stats">
     <div class="stat"><div class="n">30 GB</div><div class="l">model served on a 16 GB GPU</div></div>
@@ -252,7 +253,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   <h2>Atlas is the agent's memory — not a dashboard.</h2>
   <p class="lead">The agent cannot advance until a result is committed, and it cannot propose until it has read prior evidence. Five operations, all in <code>store.py</code> and <code>inference.py</code>:</p>
   <div class="grid2" style="margin-top:32px">
-    <div class="card"><div class="k">1 · Claim exactly once</div><h3>Each trial has one owner</h3><p>A deterministic <code>_id</code> (run + recipe + stage) is inserted into <code>experiments</code>; a duplicate key means it already exists. An <code>update_one</code> with an owner token claims it and increments <code>attempt</code>, so a restarted agent can never run or record the same trial twice.</p></div>
+    <div class="card"><div class="k">1 · Claim trial ownership</div><h3>Each trial has one owner</h3><p>A deterministic <code>_id</code> (run + recipe + stage) is inserted into <code>experiments</code>; a duplicate key means it already exists. An <code>update_one</code> with an owner token claims it and increments <code>attempt</code>, so stale completions can be rejected. Committed trials are reused; an interrupted running trial can be reclaimed. The local GPU lock limits this demo to one controller on one machine.</p></div>
     <div class="card"><div class="k">2 · Commit before advancing</div><h3>Results land in Atlas first</h3><p>Answers, scores, sampled GPU memory, speed and errors are written with <code>status: completed | failed</code>. A stale or duplicate worker's write is rejected. Only then does the loop move on.</p></div>
     <div class="card"><div class="k">3 · Retrieve compatible evidence</div><h3>The next proposal reads Atlas</h3><p><code>find({context_hash, status ∈ completed, failed})</code>, newest first, on an index over <code>(context_hash, finished_at)</code>. The hash covers GPU, engine, source code and model, so evidence from a different setup is never reused. Held-out confirmation results are never shown to the agent.</p></div>
     <div class="card"><div class="k">4 · Record why</div><h3>Decisions cite their evidence</h3><p>Every proposal inserts a <code>decisions</code> document with its hypothesis and the <code>retrieved_experiment_ids</code> it was based on. A <code>$lookup</code> aggregation joins each decision to those experiments — an auditable trail.</p></div>
@@ -360,7 +361,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
       <tr><td><b>llama.cpp</b><br><small>GGUF · consumer &amp; workstation GPUs</small></td><td>MoE expert placement across GPU/CPU (<code>n_cpu_moe</code>) vs. engine auto-fit</td><td><span class="tag g">MEASURED</span><br><small>Kimi 48B + Qwen 35B, full runs</small></td></tr>
       <tr><td><b>vLLM</b><br><small>HF weights · data center</small></td><td>GPU memory utilization, KV cache size &amp; dtype, CPU offload, expert parallelism, batching</td><td><span class="tag a">PLANNER + BENCHMARK READY</span><br><small>No live result yet</small></td></tr>
       <tr><td><b>SGLang</b><br><small>HF weights · data center</small></td><td>Static memory fraction, KV dtype, CPU offload, EP size, MoE backends, running-request limit</td><td><span class="tag a">PLANNER + BENCHMARK READY</span><br><small>No live result yet</small></td></tr>
-      <tr><td><b>Strata</b><br><small>adaptive expert tiers</small></td><td>VRAM/RAM/PCIe expert cache policy at 32K–128K input tokens</td><td><span class="tag d">IN PROGRESS</span><br><small>No measurements published</small></td></tr>
+      <tr><td><b>Strata</b><br><small>adaptive expert tiers</small></td><td>CPU workers, expert cache and PCIe policies at exactly 32K input tokens</td><td><span class="tag g">MEASURED</span><br><small><a href="/demo-ui/strata.html">Repeated trials, speed and answer checks →</a></small></td></tr>
     </tbody>
   </table></div>
   <div class="links2">
@@ -375,14 +376,14 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   <h2>From one GPU to every model on every chip.</h2>
   <p class="lead">Atlas is what makes this scale: many agents on many machines need one shared, durable record of what was tested, what failed and what was proven.</p>
   <div class="road">
-    <div class="card"><div class="k">Today · built</div><h3>Controlled deployment loop</h3><p>Real engine runs, answer gates, held-out confirmation, saved recipes, resume — measured on llama.cpp with two MoE models.</p></div>
+    <div class="card"><div class="k">Today · built</div><h3>Controlled deployment loop</h3><p>Real engine runs, answer gates, confirmation and resume — llama.cpp on two MoE models plus native Strata policies at 32K.</p></div>
     <div class="card next"><div class="k">Next</div><h3>Data center engines</h3><p>Live vLLM and SGLang benchmarks under the same contract, with results flowing into the same Atlas ledger.</p></div>
     <div class="card future"><div class="k">Vision</div><h3>Autonomous fleet tuning</h3><p>Parallel agents exploring configurations across NVIDIA, AMD and Intel, controlling their own experiments — so new open models run efficiently on day one.</p></div>
   </div>
 </div></section>
 
 <footer><div class="wrap">
-  Atlas GPU Harness · measured on one RTX 5070 Ti with llama.cpp b11429 · short exact-answer workloads, not a production throughput benchmark · vLLM, SGLang and Strata results pending · <a href="https://github.com/casualcomputer/atlas-gpu-harness">github.com/casualcomputer/atlas-gpu-harness</a>
+  Atlas GPU Harness · measured on one RTX 5070 Ti with llama.cpp b11429 · short exact-answer workloads, not a production throughput benchmark · Strata: separate 32K policy measurements · vLLM and SGLang results pending · <a href="https://github.com/casualcomputer/atlas-gpu-harness">github.com/casualcomputer/atlas-gpu-harness</a>
 </div></footer>
 
 <script>
