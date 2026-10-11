@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700;800;900&display=swap">
 <style>
-/* Layout: centered launch hero → full-width live run console (the product) → alternating proof rows → closing CTA. Dark-first graphite; amber = measured signal, teal = durable in Atlas, red = crash/reject. */
+/* Layout: measured inference results → saved operator-run replay → evidence. Dark-first graphite; amber = measured signal, teal = durable in Atlas, red = crash/reject. */
 :root{
   --bg:#0A0C0F; --bg2:#0E1115; --panel:#12161B; --panel2:#171C22; --line:#222932; --line2:#2E3742;
   --fg:#E9EDF2; --fg2:#B9C2CD; --muted:#7D8896;
@@ -430,11 +430,11 @@ h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px)
           <div class="runtime-row"><span class="name">llama.cpp · GGUF</span><span class="state done">measured · baseline kept</span></div>
           <div class="runtime-row"><span class="name">vLLM · HF weights</span><span class="state">planned · no live result</span></div>
           <div class="runtime-row"><span class="name">SGLang · HF weights</span><span class="state">planned · no live result</span></div>
-          <div class="runtime-row"><span class="name">Ollama · model tag</span><span class="state">planned · no live result</span></div>
           <div class="runtime-row"><span class="name">Unsloth · export</span><span class="state">artifact guidance</span></div>
         </div>
         <p class="runtime-note">Candidate axes: expert placement and parallelism, GPU weight pressure, CPU offload, KV cache use, and cold versus warm SSD load. Compare only supported artifacts under the same workload.</p>
-        <div class="source-links"><a href="../DEPLOYMENT_ENGINEER.md">Run the planner</a><a href="../RUNTIME_RESEARCH.md">Runtime sources</a></div>
+        <p class="runtime-note"><b>Policy research:</b> Strata and Maya suggest adaptive per-expert VRAM/RAM/SSD tiers, but neither runs the measured Kimi artifact here. A gain over llama.cpp still needs a compatible implementation and matched experiment.</p>
+        <div class="source-links"><a href="../DEPLOYMENT_ENGINEER.md">Run the planner</a><a href="../RUNTIME_RESEARCH.md">Runtime sources</a><a href="../STRATA_MAYA_RESEARCH.md">Strata/Maya research</a></div>
       </article>
     </div>
   </div>
@@ -442,8 +442,8 @@ h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px)
 
 <section class="current" aria-labelledby="memory-title">
   <div class="wrap current-head" style="margin-bottom:0">
-    <div><div class="eyebrow">Earlier operator prototype · separate experiment</div><h2 id="memory-title">Replay how the notebook preserves progress.</h2><p class="sub">The motion sequence below replays recorded PyTorch top-k and Atlas runs. It demonstrates a crash, resume, correctness rejection, and later evidence retrieval. Its microsecond chart is separate from the Kimi inference results above.</p></div>
-    <a class="btn" href="../EVIDENCE.md">Read the prototype evidence</a>
+    <div><div class="eyebrow">Earlier operator prototype · separate experiment</div><h2 id="memory-title">Replay how the notebook preserves progress.</h2><p class="sub">The motion sequence below replays exported MongoDB Atlas records from real PyTorch top-k runs. Its `sort_stable` and `argsort_stable` names identify tested PyTorch operators, not llama.cpp, Strata, or Maya inference policies. This page replays saved data; it does not query Atlas live. Its microsecond chart is separate from the Kimi inference results above.</p></div>
+    <div class="source-links"><a href="../EVIDENCE.md">Prototype evidence</a><a href="../MONGODB_AUDIT.md">Live Atlas audit</a></div>
   </div>
 </section>
 
@@ -463,7 +463,7 @@ h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px)
           <div class="deadveil" aria-hidden="true"><div class="deadcard"><div class="code">exit 86</div><div class="t">controller process killed after commit</div><div class="s">in-memory progress: gone</div></div></div>
         </section>
         <section class="pane p-gpu">
-          <div class="phead">Candidates · RTX 5070 Ti <span class="r"><span class="mem" id="mem">memory: 4 records</span></span></div>
+          <div class="phead">PyTorch operators · RTX 5070 Ti <span class="r"><span class="mem" id="mem">memory: 4 records</span></span></div>
           <div class="cands" id="cands"></div>
         </section>
         <section class="pane p-atlas">
@@ -575,7 +575,7 @@ h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px)
   <div class="wrap" style="position:relative">
     <div class="eyebrow">Atlas GPU Harness</div>
     <h2>Long runs should keep what they learn.</h2>
-    <p class="sub">The measured MoE loop retains a validated llama.cpp recipe in Atlas. The runtime planner now names the next vLLM, SGLang, and Ollama experiments; those engines still need live, comparable runs.</p>
+    <p class="sub">The measured MoE loop retains a validated llama.cpp recipe in Atlas. The runtime planner names the next vLLM and SGLang experiments. Strata and Maya inform a richer policy research track; no speedup over llama.cpp has been demonstrated by this harness.</p>
     <div class="hero-cta" style="margin-top:28px">
       <a class="btn primary" href="#replay" id="cta-replay2"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>Watch it again</a>
       <a class="btn" href="https://github.com/casualcomputer/atlas-gpu-harness" target="_blank" rel="noopener">Read the code</a>
@@ -583,7 +583,7 @@ h2{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,4.4vw,54px)
   </div>
 </section>
 
-<footer class="foot"><div class="wrap"><span>Saved evidence: Kimi inference export and earlier PyTorch replay in evidence/</span><span>Measured inference: llama.cpp · runtime planner: vLLM, SGLang, Ollama · no speedup claimed</span></div></footer>
+<footer class="foot"><div class="wrap"><span>Saved evidence: Kimi inference export and earlier PyTorch replay in evidence/</span><span>Measured inference: llama.cpp · runtime planner: vLLM, SGLang · no speedup claimed</span></div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>

@@ -14,8 +14,7 @@ class PlanningTests(unittest.TestCase):
         return {"model": {"architecture": "moe", "weights_gib": 30},
                 "hardware": {"gpu_total_gib": 32, "gpu_count": 2,
                              "ram_available_gib": 64, "ssd_free_gib": 100},
-                "targets": {"vllm": "org/model", "sglang": "org/model",
-                            "ollama": "model:tag"}}
+                "targets": {"vllm": "org/model", "sglang": "org/model"}}
 
     def test_moe_experiments_preserve_gpu_count_and_one_setting_changes(self):
         plan = engineer.plan(self.spec())
@@ -26,7 +25,6 @@ class PlanningTests(unittest.TestCase):
         self.assertEqual(by_id["vllm:baseline"]["argv"][-2:], ["--tensor-parallel-size", "2"])
         self.assertEqual(by_id["sglang:expert_parallel"]["argv"][-4:],
                          ["--tp", "2", "--ep", "2"])
-        self.assertNotIn("ollama:expert_parallel", by_id)
         self.assertEqual(plan["storage_experiments"][0]["id"], "ssd:cold_vs_warm_load")
 
     def test_gpu_pressure_adds_kv_experiments_after_baseline_evidence(self):
@@ -70,12 +68,13 @@ class PlanningTests(unittest.TestCase):
         self.assertIn("server failed", plan["diagnostics"][0]["finding"])
         self.assertNotIn("vllm:fp8_kv", {row["id"] for row in plan["experiments"]})
 
-    def test_ollama_kv_change_follows_flash_attention_control(self):
-        prior = [{"runtime": "ollama", "model": "model:tag", "workload": engineer.WORKLOAD,
-                  "gpu_peak_mib": 31000, "quality_pass": True}]
-        by_id = {row["id"]: row for row in engineer.plan(self.spec(), prior)["experiments"]}
-        self.assertEqual(by_id["ollama:q8_kv"]["compare_to"], "ollama:flash_attention")
-        self.assertNotIn("OLLAMA_KV_CACHE_TYPE", by_id["ollama:flash_attention"]["env"])
+    def test_ollama_is_not_a_serving_target(self):
+        spec = self.spec()
+        spec["targets"]["ollama"] = "model:tag"
+        with self.assertRaisesRegex(ValueError, "unsupported targets"):
+            engineer.plan(spec)
+        with self.assertRaisesRegex(ValueError, "catalog runtime"):
+            engineer.benchmark("http://127.0.0.1:8000", "ollama", "model:tag")
 
     def test_rejects_unknown_runtime_and_invalid_inventory(self):
         spec = self.spec()
@@ -93,7 +92,6 @@ class DocumentationTests(unittest.TestCase):
         pages = {
             "vllm": '<a href="/en/latest/serving/expert_parallel_deployment/">Expert parallel deployment</a>',
             "sglang": '- [Expert Parallelism](https://docs.sglang.io/docs/expert.md): MoE weights\n',
-            "ollama": '- [External](https://bad.example/moe): unrelated\n',
             "unsloth": '- [Export](https://unsloth.ai/docs/export.md): MoE model export\n',
         }
         by_url = {url: pages[runtime] for runtime, url in engineer.DOC_INDEXES.items()}

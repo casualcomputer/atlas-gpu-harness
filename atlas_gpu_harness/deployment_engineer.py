@@ -26,10 +26,9 @@ from .inference_backend import SYSTEM_PROMPT, TUNING_TASKS, _score
 SOURCES = {
     "vllm": "https://docs.vllm.ai/en/latest/configuration/engine_args/",
     "sglang": "https://docs.sglang.io/docs/advanced_features/server_arguments",
-    "ollama": "https://docs.ollama.com/faq",
     "unsloth": "https://unsloth.ai/docs/basics/inference-and-deployment/vllm-guide.md",
 }
-SERVING_RUNTIMES = ("vllm", "sglang", "ollama")
+SERVING_RUNTIMES = ("vllm", "sglang")
 EP_SOURCES = {
     "vllm": "https://docs.vllm.ai/en/latest/serving/expert_parallel_deployment/",
     "sglang": "https://docs.sglang.io/docs/advanced_features/expert_parallelism",
@@ -37,7 +36,6 @@ EP_SOURCES = {
 DOC_INDEXES = {
     "vllm": "https://docs.vllm.ai/en/latest/",
     "sglang": "https://docs.sglang.io/llms.txt",
-    "ollama": "https://docs.ollama.com/llms.txt",
     "unsloth": "https://unsloth.ai/docs/llms.txt",
 }
 WORKLOAD = "deployment-short-json-v1"
@@ -134,9 +132,6 @@ def _launch(runtime, model, context, extra=(), env=None):
     if runtime == "sglang":
         return ["python", "-m", "sglang.launch_server", "--model-path", model,
                 "--context-length", str(context), *extra], env or {}
-    if runtime == "ollama":
-        settings = {"OLLAMA_CONTEXT_LENGTH": str(context), **(env or {})}
-        return ["ollama", "serve"], settings
     raise ValueError(f"unsupported runtime: {runtime}")
 
 
@@ -240,18 +235,6 @@ def plan(spec: dict, observations: list[dict] | None = None) -> dict:
             experiments.append(_experiment(runtime, model_id, "fp8_kv", argv, env,
                 "Test whether a smaller KV cache relieves GPU pressure at fixed context.",
                 SOURCES[runtime], "Confirm model/device support; recheck all answers after changing KV precision."))
-        if (gpu_tight or memory_failure) and runtime == "ollama":
-            argv, env = _launch(runtime, model_id, context,
-                env={"OLLAMA_FLASH_ATTENTION": "1"})
-            experiments.append(_experiment(runtime, model_id, "flash_attention", argv, env,
-                "Establish the Flash Attention control before changing KV precision.", SOURCES[runtime],
-                "Confirm backend support and compare quality with the baseline."))
-            argv, env = _launch(runtime, model_id, context,
-                env={"OLLAMA_FLASH_ATTENTION": "1", "OLLAMA_KV_CACHE_TYPE": "q8_0"})
-            experiments.append(_experiment(runtime, model_id, "q8_kv", argv, env,
-                "Test lower KV memory use while checking output quality.", SOURCES[runtime],
-                "Confirm Flash Attention and KV quantization support on the selected backend.",
-                reference=f"{runtime}:flash_attention"))
         if runtime == "sglang" and (gpu_tight or memory_failure):
             argv, env = _launch(runtime, model_id, context, [*base_extra, "--mem-fraction-static", "0.7"])
             experiments.append(_experiment(runtime, model_id, "smaller_static_pool", argv, env,
@@ -282,7 +265,7 @@ def plan(spec: dict, observations: list[dict] | None = None) -> dict:
             "source_catalog": SOURCES, "source_scope": "official documentation; check installed runtime --help/version before launch",
             "pressure": pressure, "diagnostics": diagnostics,
             "experiments": experiments, "storage_experiments": storage,
-            "artifact_preparation": {"unsloth": "Export a compatible merged checkpoint for vLLM/SGLang or GGUF for Ollama; preserve the training chat template and verify model bytes before comparing runtimes.",
+            "artifact_preparation": {"unsloth": "Export a compatible merged checkpoint for vLLM/SGLang or GGUF for the measured llama.cpp path; preserve the training chat template and verify model bytes before comparing runtimes.",
                                      "source": SOURCES["unsloth"]},
             "rule": "Run each runtime baseline first, then change one setting per referenced control. Keep artifact bytes, tasks, and hardware fixed within a runtime; record format and quantization differences across runtimes."}
 

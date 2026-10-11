@@ -4,7 +4,7 @@ The current system runs a bounded experiment on one desktop: **generate Python c
 
 The original PyTorch operator experiment remains a separate CLI path. Its measurements and deliberate-crash demonstration are documented in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md). This document describes the consumer inference path.
 
-The newer [deployment engineer](DEPLOYMENT_ENGINEER.md) is a separate path in `atlas_gpu_harness/deployment_engineer.py`: it discovers official runtime documentation, proposes vLLM/SGLang/Ollama launch experiments from a hardware inventory and prior JSON results, benchmarks a running local endpoint, and compares outcomes. It does not yet write those results to Atlas, generate placement code for those engines, or provide the held-out confirmation and resume guarantees described below. Unsloth is used for artifact preparation guidance, not as a serving engine in this path.
+The newer [deployment engineer](DEPLOYMENT_ENGINEER.md) is a separate path in `atlas_gpu_harness/deployment_engineer.py`: it discovers official runtime documentation, proposes vLLM/SGLang launch experiments from a hardware inventory and prior JSON results, benchmarks a running local endpoint, and compares outcomes. It does not yet write those results to Atlas, generate placement code for those engines, or provide the held-out confirmation and resume guarantees described below. Unsloth is used for artifact preparation guidance, not as a serving engine. Ollama provides the coding model in the existing placement loop only.
 
 ## 1. The user problem and system boundary
 
@@ -256,6 +256,6 @@ The launcher takes the GPU lock and starts the server. Its printed API URL becom
 
 ## 9. Scope and credit
 
-The harness automates a constrained coding-and-measurement workflow for supported local MoE files. Existing engines and quantized artifacts supply the actual ability to run large models. [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya) inspired the consumer-hardware goal; neither is integrated here.
+The harness automates a constrained coding-and-measurement workflow for supported local MoE files. Existing engines and quantized artifacts supply the actual ability to run large models. [Strata and Project Maya](STRATA_MAYA_RESEARCH.md) suggest richer per-expert VRAM/RAM/SSD policy mechanisms; neither is integrated or benchmarked by this repository.
 
 The 4,096-token context and bounded Atlas retrieval provide experiment continuity, not a billion-token context window. Policy revisions are a limited form of adaptation; the harness does not rewrite its architecture or guardrails. [README.md](README.md), [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md), and [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) connect the mechanism to the pitch, criteria, and measured outcomes.

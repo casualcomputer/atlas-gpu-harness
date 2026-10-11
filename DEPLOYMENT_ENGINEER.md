@@ -1,6 +1,6 @@
 # LLM deployment engineer
 
-The deployment workflow extends the llama.cpp GGUF experiments with **vLLM, SGLang, and Ollama** serving candidates. [Runtime research](RUNTIME_RESEARCH.md) records current official documentation for those engines and Unsloth. Unsloth supplies fine-tuned or exported artifacts; vLLM, SGLang, Ollama, or llama.cpp serves them after format and model-support checks.
+The deployment workflow extends the measured llama.cpp GGUF experiments with **vLLM and SGLang** serving candidates. [Runtime research](RUNTIME_RESEARCH.md) records official documentation for those engines and Unsloth. Unsloth supplies fine-tuned or exported artifacts. Ollama is used only as the local coding-model provider in the existing MoE placement loop; it is not a serving target or benchmark choice here.
 
 The workflow has three steps: plan the same workload across available model artifacts, benchmark each running local OpenAI-compatible server, and compare recorded outcomes. It does not install an engine or silently replace the existing llama.cpp result. An emitted command is a test candidate; check the installed runtime's version and help, model support, tokenizer, and chat template before launch.
 
@@ -10,11 +10,11 @@ Search official documentation indexes before choosing an experiment:
 python -m atlas_gpu_harness.deployment_engineer docs --query "MoE offload" > docs.json
 ```
 
-This searches the first-party vLLM navigation and SGLang, Ollama, and Unsloth documentation indexes by title and description. It returns matching links and any index fetch errors. Read the matched pages for the installed version before using a flag; the index search is discovery, not a claim that it has read every document.
+This searches the first-party vLLM navigation and SGLang and Unsloth documentation indexes by title and description. It returns matching links and any index fetch errors. Read the matched pages for the installed version before using a flag; the index search is discovery, not a claim that it has read every document.
 
 ## 1. Describe the model and hardware
 
-Save a `spec.json` like this, replacing the example model identifiers and measured sizes. `gpu_total_gib` is the aggregate memory of the GPUs assigned to one server, and `ram_available_gib` and `ssd_free_gib` are free capacity before launch. Give each runtime its actual artifact size because an HF checkpoint and an Ollama quantization can differ greatly. Only list runtimes for which you have a compatible artifact. vLLM and SGLang normally use a compatible Hugging Face checkpoint; Ollama uses an installed model tag or imported GGUF. Keep the exact model bytes, quantization, and chat template in your experiment notes.
+Save a `spec.json` like this, replacing the example model identifiers and measured sizes. `gpu_total_gib` is the aggregate memory of the GPUs assigned to one server, and `ram_available_gib` and `ssd_free_gib` are free capacity before launch. Give each runtime its actual artifact size and list only runtimes with a compatible checkpoint. vLLM and SGLang normally use a compatible Hugging Face checkpoint. The existing llama.cpp GGUF result remains a separate baseline. Keep exact model bytes, quantization, and chat template in your experiment notes.
 
 ```json
 {
@@ -23,8 +23,7 @@ Save a `spec.json` like this, replacing the example model identifiers and measur
   "context_tokens": 4096,
   "targets": {
     "vllm": {"model": "your-org/compatible-hf-model", "weights_gib": 30},
-    "sglang": {"model": "your-org/compatible-hf-model", "weights_gib": 30},
-    "ollama": {"model": "your-installed-model:tag", "weights_gib": 18}
+    "sglang": {"model": "your-org/compatible-hf-model", "weights_gib": 30}
   }
 }
 ```
@@ -72,5 +71,8 @@ python -m atlas_gpu_harness.deployment_engineer compare \
 
 - [vLLM engine arguments](https://docs.vllm.ai/en/latest/configuration/engine_args/) and [expert parallel deployment](https://docs.vllm.ai/en/latest/serving/expert_parallel_deployment/) cover KV memory, CPU weight offload, expert placement, and balancing.
 - [SGLang server arguments](https://docs.sglang.io/docs/advanced_features/server_arguments) and [expert parallelism](https://docs.sglang.io/docs/advanced_features/expert_parallelism) cover static memory, offload, KV precision, and multi-GPU experts.
-- [Ollama FAQ](https://docs.ollama.com/faq) covers context, parallel requests, KV precision, Flash Attention, CPU/GPU placement, and model storage.
-- [Unsloth vLLM deployment](https://unsloth.ai/docs/basics/inference-and-deployment/vllm-guide.md) and [GGUF export](https://unsloth.ai/docs/basics/inference-and-deployment/saving-to-gguf) explain how to prepare artifacts for the serving runtimes. Preserve [chat templates and special tokens](https://docs.unsloth.ai/basics/saving-and-using-models/troubleshooting).
+- [Unsloth vLLM deployment](https://unsloth.ai/docs/basics/inference-and-deployment/vllm-guide.md) and [GGUF export](https://unsloth.ai/docs/basics/inference-and-deployment/saving-to-gguf) explain how to prepare artifacts for the serving runtimes and the existing llama.cpp path. Preserve [chat templates and special tokens](https://docs.unsloth.ai/basics/saving-and-using-models/troubleshooting).
+
+## Strata and Maya as policy research
+
+[Strata and Maya](STRATA_MAYA_RESEARCH.md) show richer expert-residency policies across VRAM, RAM, PCIe, and SSD than this harness's `n_cpu_moe` layer count. Their published speed figures concern different supported model families and hardware; neither has been run on this repository's Kimi GGUF. Use their mechanisms to design a compatible policy, then compare it against llama.cpp automatic fitting with the same model and reserved workload before claiming an improvement. Separate supported-model engine comparisons are useful, but do not prove a Kimi policy gain.
