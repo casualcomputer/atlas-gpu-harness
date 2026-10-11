@@ -1,0 +1,184 @@
+{
+  "run": {
+    "_id": "64499b1447254259a47ba7699ac8e20a",
+    "objective": "exact top-k GPU operator search",
+    "status": "completed",
+    "budget_evals": 1,
+    "context": {
+      "gpu": "NVIDIA GeForce RTX 5070 Ti",
+      "vram_bytes": 17094475776,
+      "compute_capability": [
+        12,
+        0
+      ],
+      "driver_and_vram_query": "591.86, 16303 MiB",
+      "driver_supported_cuda": "13.1",
+      "nvcc": "not installed",
+      "torch": "2.8.0+cu128",
+      "torch_cuda_toolkit": "12.8",
+      "python": "3.11.14",
+      "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+      "repository_commit": "6f34b55a84161ef63d847a270ad2452a88e479b0",
+      "evaluator_version": "2",
+      "contract": {
+        "version": "topk-exact-v1",
+        "operator": "1d top-k indices, score descending, lower index first on ties",
+        "shape": [
+          16384
+        ],
+        "dtype": "float32",
+        "layout": "contiguous",
+        "k": 64,
+        "seed": 20261011,
+        "warmup": 10,
+        "samples": 30,
+        "unit": "microseconds",
+        "timing": "CUDA events, one operator call per sample, end event synchronized"
+      }
+    },
+    "context_hash": "b25fc5623e3d65a19e50f3f4087a55b38b63bfe2a755fdb1a6b28b15e484f9e3",
+    "policy_version": "deterministic-memory-v1",
+    "created_at": "2026-10-11 19:24:21.048000",
+    "best_validated_experiment": "64499b1447254259a47ba7699ac8e20a:75e9243a11032c568dd5e6c0bbbc2ed888c44858a124eada2e13300ee3554f99",
+    "updated_at": "2026-10-11 19:24:24.563000"
+  },
+  "experiments": [
+    {
+      "_id": "64499b1447254259a47ba7699ac8e20a:75e9243a11032c568dd5e6c0bbbc2ed888c44858a124eada2e13300ee3554f99",
+      "run_id": "64499b1447254259a47ba7699ac8e20a",
+      "context_hash": "b25fc5623e3d65a19e50f3f4087a55b38b63bfe2a755fdb1a6b28b15e484f9e3",
+      "candidate": "sort_stable",
+      "status": "completed",
+      "attempt": 1,
+      "created_at": "2026-10-11 19:24:21.913000",
+      "started_at": "2026-10-11 19:24:22.001000",
+      "finished_at": "2026-10-11 19:24:23.452000",
+      "result": {
+        "candidate": "sort_stable",
+        "correct": true,
+        "checks": [
+          {
+            "case": "ties",
+            "expected": [
+              0,
+              1
+            ],
+            "actual": [
+              0,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_one",
+            "expected": [
+              1
+            ],
+            "actual": [
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "k_all",
+            "expected": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "actual": [
+              0,
+              2,
+              3,
+              1
+            ],
+            "passed": true
+          },
+          {
+            "case": "negative_and_ties",
+            "expected": [
+              0,
+              2
+            ],
+            "actual": [
+              0,
+              2
+            ],
+            "passed": true
+          },
+          {
+            "case": "fixed_workload",
+            "expected_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "actual_sha256": "c29dcb873796ed312c21185670d747bcefc95dceecf7de50a13c205e501b762c",
+            "passed": true
+          }
+        ],
+        "input_sha256": "fe936efefa2361cc9c7a6df22413d202c09531c51113d0a8eae4deb81b7eb986",
+        "contract_sha256": "0a2b23898bdc51ca57cfea002ee7a86c10338b35d58ca87164add7b04cd54029",
+        "timing": {
+          "samples_us": [
+            126.46399438381195,
+            97.95200079679489,
+            112.60800063610077,
+            106.55999928712845,
+            108.25599730014801,
+            108.0000028014183,
+            104.032002389431,
+            90.17600119113922,
+            80.73599636554718,
+            77.72800326347351,
+            113.66400122642517,
+            108.41599851846695,
+            115.4559999704361,
+            96.0640013217926,
+            94.87999975681305,
+            88.06400001049042,
+            108.41599851846695,
+            106.55999928712845,
+            85.85599809885025,
+            112.76800185441971,
+            79.99999821186066,
+            118.33599954843521,
+            88.79999816417694,
+            115.42399972677231,
+            87.0399996638298,
+            106.97600245475769,
+            87.07199990749359,
+            87.99999952316284,
+            76.25599950551987,
+            118.20799857378006
+          ],
+          "count": 30,
+          "median_us": 105.29600083827972,
+          "min_us": 76.25599950551987,
+          "max_us": 126.46399438381195,
+          "p05_us": 76.25599950551987,
+          "p95_us": 118.33599954843521
+        }
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "_id": "1efef5ad31824bd09fad3a00d3b4d369",
+      "run_id": "64499b1447254259a47ba7699ac8e20a",
+      "retrieved_experiment_ids": [
+        "21dbac5116a04dafa1ddaed17ea34030:aca414971689c129f71a400b74261882730ae84f1b07d480069e17bd15443b08",
+        "21dbac5116a04dafa1ddaed17ea34030:74b5bce6fd9a7ed4ea4baf64c05bed95476a28538b7d5091f96826c7cb935370",
+        "21dbac5116a04dafa1ddaed17ea34030:75e9243a11032c568dd5e6c0bbbc2ed888c44858a124eada2e13300ee3554f99",
+        "2eb9f21a2e374f358c4a42b9fbe2258d:63bff6144495c0971ff53f2ba3cf36ed7e83a2f4a578e54462b0587606d39e78",
+        "2eb9f21a2e374f358c4a42b9fbe2258d:aca414971689c129f71a400b74261882730ae84f1b07d480069e17bd15443b08",
+        "2eb9f21a2e374f358c4a42b9fbe2258d:74b5bce6fd9a7ed4ea4baf64c05bed95476a28538b7d5091f96826c7cb935370",
+        "2eb9f21a2e374f358c4a42b9fbe2258d:75e9243a11032c568dd5e6c0bbbc2ed888c44858a124eada2e13300ee3554f99"
+      ],
+      "candidate": "sort_stable",
+      "hypothesis": "Establish a stable exact top-k baseline",
+      "reason": "No baseline committed for this run",
+      "predicted_outcome": "unknown; evaluator decides",
+      "policy_version": "deterministic-memory-v1",
+      "created_at": "2026-10-11 19:24:21.829000"
+    }
+  ],
+  "note": "Only measured CUDA results are evidence; no LLM or custom kernel is claimed."
+}
