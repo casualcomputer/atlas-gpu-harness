@@ -1,8 +1,10 @@
 # Verified local and Atlas evidence — October 11, 2026
 
+> This page preserves the original top-k operator experiments. The subsequently implemented LLM coding loop and consumer MoE results are in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md). Its model runs must not be confused with the microsecond operator measurements below.
+
 These are measurements from the RTX 5070 Ti on this desktop. Credential-free raw reports and the preflight manifest are in the tracked `evidence/` folder. Local working copies in ignored `artifacts/` can be regenerated from Atlas using `export --run-id`.
 
-## Current controlled comparison and measurement correction
+## Operator controlled comparison and measurement correction
 
 Evaluator version 3 warms both the reference and the alternative before paired timing. An audit found that version 2 warmed only the alternative; its packed-key rechecks had approximately 15 ms first-reference outliers. Earlier reports below are retained as historical evidence and do not establish a speedup.
 
@@ -40,4 +42,4 @@ Every experiment above had attempt 1. The four decision records referenced 0, 1,
 
 ## Limits
 
-The repository is published at https://github.com/casualcomputer/atlas-gpu-harness. The 59-second backup video remains a local artifact until it is uploaded for submission. The real Atlas run validates connection, persistence, retrieval, and recovery, but the Atlas project identity still needs a visual check in the hackathon Sandbox UI. No LLM, custom CUDA kernel, or guaranteed performance gain is claimed.
+The repository is published at https://github.com/casualcomputer/atlas-gpu-harness. The original 59-second backup video shows only these operator experiments. The real Atlas run validates connection, persistence, retrieval, and recovery, but the Atlas project identity still needs a visual check in the hackathon Sandbox UI. This historical operator experiment used no LLM or custom CUDA kernel and established no GPU speedup. The later consumer inference implementation has its own evidence and limits.

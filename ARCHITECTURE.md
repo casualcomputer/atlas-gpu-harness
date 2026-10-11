@@ -1,144 +1,257 @@
 # System design: Atlas GPU Harness
 
-The system preserves experimental evidence across process failure and makes that evidence available before the next GPU action. Its unit of work is a predefined candidate evaluated against one fixed exact top-k contract. It is a deterministic single-host prototype.
+The current system runs a bounded experiment on one desktop: **generate Python code that chooses CPU/GPU expert placement, test that choice on a real MoE model, preserve the evidence, and confirm a reusable recipe**. llama.cpp supplies inference and offload. A local Ollama model supplies proposed code. MongoDB Atlas supplies durable experiment state.
 
-This document describes the implemented operator prototype. The clarified product goal is consumer-GPU LLM inference inspired by Strata and Project Maya; that engine integration and its memory/quality/speed evaluation remain unimplemented. See [the proposed inference architecture and controlled experiment](CONSUMER_GPU_PLAN.md).
+The original PyTorch operator experiment remains a separate CLI path. Its measurements and deliberate-crash demonstration are documented in [EXPERIMENTS.md](EXPERIMENTS.md) and [EVIDENCE.md](EVIDENCE.md). This document describes the consumer inference path.
 
-## Components and responsibilities
+## 1. The user problem and system boundary
 
-| Component | Implementation | Responsibility |
+A model file can be larger than a 16 GB GPU's memory. System RAM can hold some weights, but a usable placement also depends on engine allocations, context memory, speed, and correct outputs. The harness evaluates a supported local model on the actual machine and records the outcome instead of treating an estimated fit as success.
+
+The configurable decision is deliberately small: **how many early layers keep their expert weights on the CPU**. Model weights, quantization, engine, task bank, decoding settings, and evaluation rules stay fixed. The CLI uses physical GPU capacity by default; a lower memory budget is an explicit optional constraint.
+
+```mermaid
+flowchart LR
+    subgraph Desktop[Your desktop]
+        M[Local GGUF model] --> P[Read model facts and hardware]
+        P --> O[Experiment runner]
+        C[Local coding model in Ollama] -->|Python source + hypothesis| V[Restricted policy checker]
+        V -->|CPU expert-layer count| O
+        O --> L[llama.cpp server]
+        L --> G[GPU memory and compute]
+        L --> R[CPU memory and compute]
+        L --> Q[Answer checks + memory and timing measurements]
+        Q --> O
+        O --> F[Confirmed recipe + local evidence]
+    end
+    A[(MongoDB Atlas)] -->|Compatible tuning evidence| O
+    O -->|Facts + previous code + feedback| C
+    O -->|Code, trials, decisions, progress| A
+    F --> U[Reuse the recipe through the local model API]
+```
+
+Generation finishes before a target-model trial begins; the Ollama request sets `keep_alive: 0`. The target server is owned by the runner and stopped after each trial. Atlas hosts no GPU computation.
+
+## 2. Components
+
+| Component | File | Responsibility |
 | --- | --- | --- |
-| CLI/controller | `atlas_gpu_harness/__main__.py` | Create/load a run; check compatibility; enforce budget; retrieve history; record decisions; start workers; commit results; rebuild summaries; export JSON. |
-| Proposal policy | `atlas_gpu_harness/policy.py` | Apply fixed candidate order, skip this run's terminal candidates, avoid compatible prior correctness failures, and screen unstable sort after a tie failure. |
-| Evaluator | `atlas_gpu_harness/evaluator.py` | Fixed inputs and CPU oracle, GPU candidate dispatch, correctness checks, CUDA timing, paired recheck, fingerprints and hardware preflight. |
-| Persistence adapter | `atlas_gpu_harness/store.py` | PyMongo operations against Atlas, indexes, experiment identity, owner-token completion guard, history queries, run/decision records. |
-| Local files | `artifacts/` | Run and GPU lock files, regenerable JSON exports, local video. Atlas experiment records determine recovered progress. |
+| Model and hardware inspection | `atlas_gpu_harness/model_probe.py` | Read GGUF metadata, inspect one visible NVIDIA GPU and Linux-visible RAM, validate architecture, estimate an initial offload count. |
+| Experiment runner | `atlas_gpu_harness/inference.py` | Freeze context, establish baseline, enforce proposal budget, retrieve feedback, run trials, confirm a choice, persist/export a recommendation. |
+| Coding proposer and checker | `atlas_gpu_harness/policy_codegen.py` | Ask local Ollama for Python, validate syntax, execute the restricted policy, retain source and failure evidence. |
+| Inference evaluator | `atlas_gpu_harness/inference_backend.py` | Launch llama.cpp, check readiness, run fixed tasks, sample memory, retain answer/timing records, stop the owned server. |
+| Atlas storage | `atlas_gpu_harness/store.py` | Majority writes, compatible-history retrieval, experiment ownership checks, runs and decisions. |
+| Recipe launcher | `atlas_gpu_harness/inference_serve.py` | Verify saved confirmation and compatibility; launch the recorded recipe without repeating search. |
+| Engine setup | `scripts/setup_inference_engine.py` | Install checksum-pinned llama.cpp b11429/runtime assets locally; verify engine version and CUDA visibility. |
 
-`preflight` and `baseline` run locally without Atlas. `run`, `resume`, `status`, and `export` connect to Atlas and perform the connection write/read probe. The controller and worker use the same Python environment. Each evaluation launched by `run` or `resume` uses a fresh subprocess; `baseline` evaluates in the CLI process.
+The metadata allowlist is `qwen35moe`, `qwen3moe`, and `kimi-linear`; input must be a single-file GGUF with expert metadata. Engine architecture support is necessary, but a passing real trial establishes operability. The prototype does not download arbitrary models, convert weights, support every MoE architecture, or coordinate multiple GPUs. The separately acquired Qwen3-30B-A3B and Kimi-Linear-48B-A3B Q4_K_M files have verified full SHA-256 checksums in the [model manifest](evidence/inference-models.json); their acquisition is distinct from proving inference works.
 
-## Control and data flow
+## 3. One complete run
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant C as CLI controller
-    participant P as Fixed policy
-    participant A as MongoDB Atlas
-    participant W as Local GPU worker
-    User->>C: run or resume
-    C->>A: create or load run and evaluation context
-    C->>C: compare current compatibility hash
-    loop Until budget exhausted or no eligible candidate
-        C->>A: read current-run experiments and compatible terminal history
-        A-->>C: results including successes and failures
-        C->>P: run ID and retrieved evidence
-        P-->>C: candidate, hypothesis, reason
-        C->>A: insert decision with retrieved experiment IDs
-        C->>A: insert queued identity and claim running with owner token
-        C->>W: execute allowlisted candidate
-        W->>W: acquire GPU lock and check CPU oracle
-        W->>W: time only if all correctness checks pass
-        W-->>C: checks, timings or failure
-        C->>A: commit result with matching owner token
-        Note over C,A: Fault injection exits here, before run progress update
-        C->>A: update run summary and best correct experiment
+    participant U as User
+    participant R as Experiment runner
+    participant A as Atlas notebook
+    participant C as Local coding model
+    participant V as Policy checker
+    participant E as llama.cpp evaluator
+    U->>R: Model path + engine path
+    R->>R: Freeze model, machine, source and test contract
+    R->>A: Create run or verify resumed run
+    R->>E: Measure engine automatic-fit baseline
+    E-->>R: Answers, memory, speed, errors
+    R->>A: Commit baseline result
+    loop Remaining code proposal slots
+        R->>A: Read current and compatible prior tuning trials
+        R->>A: Reserve this proposal slot
+        R->>C: Facts + previous code + measured feedback
+        C-->>V: JSON with hypothesis and Python source
+        V->>V: Check syntax and run restricted choose(context)
+        alt Valid integer placement
+            V-->>R: Source, receipt, hash and placement
+            R->>A: Save proposal and decision evidence IDs
+            R->>E: Test placement on fixed tuning tasks
+            E-->>R: Measured result
+            R->>A: Commit trial
+        else Invalid code or proposal failure
+            V-->>R: Rejected source and bounded error evidence
+            R->>A: Save failed slot for feedback and resume
+        end
     end
+    R->>E: Confirm selected passing choice on reserved tasks
+    E-->>R: Baseline/candidate confirmation records
+    R->>A: Save recommendation and validation ID
+    R-->>U: Report + confirmed recipe, or no recommendation
 ```
 
-The policy never edits the oracle, workload, seed, tolerances, timing protocol, or arbitrary shell commands. Only candidate names from the evaluator's allowlist reach the worker. The five names are `sort_stable`, `argsort_stable`, `packed_topk`, `topk_sorted`, and `sort_unstable`.
+Default search budget is **three slots: one baseline and two code proposals**. Invalid or interrupted proposals consume slots. Confirmation is a separate cost of up to four server launches. Completed runs return the saved recommendation.
 
-## Exact evaluation contract
+### What code is generated?
 
-One contiguous float32 vector of length 16,384, `k=64`, seed `20261011`. Return original indices by descending score and ascending index on ties. The CPU reference uses Python sorting on `(-value, index)`.
+The proposer requests JSON with exactly `hypothesis` and `code`. Python must define `choose(context)` and return exactly `{"n_cpu_moe": integer}`. This illustrative valid policy uses the estimated starting point; actual generated source and revisions are retained in each run:
 
-Four small cases cover ties, negative values, `k=1`, and `k=n`; the primary seeded workload is checked separately. Incorrect candidates return correctness evidence immediately without timing. Correct candidates receive 10 warmups and 30 CUDA event samples. Input transfer and warmup are outside the timing interval. Evaluator version 3 additionally warms both the baseline and candidate before the nonbaseline recheck, which collects 12 samples per implementation, alternating which runs first. `speedup_supported` requires the slowest contender sample to beat the fastest baseline sample. This conservative rule is not a statistical confidence interval.
+```python
+def choose(context):
+    estimated = context["feedback"]["initial_estimate_n_cpu_moe"]
+    blocks = context["model"]["block_count"]
+    return {"n_cpu_moe": min(blocks, max(0, estimated))}
+```
 
-Raw samples and microsecond units are retained, along with median, min, max, and percentile summaries. The correctness suite establishes the tested contract and cases; it does not prove arbitrary shapes, NaNs/infinities, dtypes, or general model correctness.
+The function may condition its choice on observed memory, trial outcomes, and previous source. It executes once against the supplied context, producing one recipe. Its algorithm and chosen setting are auditable. It cannot edit scoring code or the engine.
 
-## Atlas data model
+### What may the proposer see?
 
-PyMongo connects with `w="majority"` and an 8-second server-selection timeout. The database is `atlas_gpu_harness`.
+- Model name, architecture, block/expert counts, and file size.
+- Fresh GPU, RAM, CPU, platform, and disk facts.
+- Current-run tuning summaries and up to eight compatible prior-run tuning summaries.
+- Objective, budget, initial estimate, tried placements, bounded errors, and previous generated code when available.
 
-| Collection | Identity | Important fields |
-| --- | --- | --- |
-| `runs` | Random UUID string in `_id` | `objective`, `status`, `budget_evals`, `context`, `context_hash`, `policy_version`, `best_validated_experiment`, timestamps. |
-| `experiments` | `run_id + ":" + fingerprint({context: context_hash, candidate})` | `run_id`, `context_hash`, `candidate`, `status`, `attempt`, transient `owner_token`, timestamps, `result`. |
-| `decisions` | Random UUID string in `_id` | `run_id`, `retrieved_experiment_ids`, `candidate`, `hypothesis`, `reason`, `predicted_outcome`, `policy_version`, timestamp. |
-| `health` | Temporary probe ID | Inserted, read and deleted during connection checking. No experimental role. |
+The storage query considers the latest 50 compatible terminal experiments, then filters prior-run records to tuning. All current-run terminal tuning trials are included separately. This is bounded exact-context retrieval without vector search. Confirmation outcomes never enter this feedback. Duplicate placements are discouraged in the prompt; different slots can still choose the same value.
 
-`fingerprint` is SHA-256 over JSON with sorted keys. `result` contains `correct`, correctness cases, input/contract hashes, raw and summarized timings if eligible, paired recheck if applicable, or an execution error. Small cases contain expected/actual indices; the main workload stores hashes of those indices.
+## 4. Generated-code execution boundary
 
-The full `context` records GPU, VRAM, driver information, Torch/CUDA versions, Python/platform, Git revision, evaluator version, and contract. **The compatibility hash covers only** GPU name, compute capability, Torch version, Torch CUDA version, evaluator version, and contract. It does not enforce identical driver, Git revision, Python version, or uncommitted source state. Update `EVALUATOR_VERSION` when changing evaluator semantics.
+The endpoint is local Ollama at `127.0.0.1:11434/api/generate`, default model `gemma3:12b`. Requests use JSON output, nonstreaming generation, temperature zero, a 600-token output limit, and `keep_alive: 0`. Local requests bypass HTTP proxies. No substitute policy is silently generated when Ollama fails.
 
-MongoDB's standard unique `_id` index provides experiment uniqueness within a run. Additional indexes are:
+| Allowed | Rejected |
+| --- | --- |
+| One undecorated `choose(context)` function; local assignments, `if`, `return`. | Imports, attributes, nested functions, loops, comprehensions, decorators, annotations. |
+| Arithmetic, comparisons, Boolean operations, dictionaries and indexing. | Context mutation, dunder access, unpacking, recursion, other syntax. |
+| Calls to `min`, `max`, `int`, `len`. | File, network, shell, environment, and arbitrary function calls. |
+| One integer from zero through the model's block count. | Boolean, out-of-range, malformed, or extra-key results. |
+
+Code is limited to 8,000 characters and 400 AST nodes; context to 32 KiB, screened for obvious credential fields and MongoDB URIs. The subprocess uses Python `-I -S`, an empty environment, temporary working directory, and a three-second timeout. Linux CPU, address-space, open-file, file-size, and core limits also apply. This boundary is designed for the admitted placement language, not arbitrary Python.
+
+Source, SHA-256, hypothesis, proposer metadata, raw response, context, and policy result are saved locally. Successful proposals are stored on the Atlas run. Failed proposals retain available code/hash/path and bounded actual error details in Atlas so a later slot can repair the failure.
+
+## 5. Baseline and controlled comparison
+
+Both arms use the same trusted local engine and unchanged GGUF. The [pinned llama.cpp server options](https://github.com/ggml-org/llama.cpp/blob/b11429/tools/server/README.md) provide these existing mechanisms:
+
+| Arm | Placement flags |
+| --- | --- |
+| Baseline | `--gpu-layers auto --fit on --fit-target M` |
+| Generated candidate | `--gpu-layers all --n-cpu-moe N --fit off` |
+
+`M = max(1024, physical_total_mib - budget_mib)`. The physical-card default still gives the engine a minimum 1,024 MiB automatic-fit margin. A candidate keeps the first `N` layers' expert weights on the CPU; other offloadable weights remain eligible for GPU placement. The initial estimate assumes model bytes are spread evenly across layers and reserves 2,048 MiB. It is a starting guess, not a fit guarantee.
+
+Both arms use 4,096 context tokens, one server slot, eight inference/batch threads, memory-mapped weights, disabled prompt cache, the chat template with thinking disabled, temperature zero, a fixed seed, and at most 96 output tokens per answer. A fixed warmup question precedes scoring. Exact commands and server logs are retained. The current backend allows up to 600 seconds for server readiness and defaults to physical GPU capacity when no budget is supplied.
+
+### Measures and acceptance
+
+Tuning runs six exact-answer tasks twice, reversing question order in the second pass. They cover arithmetic, field extraction, and reading simple Python expressions. Model output is not executed. Scoring parses JSON and requires one `answer` key with the exact expected value and type.
+
+Each trial records raw/expected answers, pass/fail, usage, engine timings, full nonstream request latency, median decode tokens/second, sampled GPU memory and process RSS, readiness, final health, load/wall time, and errors. Request latency is **not time to first token**.
+
+`correct` means **engine_success AND quality_pass AND resource_pass**. Tuning requires 12/12 checks; confirmation requires 4/4. The sampled peak must remain at or below the budget. Sampling every 250 ms includes other GPU processes and startup, and can miss brief peaks. It is an observation rule, not an allocator-enforced limit.
+
+### Selection and confirmation
+
+Select the passing tuning trial with the highest median decode rate. If it is the baseline, run one reserved baseline confirmation. If it is a generated candidate, use:
+
+```text
+Block 1: baseline → candidate
+Block 2: candidate → baseline
+```
+
+Each fresh server answers the same four reserved questions. For each question, percentage change is `100 × (candidate_rate / baseline_rate - 1)`. A block's effect is the median of those four changes. Accept a directional speed gain only when **both arms pass in both blocks, and each block's median gain exceeds 5%**.
+
+Otherwise, two passing baseline confirmations retain the baseline. If the baseline does not pass both confirmations but the candidate does, the current runner can retain the candidate for feasibility with speedup unproven. Failure can mean an answer, startup, or memory failure; inspect the error before describing a capacity improvement. If neither choice is confirmed, the recommendation has `recipe: null`. New runs record an explicit `selection_reason` alongside the validation ID.
+
+This is a small descriptive protocol, not a confidence interval, general quality benchmark, randomized multi-machine study, or proof that learned policies outperform a parameter sweep. Concurrent downloads, other GPU use, and short answers can distort speed results. Current outcomes and conditions belong in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
+
+### Completed 35B example
+
+Run `b88ec5bd304443a3add2b2fa767e2450` completed all seven trials: three tuning runs passed 12/12 checks each, and four confirmation runs passed 4/4 each. The two coding attempts generated identical source, both choosing zero CPU expert layers. The chosen candidate's paired confirmation gains were +3.5647% and +1.9202%, below the fixed 5% rule, so the saved recommendation retained `engine_autofit`. This run demonstrated the measurement and rejection path, without a successful policy revision or confirmed speedup. Its 11.39 GB UD-IQ2_M file also does not prove weights larger than VRAM. The [raw report](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json) preserves the original source context and measurements; later source changes do not rewrite those records.
+
+## 6. Atlas data and identities
+
+PyMongo uses `w="majority"` and an eight-second server-selection timeout. Database: `atlas_gpu_harness`. Startup performs a ping and temporary write/read/delete health probe.
+
+| Collection | Identity and contents |
+| --- | --- |
+| `runs` | UUID `_id`; workflow, objective, context/hash, budget, proposer model, proposals, proposal attempts/errors, status, recommendation, best validated experiment. |
+| `experiments` | `_id = run_id + ":" + SHA256({context, name, recipe, stage})`; candidate, context hash, status, attempt, transient owner token, timestamps, full result. |
+| `decisions` | UUID `_id`; run, candidate, hypothesis, reason, retrieved experiment IDs. |
+| `health` | Temporary startup probe only. |
+
+Trial identity distinguishes tuning from confirmation and repeated confirmation launches. Committed terminal identities are reused on resume. Different proposal names can choose the same placement, so identity is not a global placement deduplicator.
+
+New inference runs and decisions record `policy_version: local-model-codegen-v1`; generated source and proposal receipts provide the detailed provenance. Earlier exported reports retain the metadata written by their original code revision.
+
+Ordinary MongoDB indexes support retrieval:
 
 ```javascript
-// Created by AtlasStore.init().
 experiments: { context_hash: 1, finished_at: -1 }
 experiments: { run_id: 1, status: 1 }
 decisions:   { run_id: 1 }
 ```
 
-These are ordinary document indexes. The prototype has no vector or semantic search.
+Atlas is on the execution path: the next proposal reads compatible history, failed slots remain consumed after restart, committed trials are reused, and the selected result references a passing confirmation. Retrieved IDs record which evidence was available; they do not prove every record influenced the model's reasoning.
 
-## Retrieval and decision semantics
+### Inspect a run in Atlas
 
-Before each proposal, the controller asks Atlas for:
-
-```python
-experiments.find({
-    "context_hash": context_hash,
-    "status": {"$in": ["completed", "failed"]}
-}).sort("finished_at", -1).limit(50)
-```
-
-It then adds any current-run documents absent from that bounded history. The policy uses this evidence as follows:
-
-1. Skip candidates already completed or failed in this run.
-2. Skip nonbaseline candidates with a recorded failed correctness check in compatible history.
-3. Skip unstable sort if a retrieved correctness failure involved a tie case. This is a conservative hand-written screening rule, not proof that unstable sort failed on the GPU.
-4. Otherwise choose the next candidate in the fixed order. A new run always establishes its own stable baseline.
-
-Each selected proposal is stored with the complete list of retrieved IDs. This supplies an audit link to available evidence; it does not assign causal weight to every ID. Skips and the final stop have no separate decision documents. A run's `completed` status means its budget was exhausted or its policy found no further eligible candidate.
-
-`best_validated_experiment` names the correct, timed experiment with the lowest initial median. Consumers must inspect `paired_recheck.speedup_supported` separately before claiming a gain.
-
-## Why the crash demo recovers
-
-```mermaid
-stateDiagram-v2
-    [*] --> queued: Insert unique experiment identity
-    queued --> running: Claim owner token and increment attempt
-    running --> completed: Correct result committed with matching token
-    running --> failed: Incorrect result or worker error committed
-    running --> running: Retry interrupted uncommitted work with a new token
-    completed --> [*]: Resume skips this identity
-    failed --> [*]: Terminal in this run
-```
-
-`start()` inserts the identity if absent, then claims a `queued` or `running` document. It increments `attempt` and issues a fresh token. It cannot claim an already terminal document. `finish()` updates only a document with the matching identity, `running` state and token. Stale or duplicate completion is rejected.
-
-A per-run local file lock prevents two controllers using the same artifacts directory from driving the same run. A second local lock serializes GPU workers, including a surviving worker whose parent died. GPU lock wait is 120 seconds; subprocess timeout is 180 seconds. Locks provide single-host coordination, not distributed leases.
-
-The completed experiment and the run progress summary are separate writes. `--fault-after-commit` deliberately calls `os._exit(86)` between them. Resume loads the same run, verifies its context hash, reads terminal experiments, skips their candidates, and reconstructs the count and best result. It does not require the stale progress field to be correct.
-
-If the worker executed but its result never reached Atlas, that work can execute again. The guarantee demonstrated is idempotent committed results within a run, not exactly-once GPU execution. Committed timeouts/errors become terminal failures; there is no generic automatic retry policy for those failures.
-
-## Inspect the demonstrated records
-
-In Atlas Data Explorer, select database `atlas_gpu_harness`, then use these collection filters:
+Select `atlas_gpu_harness` in Data Explorer, substituting the printed run ID:
 
 | Collection | Filter |
 | --- | --- |
-| `runs` | `{ "_id": "2eb9f21a2e374f358c4a42b9fbe2258d" }` |
-| `experiments` | `{ "run_id": "2eb9f21a2e374f358c4a42b9fbe2258d" }` |
-| `experiments` | `{ "run_id": "2eb9f21a2e374f358c4a42b9fbe2258d", "candidate": "topk_sorted" }` |
-| `decisions` | `{ "run_id": "21dbac5116a04dafa1ddaed17ea34030" }` |
+| `runs` | `{ "_id": "RUN_ID" }` |
+| `experiments` | `{ "run_id": "RUN_ID" }` |
+| `experiments` | `{ "run_id": "RUN_ID", "result.stage": "holdout" }` |
+| `decisions` | `{ "run_id": "RUN_ID" }` |
 
-For the first run, check `attempt: 1` on the stable baseline after resume, then open the failed direct top-k record's `result.checks`. It requires `[0, 1]` but measured `[1, 0]` on the first tie case. For the second run, inspect the first decision's four retrieved IDs and follow the failed experiment reference. Only three candidate experiments exist under its five-evaluation budget.
+Read generated source/hashes in `runs.proposals`, rejected code in `proposal_errors`, and commands, answers, memory samples, and timings in experiment results. Follow `recommendation.validated_experiment_id` to the passing confirmation. The completed physical-card 35B run is `b88ec5bd304443a3add2b2fa767e2450`; see the [result ledger](INFERENCE_RESULTS.md) for additional runs. The owner confirms the cluster was created through the event's Atlas invitation; Sandbox membership has not been independently checked through the Atlas UI.
 
-The [first exported report](evidence/report-2eb9f21a2e374f358c4a42b9fbe2258d.json) and [memory-informed follow-up](evidence/report-21dbac5116a04dafa1ddaed17ea34030.json) permit the same inspection without credentials. Final-state exports show the retained records and attempts; the induced exit and fresh-process recovery procedure are recorded in [EVIDENCE.md](EVIDENCE.md).
+## 7. Compatibility, resume, and failure
 
-## Scope of the evidence
+The evaluation context hash covers:
 
-The observed proofs are: a real GPU baseline, actual Atlas persistence, retained completed work after a deliberate crash, rejected incorrect output, and compatible failure history affecting a later run. A separate [controlled comparison](EXPERIMENTS.md) observed four attempts without historical evidence versus three with it, with the same three correct alternatives assessed in both repeated blocks. The five tests cover four isolated controller/store behaviors and one real CUDA packed-key property check. There is no demonstrated general LLM agent, recursive self-modification, distributed recovery, unbounded memory, or repeatable latency improvement.
+- GGUF header-and-file-size identity plus model modification time.
+- Engine reported version and launcher SHA-256.
+- GPU name, memory and driver; CPU count and Linux-visible RAM total.
+- Contract version, context capacity, budget, and both task banks.
+- Source hashes for the runner, backend, model probe, and policy generator.
+
+The GGUF identity **does not hash all tensor weights**. Engine identity does not hash every shared library. Current GPU occupancy, disk activity, thermal state, and all background load are not frozen by the hash. These are practical compatibility checks with stated limits.
+
+One local `artifacts/gpu.lock` serializes harness inference and saved-recipe launches using the same workspace. It is a host-local lock, not a distributed lease.
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: Insert unique trial identity
+    queued --> running: Claim with new owner token
+    running --> completed: Commit passing result with matching token
+    running --> failed: Commit failed checks or execution error
+    running --> running: Retry an uncommitted identity after interruption
+    completed --> [*]: Resume reuses saved result
+    failed --> [*]: Resume reuses saved failure
+```
+
+`finish()` accepts only the matching running identity and ownership token. Stale completion is rejected. Failed and completed trials are terminal. Startup failures such as an occupied port are recorded; the harness does not stop an unknown process to free that port.
+
+Proposal slots are reserved as `running` before calling Ollama, then become `completed` or `failed`. A reserved but uncommitted proposal becomes `interrupted` on resume and remains consumed. Restart cannot silently expand the generation budget.
+
+If an engine trial ran but its result never committed, resume may execute it again. There is no exactly-once GPU-execution guarantee. Normal completion and handled errors clean up the owned child. A force-killed parent can leave a server behind; automatic orphan recovery is not implemented. The original top-k fault-injection demo does not prove every inference failure path.
+
+## 8. Reusing a confirmed recipe
+
+The runner exports under `artifacts/inference/RUN_ID/`:
+
+```text
+policy-*.py                  generated source
+policy-*.json                context, proposer and validation receipts
+*.server.log                 actual engine output
+baseline.json / policy_*.json / holdout_*.json
+report.json                  run, experiments and decisions
+recommendation.json          recipe and passing confirmation ID
+```
+
+`inference_serve` loads the recommendation and sibling report. It verifies agreement, context hash, successful matching confirmation, backend contract/source, model identity/mtime, launcher/version, GPU/driver, CPU count, and RAM total. It reconstructs and compares the successful command, permitting a port change.
+
+The launcher takes the GPU lock and starts the server. Its printed API URL becomes usable after engine loading; printing the URL is not a readiness check. It does not repeat search or require Atlas. Ctrl+C terminates the owned child. Local records are reproducibility evidence, not signed attestations.
+
+## 9. Scope and credit
+
+The harness automates a constrained coding-and-measurement workflow for supported local MoE files. Existing engines and quantized artifacts supply the actual ability to run large models. [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya) inspired the consumer-hardware goal; neither is integrated here.
+
+The 4,096-token context and bounded Atlas retrieval provide experiment continuity, not a billion-token context window. Policy revisions are a limited form of adaptation; the harness does not rewrite its architecture or guardrails. [README.md](README.md), [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md), and [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) connect the mechanism to the pitch, criteria, and measured outcomes.

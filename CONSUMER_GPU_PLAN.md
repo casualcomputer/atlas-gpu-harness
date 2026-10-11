@@ -1,83 +1,81 @@
-# Consumer-GPU inference: corrected goal and required proof
+# Consumer GPU inference: the implemented harness and required proof
 
-**Status: proposed integration and experiment protocol. No results in this document establish improved LLM inference.**
+## The problem and the product
 
-## The user's goal
+A developer sees a promising new language model, then discovers that the model is larger than the memory on their graphics card. Quantized weights and moving computation into system RAM can make local use possible. The remaining work is often trial and error: which settings fit, how slow are they, and do answers still pass the required checks?
 
-Run a capable language model locally when the whole model and its conversation state cannot fit in a consumer graphics card's memory. Find a configuration that fits the machine, produces acceptable answers, and responds at a useful speed. Preserve the experimental evidence so subsequent work can build on it.
+**Atlas GPU Harness turns that setup task into measured experiments.** Give it one supported local MoE model and a GPU memory budget. It measures the engine's automatic configuration, asks a local coding model to write a small placement policy, tests the policy, returns measurements as feedback, and saves the evidence in Atlas. It can retain the existing engine configuration when the generated policy does not improve it.
 
-The optimization target is the complete inference workload. Faster individual GPU operations are useful only when their effects reach that workload. Improving answer quality itself would require a separate quality result; this goal starts with retaining measured quality while reducing hardware requirements or improving speed.
+Current evidence establishes real model execution and a working policy-generation loop. Improvement over the engine must come from the comparison results; starting a large model alone is not such an improvement. See [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) for the current results and [INFERENCE_SETUP.md](INFERENCE_SETUP.md) for setup.
 
-## Where the current build diverged
-
-The original supplied plan named Strata's standalone `qsa_select_bench`, allowed a PyTorch operator fallback after a setup timebox, and explicitly excluded full inference-engine installation and large model downloads. The implementation used that fallback. No Strata or Maya code was integrated, no LLM was run by this harness, and no model quality or model memory reduction was measured.
-
-The existing prototype establishes Atlas persistence, recovery after a particular interruption, independent operator correctness checks, repeated GPU timing, and fewer repeated failed experiments. Its 25% reduction concerns experiment attempts on top-k. It does not establish the clarified product outcome.
-
-## What the inspirations actually provide
-
-- **Strata:** its documented design keeps frequently used model experts on the GPU and computes other experts from system RAM on the CPU. Other state can use RAM/storage. The model's mixture-of-experts structure makes selective placement possible. [Source: Strata architecture](https://github.com/Niko1221/Strata/blob/main/docs/HOW_IT_WORKS.md).
-- **Project Maya:** built on Strata, with GPU/RAM/SSD expert tiers and quantized model packs. Its calibration already measures configuration choices on the user's hardware. [Source: Maya overview](https://github.com/mw00/project-maya), [calibration and settings](https://github.com/mw00/project-maya/blob/main/docs/SETTINGS.md).
-
-These techniques reduce the amount that must live in GPU memory at once; system RAM, storage, data movement, and CPU performance still matter. Supported models and mechanisms differ between the two engines. Their published performance numbers are upstream claims, not measurements on this desktop.
-
-Our useful extension would be a reproducible comparison of configurations with explicit quality and resource requirements, a separate final evaluation set, and persistent evidence across sessions. Maya's existing calibration must be acknowledged and used as a meaningful comparison where applicable. A wrapper alone does not establish an improvement over the engine.
-
-## Proposed system design
+## Implemented system
 
 ```mermaid
 flowchart TD
-    G[Choose model, GPU memory limit, and required answer quality]
-    H[Experiment manager chooses one supported setting to change]
-    E[Existing inference engine runs the model on GPU, CPU, and RAM]
-    M[Measure memory, answer quality, and response speed]
-    A[(Atlas saves configuration, results, and decision)]
-    V[Verify promising configuration on separate prompts]
-    G --> H
-    A -->|Read compatible previous evidence| H
-    H --> E
-    E --> M
+    U[Choose a supported local MoE model] --> P[Inspect model and actual GPU memory]
+    P --> B[Measure the engine's automatic configuration]
+    B --> A[(Atlas saves answers, speed, memory and failures)]
+    A --> C[Local coding model writes or revises a placement rule]
+    C --> V[Check the rule and run it in a bounded process]
+    V --> E[llama.cpp runs the model on GPU and CPU]
+    E --> M[Score fixed questions and measure speed and memory]
     M --> A
-    A -->|Passes requirements| V
+    M --> H[Confirm promising settings on separate questions]
+    H --> R[Recommend verified settings or keep the engine baseline]
 ```
 
-The engine executes the neural network. The harness launches trials and judges their outcomes. Atlas stores experiments; it is not the model's GPU memory or attention cache. The engine adapter, model-level evaluator, and resource collector shown above still need implementation.
+| Component | What it does today |
+| --- | --- |
+| `model_probe.py` | Reads GGUF metadata, checks a small architecture allowlist, inspects GPU/RAM, and makes a starting estimate. The estimate does not prove fit. |
+| `policy_codegen.py` | Uses local Ollama to generate an actual Python `choose(context)` function. Later proposals receive earlier code, measured results, and validation errors. |
+| `inference_backend.py` | Starts an owned llama.cpp process, warms it, scores exact-answer tasks, samples memory, records timings/errors, and stops the process. |
+| `inference.py` | Runs the baseline, bounds the proposal budget, persists trials/proposals, confirms a selected configuration, and resumes compatible saved work. |
+| MongoDB Atlas | Stores runs, experiments, decisions, generated proposals, errors, and recommendations. Compatible tuning history is retrieved before the next proposal. |
 
-## Establish a meaningful baseline
+The generated policy can choose only `n_cpu_moe`: how many initial layers keep their experts in CPU RAM. Imports, filesystem/network calls, loops, attributes, and arbitrary function calls are rejected. The evaluator and acceptance rules stay fixed. This is a constrained policy language with a bounded worker, not a general-purpose Python sandbox.
 
-Pin one engine revision, one model weight revision and quantization, one tokenizer, and one machine. Use the engine's recommended configuration as the first baseline. If evaluating a replacement for Maya's calibration, include Maya's calibrated configuration as a baseline too.
+The model allowlist currently covers `qwen35moe`, `qwen3moe`, and `kimi-linear`; an entry is a compatibility candidate, not proof that every model in that family works. A local single-file GGUF and compatible engine are required. Arbitrary newly released architectures and unverified quantizations are not automatically supported.
 
-Freeze prompt texts, prompt lengths, decoding settings, output limits, concurrency, warmup, and scoring before tuning. Save a separate set of prompts for final confirmation. Compare configurations inside the same engine and model first; comparing different models across Strata and Maya would not isolate a configuration's effect.
+## A fair baseline
 
-| Question | Measurement | What qualifies as evidence |
+The baseline is **llama.cpp b11429's automatic placement and fit behavior**, using the same model file and task contract as each candidate. It uses `n_cpu_moe: null`, GPU layers `auto`, and fitting enabled, with a fit target leaving at least 1,024 MiB of device margin.
+
+Generated candidates explicitly select their CPU expert layer count, with other layers placed on the GPU and automatic fitting disabled. This asks whether a generated placement policy beats the engine's normal policy. Between generated candidates, the only tunable setting is `n_cpu_moe`.
+
+The default limit is the card's **physical 16,303 MiB capacity**. An optional smaller `--gpu-budget-mib` is a declared simulated constraint on the same physical card. Earlier 10,000 MiB trials are development evidence, not measurements on a physical 10 GB card or the main capacity result.
+
+## Experimental design and acceptance
+
+The contract fixes model weights and quantization, engine revision, machine, context allocation of 4,096 tokens, concurrency one, eight CPU threads, deterministic decoding, and output limit. Each fresh engine process receives a separate warmup question. Prompt caching is disabled. The readiness timeout is now 600 seconds for larger models; waiting longer is not evidence that a model runs successfully.
+
+| Measurement | Current protocol | Claim boundary |
 | --- | --- | --- |
-| Does it fit? | Observed peak GPU memory, peak system RAM, and failures at a declared context length | Completion within the declared resource limits; also account for memory outside the Python allocator. |
-| Is it useful? | Time to first token and output tokens per second, with actual output length | Repeated improvement against the functioning baseline without exceeding quality/resource limits. |
-| Are answers preserved? | Fixed task accuracy or coding tests; optionally token/logit comparisons | Meets a quality threshold and allowed regression fixed before seeing candidate results. Fluent-looking text is insufficient. |
-| Does it support longer context? | Successful prompt lengths, memory use, and task accuracy at those lengths | More usable context while satisfying the same quality and response requirements. |
-| Does experiment memory help? | Same search budget and candidates, history on/off | Better accepted configurations or fewer trials for the same result, including the cost of acquiring history when claiming total savings. |
+| Answer checks | Six tuning questions, repeated in reversed question order: 12 scored responses. All must return the exact expected JSON answer. | Six unique small arithmetic, extraction and code-reading tasks; not a general model-quality benchmark. |
+| GPU memory | Sample total device usage every 0.25 seconds, including model startup and other processes. Peak sample must stay within budget. | Short peaks can be missed. Observation, not an allocator-enforced limit. |
+| CPU memory | Sample the engine process's resident memory. | Process RSS is not total host RAM consumption or an exact accounting of mapped weights. |
+| Speed | Engine-reported decode tokens/second, actual token counts, load time, and complete-request latency. | Complete-request latency is not time to first token; answers are short. |
+| Confirmation | Four separate questions hidden from the coding model; compare baseline→candidate, then candidate→baseline. | A descriptive two-block check, not a calibrated confidence interval or broad workload study. |
 
-If an all-on-GPU configuration runs out of memory, record that as a capacity result. Use a functioning offloaded configuration for speed comparisons; an out-of-memory run has no generation rate from which to compute a speedup.
+A speed improvement is accepted only if both confirmation blocks pass answer/resource checks and each block's median paired decode improvement exceeds 5%. A passing baseline is retained when a candidate fails that rule. If a candidate passes both held-out runs and the baseline does not pass both, the code can retain the candidate as a feasibility result; inspect the actual failure before calling that a capacity improvement. The saved recommendation includes a selection reason based on held-out evidence, not merely the tuning result. Concurrent downloads or other machine activity can confound timings and must be disclosed.
 
-## Smallest controlled experiment
+Context identity includes the contract, source hashes, hardware facts, engine version/launcher hash, and model metadata identity/mtime. Model identity hashes its GGUF header and file size; it is explicitly **not a full weight checksum**. Context changes prevent an incompatible resume.
 
-1. Select a model already available locally and an engine that supports it. A small-model trial can validate the adapter; it cannot establish that a Strata/Maya-scale model runs here.
-2. Record a functioning baseline's memory, response timings, and answer scores. Choose a memory limit and a quality floor appropriate to that model before candidate collection.
-3. Change one supported memory-placement or cache setting while keeping model weights fixed. If quantization changes, treat it as a separate experiment and measure its quality effects explicitly.
-4. Repeat baseline/candidate comparisons across several prompts with balanced or randomized order. Restore equivalent cache state between conditions and report cold-start and warmed results separately. Repeating only the same cached prompt can exaggerate performance.
-5. Save each configuration, environment, raw measurement, output, score, error, and evidence-linked decision in Atlas. Record engine/model revisions in compatibility, rather than relying on the operator prototype's existing context hash.
-6. Re-evaluate any selected configuration on the untouched final prompts and remeasure the baseline nearby. Report tradeoffs even when no candidate improves.
+## Current evidence and the larger-model goal
 
-Success is a measured configuration meeting the GPU memory and quality requirements, with a demonstrated capacity or speed advantage against the declared baseline. The current top-k and history experiments cannot substitute for that result.
+The cached **Qwen3.5-35B-A3B**, Unsloth `UD-IQ2_M` GGUF, is 11.39 GB on disk. Physical-capacity run `b88ec5bd304443a3add2b2fa767e2450` completed all seven trials with answer/resource checks passing. Each tuning trial scored **12/12 responses from six unique tasks**. The selected candidate produced **+3.5647% and +1.9202%** median paired decode changes on the two held-out comparisons, below the fixed >5% rule. **The harness retained engine auto-fitting; no improvement was established.** Concurrent downloads also limit speed interpretation. The file is smaller than VRAM, so this establishes real 35B inference but not larger-than-VRAM capacity.
 
-## Available starting point on this desktop
+The official Qwen 30B Q4_K_M file (**18,556,685,824 bytes**) and third-party Bartowski Kimi Linear 48B Q4_K_M file (**30,061,058,720 bytes**) are fully downloaded. Their full-file SHA256 checksums were verified separately; repositories, revisions and hashes are recorded in [the model manifest](evidence/inference-models.json). At this update the Kimi inference run has started, but completed larger-model results remain pending. Download completion is not inference proof; consult [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) for the latest measured status.
 
-A read-only inventory found complete cached weights, configuration, and tokenizer files for Llama-3.2-1B-Instruct, Llama-3.2-3B-Instruct, and Qwen2.5-3B-Instruct. PyTorch, Transformers, and Safetensors are installed. No model was loaded in this audit, so successful inference remains unverified.
+The earlier top-k result remains separate historical evidence: Atlas memory reduced repeated operator evaluations from four to three in two comparisons. That 25% result is not LLM speed, compression, quality, or capacity improvement. See [EXPERIMENTS.md](EXPERIMENTS.md).
 
-The smallest next implementation milestone is to run the cached 1B model with a pinned revision and record a complete inference baseline in Atlas. Established framework options can then validate the evaluator. Any comparison with an intentionally inefficient reference must also include the normal optimized configuration before claiming a deployment improvement. This small model validates the experimental path; it does not reproduce Strata or Maya's large-model capability.
+## Inspirations and limits
 
-The desktop's physical card has 16 GB of VRAM. An enforced smaller allocation limit is a simulated capacity constraint on that card, not a measurement on a physical 6 GB or 8 GB GPU.
+[Strata](https://github.com/Niko1221/Strata/blob/main/docs/HOW_IT_WORKS.md) and [Project Maya](https://github.com/mw00/project-maya) inspired large MoE inference across GPU, CPU, RAM and storage. Their implementations and published performance belong to those projects. This build uses official llama.cpp; it does not integrate or reproduce Strata or Maya. Maya already provides hardware calibration, and llama.cpp already provides automatic fitting. Our contribution is the bounded generated-policy/measurement/feedback loop and persistent evidence, evaluated against existing capabilities.
 
-## Long context and experiment history
+No new CUDA kernel, model training, quantization algorithm, or arbitrary model conversion is implemented. Production cost savings and user adoption have not been measured.
 
-Long context concerns how much prompt/conversation information the running model can use. Its attention state consumes memory and must be evaluated with real long inputs and tasks that depend on that input. Atlas experiment history concerns what the experiment manager remembers between trials. They are different mechanisms; implementing the second does not prove the first.
+Long context concerns useful answers from long inputs. The current 4,096-token allocation and short questions do not establish long-context performance. Atlas history supplies memory across experiments; it is not the model's attention cache or a billion-token reasoning session.
+
+## Verification and event environment
+
+The current local test suite passed **46 tests**. This supports the tested code paths; the real model records establish inference behavior. On October 11, 2026, the user confirmed that the Atlas environment was created through the event invitation. This is user-confirmed Sandbox provenance, not independent browser/UI verification.

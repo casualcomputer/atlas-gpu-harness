@@ -1,5 +1,7 @@
 # Four-hour execution checkpoints
 
+> Historical operator-prototype schedule. The user subsequently clarified the goal as running larger MoE language models on a consumer GPU. The implemented inference loop and current validation are described in [CONSUMER_GPU_PLAN.md](CONSUMER_GPU_PLAN.md), [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md), and [DEMO.md](DEMO.md). The GPU memory budget defaults to the physical card capacity.
+
 - **12:10–12:40 PM PT:** Verify actual GPU and CUDA path; get one independent-correctness baseline. Completed locally at about 12:14 PM.
 - **12:40–1:25 PM PT:** Build Atlas records and controller; verify the Sandbox connection and first durable GPU experiment as soon as URI access is available.
 - **1:25–2:10 PM PT:** Run injected-crash and same-run recovery against Atlas; inspect records in Data Explorer.

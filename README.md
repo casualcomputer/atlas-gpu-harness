@@ -1,152 +1,173 @@
 # Atlas GPU Harness
 
-**Goal: help large language models run on consumer GPUs through measured inference experiments.**
+**An agent writes and tests the code that decides how a large language model shares a consumer GPU and system RAM.**
 
-An engineer wants a capable language model on a desktop, but its model weights and conversation state exceed the graphics card's memory. Moving work into system RAM or compressing it may help it fit, while also changing speed or answer quality. The engineer needs evidence about which configuration actually works on that machine.
+You have a 16 GB graphics card and want to run a capable open model locally. Its weights can exceed the entire card before there is room for conversation memory. Existing inference engines can share work with the CPU, but every new model brings another round of setup, memory failures, and speed tradeoffs. *Did this setting actually work? Is it better than the engine's default? Can I use it again tomorrow?*
 
-The intended inspiration is [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya), which use consumer hardware for large-model inference. Our proposed contribution is a harness that evaluates inference configurations against a memory budget, a quality requirement, and repeated speed measurements, retaining the evidence in MongoDB Atlas. [The corrected goal and experiment protocol](CONSUMER_GPU_PLAN.md) explain the missing integration and the baseline required to establish that outcome.
+Atlas GPU Harness turns that work into a measured loop. A local coding model writes a small Python placement policy. The harness checks the code, runs the target model through llama.cpp, checks its answers, measures memory and speed, and returns the results for revision. MongoDB Atlas keeps the experiment notebook. A configuration that passes confirmation becomes a saved launch recipe.
 
-**Implemented today:** an experiment manager with a saved lab notebook, tested on a standalone PyTorch top-k calculation. It checks each answer, measures correct alternatives against a reference, saves evidence in Atlas, and uses saved failures to avoid repeated work. Strata/Maya integration, actual LLM inference evaluation, and model memory reduction are not implemented. No LLM output quality has been measured.
+The immediate benefit is **a repeatable route from a supported model file to an evidenced configuration on this machine**. Faster inference is an experimental outcome to establish, not a promise attached to every generated policy.
 
-**Measured subsystem result:** in two controlled comparisons on a real RTX 5070 Ti, access to previous evidence reduced attempts from **4 to 3 — 25% fewer attempts — while checking the same three correct alternatives**. One known-invalid test was avoided in each comparison. This measures less repeated experimental work; it does not establish lower LLM memory use, better LLM answers, or faster inference.
+[Measured inference results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
 
-[Experiment design and results](EXPERIMENTS.md) · [Hackathon review](HACKATHON_REVIEW.md) · [Three-minute demo](DEMO.md) · [Technical system design](ARCHITECTURE.md) · [Original work](NEW_WORK.md)
+## What is running today?
 
-## Are we writing faster GPU kernels?
+The consumer inference loop is implemented: model inspection, real local code generation, constrained code execution, baseline and candidate inference, answer checks, memory sampling, feedback, held-out confirmation, Atlas persistence, resume, and reuse of a confirmed recipe.
 
-The user-facing goal is usable LLM inference within a consumer GPU's memory budget while preserving measured answer quality. A GPU kernel is a program executed on the GPU; writing or tuning kernels is one possible implementation technique. **This build manages and evaluates experiments. It does not generate new CUDA or Triton kernels.** It tests five predefined implementations composed from PyTorch operations, including a packed-key alternative we wrote using those operations. A kernel-writing agent could supply future alternatives, but it is not part of the demonstrated system.
+| Model / experiment | Evidence status |
+| --- | --- |
+| Qwen3.5-35B-A3B UD-IQ2_M, **11.39 GB file** | **Completed seven trials.** Each of three tuning trials passed **12/12 checks**; each of four confirmation trials passed **4/4**. The engine baseline was retained. Its tuning peak was **12,880 MiB** on the **16,303 MiB RTX 5070 Ti**. |
+| Qwen3-30B-A3B Q4_K_M, **18.56 GB** | Download complete and full-file SHA-256 verified; larger-than-card inference proof pending. |
+| Kimi-Linear-48B-A3B Q4_K_M, **30.06 GB** | Download complete and full-file SHA-256 verified; real inference run underway, outcome pending. |
 
-So far, the measured improvement is in the experiment workflow: fewer repeated tests. Faster GPU calculation remains an unachieved outcome. We should present both the useful working mechanism and that limitation clearly.
+**The completed 35B run did not establish an improvement.** Both code-generation attempts produced identical source and chose `n_cpu_moe=0`. The candidate's paired confirmation gains were **+3.5647% and +1.9202%**, both below the predefined 5% threshold, so the harness retained automatic fitting. This demonstrates real generation, execution, feedback, and rejection of an unconfirmed gain; this run did not demonstrate a successful code revision. See the [raw Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json) and [machine-readable summary](evidence/inference-summary.json).
 
-## The problem, solution, and proof
+The 35B model's compressed file fits within the card's capacity, so it does **not** establish offloading a file larger than VRAM. Concurrent downloads also confound early speed measurements. The [model manifest](evidence/inference-models.json) records verified sizes, revisions, and full checksums for the two larger downloads. [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) is the result ledger, including failures and completed confirmations. No general speedup or arbitrary-model compatibility is claimed.
 
-The intended user is an engineer running repeated GPU optimization experiments. A GPU is the processor that performs many AI calculations. The small demonstration here asks it to find the 64 highest-scoring positions among 16,384 scores, with a fixed rule for tied scores.
+## How it works
 
-| Problem | What the manager does | What we observed |
-| --- | --- | --- |
-| Repeat a mistake already discovered | Read the saved failure before choosing the next test | With memory: 3 attempts. Without it: 4. Same three correct alternatives checked in both repeated comparisons. |
-| Lose progress after the program stops | Save each result before moving on; reload it on restart | After a deliberate stop, the completed reference test remained at one attempt while unfinished work continued. |
-| Treat a wrong answer as an improvement | Compare every answer with an independent reference calculation | A method returned tied positions in the wrong order. It was rejected before timing. |
-| Mistake timing noise for progress | Warm both methods, repeat measurements, and alternate which is timed first | An apparent initial improvement did not survive paired checks. No speedup was claimed. |
-
-The broader problem is real: [Anthropic describes lost continuity and repeated recovery work in long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), and [KernelBench evaluates GPU optimization on both correctness and speed](https://arxiv.org/abs/2502.10517). These support the engineering need; our small experiment does not establish customer demand, production savings, or return on investment.
-
-## How it works, in ordinary language
+A **mixture-of-experts (MoE)** model contains many specialist parameter groups; only some participate in each token. Keeping more expert weights in system RAM can reduce GPU memory use, with a possible speed cost. llama.cpp implements that execution. The generated policy chooses how many early layers keep their expert weights on the CPU.
 
 ```mermaid
 flowchart TD
-    N[(Saved lab notebook in MongoDB Atlas)]
-    R[Read what previous tests established]
-    C[Choose an alternative worth testing]
-    A[Run it and check the answer]
-    T[Compare its speed with the reference]
-    S[Program stops and restarts]
-    N --> R
-    R --> C
-    C --> A
-    A -->|Right answer| T
-    A -->|Wrong answer: save the failure| N
-    T -->|Save measurements and conclusion| N
-    S -->|Recover finished work| R
+    I[Your model file + your desktop] --> P[Inspect model and available memory]
+    P --> B[Run llama.cpp automatic-fit baseline]
+    B --> N[(MongoDB Atlas: saved experiment notebook)]
+    N -->|Results and errors guide each revision| C[Local coding model reads prior measurements]
+    C --> G[Write Python placement policy]
+    G --> V[Check code and execute it with strict limits]
+    V --> E[llama.cpp runs the target model using that placement]
+    E --> T[Check answers and measure GPU memory and speed]
+    T --> N
+    T -->|After the bounded search| H[Confirm the best passing choice on reserved questions]
+    H --> R[Save a proven launch recipe, or report no recommendation]
+    R --> U[Launch the same model later without repeating the search]
 ```
 
-The experiment manager runs on the desktop. PyTorch performs the GPU calculations. Atlas stores the notebook in three collections:
+There are two different model roles:
 
-| Atlas collection | Plain-language purpose |
+- **Coding model:** local Ollama `gemma3:12b` writes `choose(context)`. Its output is actual Python source with a saved hash, hypothesis, and receipt. The proposer is asked to unload after generation.
+- **Target model:** a supported local MoE GGUF runs through a pinned llama.cpp engine. Its answers and resource use determine whether the proposal works.
+
+The generated function returns one setting: `n_cpu_moe`, the number of early layers whose expert weights stay on the CPU. It reads model facts, hardware facts, prior trial summaries, its previous code, and failure feedback. Imports, filesystem access, shell commands, loops, and arbitrary function calls are rejected. The fixed answer checks and acceptance rules remain outside the generated code.
+
+**This is a coding harness for placement policies.** It does not generate CUDA kernels, change neural-network weights, invent quantization, or modify the evaluator. Current adapters accept the `qwen35moe`, `qwen3moe`, and `kimi-linear` GGUF architectures; accepting metadata is distinct from passing a real inference run.
+
+## How do we prove it works?
+
+| Question | Required evidence |
 | --- | --- |
-| `runs` | The goal, testing budget, environment, and progress. |
-| `experiments` | What was tried, whether its answer was correct, measurements, and errors. |
-| `decisions` | What was chosen next, why, and which earlier test records were available. |
+| Can the model run usefully here? | Server starts, completes every fixed answer check, remains healthy, and stays within the sampled memory budget. Report actual model size, quantization, host RAM, and GPU. |
+| Did the generated policy improve the engine's default? | Compare the **same weights** against llama.cpp automatic fitting, then confirm a candidate on reserved tasks with reversed run order. |
+| Did the harness produce a reusable result? | Retain generated code, commands, answers, metrics, failures, and validation IDs; reload the saved recipe with compatibility checks. |
 
-Atlas is used before the next decision, so its records change behavior. It does not host our GPU computation. [ARCHITECTURE.md](ARCHITECTURE.md) provides the exact data model, ownership checks, recovery sequence, and Data Explorer filters.
+### The baseline is already capable
 
-## How we measured improvement fairly
+The reference uses llama.cpp's existing `--gpu-layers auto --fit on` behavior. Every new run measures it first. Candidate policies use `--gpu-layers all --n-cpu-moe N --fit off`. The experiment compares placement strategies while keeping the quantized model file fixed. CPU/GPU offload and automatic fitting are credited to [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/b11429/tools/server/README.md).
 
-We use three separate references so that a correct answer, a faster calculation, and a more efficient experiment process cannot be confused:
+The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. There is no artificial 10 GB ceiling in the default workflow. The engine baseline retains its minimum 1,024 MiB fit margin. An optional lower `--gpu-budget-mib` is an explicitly chosen experiment constraint.
 
-| Reference | How it is established | What it can prove |
-| --- | --- | --- |
-| Correct answer | An independent CPU implementation sorts by score and then original index. | Whether a GPU alternative satisfies the fixed answer rules. CPU time is not used as the GPU speed baseline. |
-| GPU speed baseline | PyTorch stable sort on the same GPU, selecting its first 64 indices. It is fixed before comparison, warmed, and remeasured next to each alternative. | Whether the alternative is repeatably faster than this specified reference. |
-| Workflow comparison | The same experiment manager with access to previous-run evidence disabled. Current-run memory stays enabled. | Whether prior evidence reduces attempts while preserving the same validated alternatives. |
+### Experimental design
 
-We tested the notebook's contribution by changing **only access to previous-run evidence**. Both versions used the same program, five allowed methods, input, GPU, answer checks, timing rules, and testing budget. Both could remember results within their current run.
-
-| Scientific design element | What we did |
+| Design element | Implemented control |
 | --- | --- |
-| Hypothesis | Remembering a known failure avoids repeating it while preserving the same validated alternatives. |
-| Comparison | Previous-run memory disabled versus enabled, using the same frozen set of real Atlas records. |
-| Primary measure | Actual test attempts needed to assess the same three correct alternatives; fewer is better. |
-| Quality safeguards | Same correct alternatives evaluated; no incorrect result accepted; no worker errors. |
-| Repetition | Run without/with memory, then reverse the order and repeat. |
-| Result | 4 → 3 attempts in both comparisons: `(4 - 3) / 4 = 25%` fewer. |
+| Hypothesis | A different CPU/GPU expert placement may produce a passing, faster configuration on this model and machine. |
+| Treatment | Only the expert-placement setting changes between generated candidates. |
+| Fixed conditions | Model and quantization, engine, 4,096-token context capacity, threads, prompts, decoding settings, and answer rules. |
+| Tuning data | Six short exact-answer tasks, each run twice in reverse question order. Generated policies see trial summaries. |
+| Reserved confirmation data | Four different questions excluded from proposer feedback. If a candidate wins tuning, run **baseline → candidate → candidate → baseline**, with a fresh server each time. |
+| Acceptance gate | All answers pass exact JSON type/value checks; server remains healthy; sampled GPU memory stays within budget. |
+| Speed measure | Engine-reported decode tokens/second, compared by matching question; full nonstream request latency is also retained. |
+| Directional improvement rule | Both confirmation blocks must pass, and each block's median paired decode gain must exceed **5%**. |
+| Budget | Default: one baseline plus two code-generation slots. Invalid or interrupted proposals consume a slot. Confirmation may add up to four engine launches. |
 
-This is conditional on relevant prior evidence being available. Its original acquisition cost is excluded. The five-attempt budget is not the comparison denominator. The measured elapsed times also decreased, but two short comparisons do not establish general runtime or GPU-cost savings. See [raw records](evidence/harness-ablation.json), the [recomputed summary](evidence/experiment-summary.json), and the full [experimental design](EXPERIMENTS.md).
+If an apparent tuning gain fails confirmation, the harness keeps the baseline when both baseline confirmations pass. If only the candidate passes both confirmations, it can be recommended for feasibility with speedup explicitly unproven. If neither is confirmed, the harness returns no recipe. The recorded error must explain what failed before calling a feasibility result a memory-capacity improvement.
 
-We separately tested **whether the calculation became faster**. After fixing warmup for both reference and alternative, stable argsort's median paired effect ranged from **6.8% slower to 1.1% faster** across five runs; it won only 3–6 of 12 comparisons in each run. That inconsistent direction does not support a speedup. The policy currently uses correctness failures to filter a fixed search order; latency is measured and reported, not used to invent a new search strategy.
+These checks establish **short-task operability on the tested hardware**. They do not establish general reasoning quality, long-context quality, production throughput, or a statistical confidence interval. GPU memory is sampled every 250 ms, includes other GPU processes, and can miss brief peaks. Short answers make decode rates noisy. [The result ledger](INFERENCE_RESULTS.md) reports those limits alongside the measurements.
 
-## Which track does this fit?
+## Why a harness when inference engines already exist?
 
-**Statement 2 — Long Horizon Engineering is the closest fit.** The demonstrated part is preserving progress beyond one running program and using measured evidence in later decisions.
-
-There is no long-context language model in this build. Its policy is deterministic, its search has five predefined methods, and its demonstration lasts minutes. Historical retrieval is bounded to 50 compatible completed/failed experiments plus the current run's records. The prototype does not establish billion-token memory, multi-day reasoning, or autonomous invention of GPU kernels.
-
-The fixed rules do not rewrite themselves, so Recursive Harnessing is not demonstrated. Track acceptance is the judges' decision. The event also requires the supplied **Atlas Sandbox** for finalist eligibility: real Atlas reads/writes are verified, but project membership still needs visual confirmation. The public repository is ready; accessible video upload and event submission remain outstanding.
-
-## Why build this when other tools exist?
-
-| Existing tool | What it provides | Our narrow contribution |
+| Existing work | What we reuse or learn from it | What this project adds |
 | --- | --- | --- |
-| [LangGraph](https://docs.langchain.com/oss/python/langgraph/persistence) | Persistent state, memory, and recovery. | A concrete GPU experiment loop whose answers, measurements, remembered failures, and restart behavior can be inspected together. |
-| [Optuna](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/001_rdb.html) | Persistent optimization studies and trial history. | Exact answer rules and failure reuse for a small predefined set; a larger search could use Optuna. |
-| [MLflow](https://www.mlflow.org/docs/latest/tracking/) | Tracking for experiments, metrics, and artifacts. | Stored evidence directly controls which experiment this program performs next. |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF execution, quantized kernels, CPU/GPU offload, automatic fitting, server API. | Generated placement code tested against that capable baseline, with failures, confirmation, and a reusable result. |
+| [Strata](https://github.com/Niko1221/Strata) and [Project Maya](https://github.com/mw00/project-maya) | Inspiration for large MoE inference on consumer hardware; these projects already include setup or calibration. | A bounded experiment-and-verification workflow. Neither is integrated as our backend, and their model support or speed results are not ours. |
+| [MongoDB Atlas](https://www.mongodb.com/docs/atlas/) | Durable documents and indexed retrieval. | Experiment evidence becomes the next coding attempt's input and the source of truth for resumed work. |
+| Existing model and GGUF publishers | Pretrained models and compressed weight artifacts. | Hardware-specific evaluation of unchanged artifacts. Model size reduction belongs to their quantization work. |
 
-These frameworks could support an expanded version. We reused PyTorch, PyMongo, filelock, and python-dotenv to produce one working path quickly. The original contribution is the integration, evaluator, recovery behavior, packed-key alternative, and controlled comparison—not a claim to have invented persistence. See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md).
+The useful distinction is **an inspectable chain from generated source → executed placement → measured outcome → accepted recipe**. Compatible tuning evidence feeds the next code revision. The workflow tests whether a proposed configuration deserves to replace the engine's default. We have not yet measured the incremental benefit of code generation over a simple parameter sweep.
 
-## What the judges can observe
+## How Atlas is used
 
-The supplied guide weights the first round as impact 20%, technical demo 35%, creativity 15%, and implementation difficulty 30%; round two weights them equally. The presentation should show the user's problem, the fair comparison, and the working result before discussing internals.
+| Collection | What it remembers | How the workflow uses it |
+| --- | --- | --- |
+| `runs` | Model and machine context, budget, generated policies, failed proposals, progress, recommendation. | Resume the same experiment and preserve consumed proposal slots. |
+| `experiments` | Exact recipe and command, answer outputs and scores, timings, sampled memory, errors, and tuning/confirmation stage. | Reuse committed trials and compare results under the same context. |
+| `decisions` | Hypothesis, chosen trial, and IDs of available prior experiments. | Trace the evidence supplied before testing the next policy. |
 
-Our strongest proof is **the same correct alternatives assessed with fewer repeated tests**, supported by real Atlas records and a live restart. Technical depth comes from independent answer checking, GPU measurement, guarded result writes, and recovery. Impact remains narrow: no customer or production savings study has been performed. [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md) documents the organizer guidance and relevant public skills reviewed, their application, and the remaining competitive gaps.
+Atlas is on the execution path: results are committed before moving on, and saved evidence is read before a new proposal. The proposer receives only compatible tuning summaries; reserved confirmation results stay out of its context. GPU computation stays on the desktop. [ARCHITECTURE.md](ARCHITECTURE.md) gives exact identities, limits, and Data Explorer filters.
 
-## Run it yourself
+## What is “long context” here? Which track fits?
 
-Verified machine: WSL2, RTX 5070 Ti, 16,303 MiB VRAM, Python 3.11.14, PyTorch 2.8.0+cu128. The driver supports CUDA 13.1; the PyTorch wheel uses CUDA 12.8. No CUDA compiler was installed. See [the current manifest](evidence/preflight-v3.json).
+**Statement 2 — Long Horizon Engineering is the closest fit:** the harness preserves measured progress and carries evidence into later coding attempts and resumed runs. The target model currently has a **4,096-token** context capacity. The notebook lives outside that context and supplies bounded summaries; it does not demonstrate a billion-token conversation or days of autonomous work.
 
-Use a working CUDA PyTorch environment. On this desktop we reused an existing installation:
+There is a real code-revision loop, but its editable surface is one placement function. The evaluator, tools, guardrails, and overall architecture remain fixed. That is a limited connection to **Statement 1 — Recursive Harnessing**, whose broader self-evolving architecture is not demonstrated. Track acceptance remains with the organizers.
+
+The supplied guide weights round one as impact 20%, technical demo 35%, creativity 15%, and difficulty 30%. The strongest demo shows the model-size problem, working baseline, generated policy and measured outcome, then Atlas evidence and a saved recipe. Finalists must use the event-provided **Atlas Sandbox**. The project owner has confirmed that this cluster was created through the event invitation; this is user confirmation, not an independent Atlas UI verification. [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md) covers criteria and public hackathon guidance reviewed.
+
+## Run it
+
+The current path targets **Linux/WSL x86-64 with one visible NVIDIA GPU**, sufficient system RAM, a local single-file supported GGUF, and a working NVIDIA driver. The verified desktop is a GeForce RTX 5070 Ti with 16,303 MiB VRAM. The setup script installs pinned llama.cpp **b11429 / `d81235049`**, CUDA 12.8 runtime files, and verifies GPU visibility. It does not download model weights.
 
 ```bash
-cd /mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent
-/home/henryl/miniconda3/envs/henry_benchmark/bin/python -m venv --system-site-packages .venv
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-inference.txt
+.venv/bin/python scripts/setup_inference_engine.py
+```
+
+Use a current Python with `tarfile.data_filter`. Older Linux installations may need `--cxx-dir /path/to/existing/modern/cxx/libraries`; the script reports the requirement and keeps its runtime under `artifacts/engines/`. It does not replace system libraries.
+
+Start a local Ollama service with `gemma3:12b` available at `127.0.0.1:11434`. Put the event Atlas URI in the ignored `.env` file as `MONGODB_URI=...`; `.env.example` has placeholders. Supply the actual path to a downloaded GGUF:
+
+```bash
+# Inspect metadata and the machine; this is an estimate, not an inference test.
+.venv/bin/python -m atlas_gpu_harness.inference inspect \
+  --model /path/to/model.gguf
+
+# Establish the baseline, generate/test two policies, then confirm a choice.
+.venv/bin/python -m atlas_gpu_harness.inference evolve \
+  --model /path/to/model.gguf \
+  --engine artifacts/engines/llama-b11429/launch-llama.sh \
+  --budget-evals 3
+
+# Resume the printed run ID with the same model, engine, machine and source.
+.venv/bin/python -m atlas_gpu_harness.inference evolve \
+  --model /path/to/model.gguf \
+  --engine artifacts/engines/llama-b11429/launch-llama.sh \
+  --resume-run RUN_ID
+
+# Reuse a confirmed configuration; this does not rerun the search.
+.venv/bin/python -m atlas_gpu_harness.inference_serve \
+  --recipe artifacts/inference/RUN_ID/recommendation.json \
+  --port 8081
+```
+
+Keep `recommendation.json` beside `report.json`. The launch helper requires a matching successful confirmation and checks model, engine, hardware, and evaluation compatibility. Once llama.cpp finishes loading, the API is `http://127.0.0.1:8081/v1`. Ctrl+C stops the owned server. Recipe reuse reads local evidence without Atlas or another generation call.
+
+Per-run artifacts include policy `.py` files and receipts, server logs, trial JSON, `report.json`, and `recommendation.json`. If the recommendation's `recipe` is `null`, no configuration met the confirmation rules.
+
+### Code checks without inference
+
+```bash
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m atlas_gpu_harness preflight
+.venv/bin/python -m unittest discover -s tests -p 'test_policy_codegen.py' -v
+.venv/bin/python -m unittest discover -s tests -p 'test_model_probe.py' -v
+.venv/bin/python -m unittest discover -s tests -p 'test_inference*.py' -v
 ```
 
-On another machine, install an appropriate wheel using the [official PyTorch selector](https://pytorch.org/get-started/locally/). Join the event's Atlas Sandbox, create a database user with `readWrite` on `atlas_gpu_harness`, and allow the desktop's public outbound IP. Save its driver URI as `MONGODB_URI=...` in the ignored `.env` file; `.env.example` contains placeholders.
+These cover generated-code restrictions, metadata, orchestration, measurements, and saved-recipe guards using fixtures. The complete project suite passed **46 tests** at this revision. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
 
-```bash
-.venv/bin/python -m atlas_gpu_harness atlas-check
-.venv/bin/python -m unittest discover -s tests -v
+## Earlier subsystem evidence
 
-# Deliberately exits 86 after saving the first result.
-.venv/bin/python -m atlas_gpu_harness run --budget-evals 4 --fault-after-commit
-# Substitute the printed run ID below.
-.venv/bin/python -m atlas_gpu_harness status --run-id RUN_ID
-.venv/bin/python -m atlas_gpu_harness resume --run-id RUN_ID
-.venv/bin/python -m atlas_gpu_harness export --run-id RUN_ID
+The original PyTorch top-k prototype remains available through `python -m atlas_gpu_harness`. Its [controlled memory comparison](EXPERIMENTS.md) observed **4 → 3 attempts** in two blocks while assessing the same three correct alternatives. Its [recovery demonstration](EVIDENCE.md) retained a committed result across a deliberate interruption. Those results test the original experiment-notebook mechanism; they do not measure LLM memory use, answer quality, or inference acceleration.
 
-# Compare access to one compatible saved run, without altering its records.
-.venv/bin/python scripts/measure_harness.py \
-  --seed-run-id SEED_RUN_ID --output artifacts/new-comparison.json
-
-# Recompute the published numbers without Atlas or GPU access.
-.venv/bin/python scripts/summarize_experiments.py
-```
-
-The live comparison needs a completed, compatible seed containing the observed tie failure; [EXPERIMENTS.md](EXPERIMENTS.md) gives the published IDs. Five tests passed after the measurement correction, followed by a real recovery run and four real comparison runs. Existing failure history can cause a run to finish below budget; inspect the original failure instead of deleting it to stage the demo.
-
-## Scope of the guarantees
-
-One desktop, one primary workload, a fixed policy, and local file locks. An interrupted experiment whose result was not saved can run again. The record identity prevents duplicate committed work within a run; it does not guarantee exactly-once GPU execution.
-
-The compatibility hash includes the GPU, Torch/CUDA versions, evaluator version, and evaluation contract, but excludes recorded driver, Git revision, and Python metadata. Evaluator changes require a version bump. Version 3 corrects paired warmup; version-2 reports remain historical evidence. The lowest initial median is not a confirmed speedup, and remembered failures outside the bounded retrieval window may not influence later runs.
+See [ATTRIBUTION.md](ATTRIBUTION.md) and [NEW_WORK.md](NEW_WORK.md) for reused foundations and event work.

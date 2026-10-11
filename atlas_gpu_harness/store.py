@@ -63,12 +63,12 @@ class AtlasStore:
                     .sort("finished_at", -1).limit(50))
 
     def decide(self, run_id: str, evidence_ids: list[str], candidate: str,
-               hypothesis: str, reason: str) -> None:
+               hypothesis: str, reason: str, policy_version: str = "deterministic-memory-v1") -> None:
         self.decisions.insert_one({"_id": uuid.uuid4().hex, "run_id": run_id,
                                    "retrieved_experiment_ids": evidence_ids,
                                    "candidate": candidate, "hypothesis": hypothesis,
                                    "reason": reason, "predicted_outcome": "unknown; evaluator decides",
-                                   "policy_version": "deterministic-memory-v1", "created_at": now()})
+                                   "policy_version": policy_version, "created_at": now()})
 
     def start(self, run_id: str, identity: str, context_hash: str, candidate: str) -> str | None:
         from pymongo.errors import DuplicateKeyError
