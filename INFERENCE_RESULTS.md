@@ -8,9 +8,9 @@ Measured on October 11, 2026 using a **GeForce RTX 5070 Ti with 16,303 MiB VRAM*
 | --- | ---: | --- |
 | Qwen3.5-35B-A3B, Unsloth UD-IQ2_M | 11.39 GB | Completed seven real inference trials. Every scored response passed. Generated policies did not meet the speed-improvement rule; the engine baseline was retained. |
 | Qwen3-30B-A3B, publisher Q4_K_M | 18.56 GB | Download complete and full SHA256 verified; inference trial pending. |
-| Kimi Linear 48B-A3B Instruct, Bartowski Q4_K_M | 30.06 GB | Download complete and full SHA256 verified; inference trial in progress. |
+| Kimi Linear 48B-A3B Instruct, Bartowski Q4_K_M | 30.06 GB | Three real tuning trials completed, each passing 12/12 checks. The 14-layer revision improved on the 13-layer proposal but remained slower than engine automatic fitting. Engine baseline then passed all four reserved confirmation questions and was saved as the recommendation. |
 
-The latter two files exceed this GPU's physical VRAM. File size alone does not establish that a model runs; actual outputs and held-out validation are required. GB here means decimal bytes; GPU measurements use MiB. [Pinned model sources and verified checksums](evidence/inference-models.json).
+The latter two files exceed this GPU's physical VRAM. Kimi has produced actual scored outputs; the downloaded Qwen3-30B has not been evaluated. Kimi also passed held-out validation and produced a confirmed launch recipe. GB here means decimal bytes; GPU measurements use MiB. [Pinned model sources and verified checksums](evidence/inference-models.json).
 
 ## Completed 35B experiment
 
@@ -30,7 +30,34 @@ The coding model produced the same policy twice. Both read the estimated startin
 
 Matched-question confirmation gains were **3.5647%** and **1.9202%**. Both were below the predeclared greater-than-5% rule, so `directionally_supported_speedup=false` and the saved choice was `engine_autofit`.
 
-This run used source commit `3c40d89`. Subsequent timeout, feedback, and recommendation fixes are in `a8d8fd6`; the launcher intentionally rejects an old recipe after its recorded backend source changes. Use the larger-model results below for a recipe validated against the corrected implementation.
+This run used source commit `3c40d89`. Subsequent timeout, feedback, and recommendation fixes are in `a8d8fd6`; the launcher intentionally rejects an old recipe after its recorded backend source changes. The completed Kimi run below uses the corrected implementation and has a confirmed recipe.
+
+## Kimi: larger-than-VRAM inference and measured revision
+
+Run: `70be4572a9824186999857dadeb1237d`. [Full Atlas export](evidence/inference/70be4572a9824186999857dadeb1237d.json). The **30.06 GB** Q4_K_M file runs through existing llama.cpp CPU/GPU offload on the **16,303 MiB** card, using system RAM. The host has 64 GB installed RAM; WSL exposes about 48 GiB. This demonstrates actual large-model operability, not a new capacity improvement over the engine.
+
+| Trial | CPU expert layers | Exact answers | Sampled GPU peak, MiB | Median decode tokens/s | Median request seconds |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Tuning baseline | Engine auto-fit | 12/12 | 15,472 | 47.21 | 0.948 |
+| Generated policy 1 | 13 | 12/12 | 15,791 | 22.77 | 1.405 |
+| Generated policy 2 | 14 | 12/12 | 15,890 | 29.77 | 1.137 |
+| Confirmation baseline | Engine auto-fit | 4/4 | 14,664 | 52.70 | 0.815 |
+
+The first generated policy's hypothesis incorrectly suggested that reducing the CPU expert-layer count could conserve GPU memory. The harness kept that prediction as evidence and measured the result: answers passed, but decode rate regressed by **51.76%** relative to automatic fitting.
+
+The next proposal explicitly cited the slowdown and changed its Python from `initial_estimate_n_cpu_moe - 1` to `initial_estimate_n_cpu_moe`, producing **13 → 14** CPU expert layers. That revision's observed median decode rate recovered by **30.73% relative to the first proposal**, but remained **36.94% below the engine baseline**. These are descriptive tuning comparisons on short answers; the recovery is not a confirmed speedup over llama.cpp.
+
+The baseline was fastest, so the harness selected it for one fresh confirmation run on four reserved questions. All four answers and the memory check passed; the saved recommendation is `engine_autofit`, with reason **"Engine baseline passed held-out validation."** No candidate beat the tuning baseline, so this run does not perform the two candidate comparison blocks used in the 35B experiment.
+
+## Resume verification
+
+After completion, the actual CLI resumed the Kimi run and returned its stored recommendation in **7.80 seconds**, without changing experiment IDs, attempt counts, decisions, or proposal slots. [Before/after Atlas receipt](evidence/inference-resume.json). This verifies completed-run reuse; the original operator prototype provides the separate deliberate-crash demonstration.
+
+## Saved-recipe launch verification
+
+The actual `inference_serve` command accepted the Kimi recommendation and launched the recorded engine configuration. The health endpoint passed; a request using the evaluator's unchanged prompt returned `{"answer":95}` from both **WSL and Windows**. The existing llama.cpp web interface returned its HTML successfully. [Launch and API receipt](evidence/inference-serve.json). This is a usability smoke check, separate from the controlled measurements above.
+
+An earlier request with a shortened system instruction returned bare `95`: the arithmetic was correct, but the required object format failed. That response is retained in the receipt. The demo command now uses the exact evaluation prompt. Passing the short task suite does not imply reliable formatting or quality for arbitrary prompts.
 
 ## What these checks establish
 

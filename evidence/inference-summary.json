@@ -443,6 +443,362 @@
       ],
       "report_path": "evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json",
       "report_sha256": "06b65c59816190460af5dfefb057ae77678eba47fcb417bc799bd3f40bf723c2"
+    },
+    {
+      "run_id": "70be4572a9824186999857dadeb1237d",
+      "status": "completed",
+      "model": {
+        "path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+        "name": "Kimi Linear 48B A3B Instruct",
+        "architecture": "kimi-linear",
+        "block_count": 27,
+        "expert_count": 256,
+        "expert_used_count": 8,
+        "context_length": 1048576,
+        "file_bytes": 30061058720,
+        "quantization": {
+          "file_type": 15,
+          "name": "MOSTLY_Q4_K_M"
+        },
+        "identity": {
+          "kind": "sha256_gguf_header_and_file_size_not_weight_checksum",
+          "digest": "1b9dfd38b76657967f3e1e469ec22929e6f4bbd6cafd592a97a0f3c44f2eca37",
+          "header_bytes": 6949024,
+          "file_bytes": 30061058720,
+          "hf_revision": null
+        }
+      },
+      "gpu": {
+        "name": "NVIDIA GeForce RTX 5070 Ti",
+        "total_mib": 16303.0,
+        "used_mib": 1601.0,
+        "free_mib": 14397.0,
+        "driver": "591.86"
+      },
+      "gpu_budget_mib": 16303,
+      "context_hash": "e4bf426e0a6176156eaca72905b18c289c6f48a3a05e2988e3f668269741ab9c",
+      "recommendation": {
+        "run_id": "70be4572a9824186999857dadeb1237d",
+        "recipe": {
+          "name": "engine_autofit",
+          "n_cpu_moe": null
+        },
+        "confirmation": null,
+        "validated_experiment_id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+        "selection_reason": "Engine baseline passed held-out validation.",
+        "model_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+        "engine_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/engines/llama-b11429/launch-llama.sh",
+        "gpu_budget_mib": 16303,
+        "context_size": 4096,
+        "context_hash": "e4bf426e0a6176156eaca72905b18c289c6f48a3a05e2988e3f668269741ab9c",
+        "scope": "One quantized local MoE, short exact-answer tasks, sampled memory budget on this physical GPU; no general model quality or arbitrary model support claim"
+      },
+      "proposals": {
+        "policy_1": {
+          "context": {
+            "model": {
+              "name": "Kimi Linear 48B A3B Instruct",
+              "architecture": "kimi-linear",
+              "block_count": 27,
+              "expert_count": 256,
+              "expert_used_count": 8,
+              "file_bytes": 30061058720
+            },
+            "hardware": {
+              "gpu": {
+                "name": "NVIDIA GeForce RTX 5070 Ti",
+                "total_mib": 16303.0,
+                "used_mib": 1509.0,
+                "free_mib": 14489.0,
+                "driver": "591.86"
+              },
+              "ram": {
+                "total_mib": 48173.13671875,
+                "available_mib": 30863.8671875,
+                "scope": "this Linux process; WSL limits apply"
+              },
+              "cpu_count": 20,
+              "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "disk": {
+                "path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent",
+                "free_bytes": 10397200384,
+                "total_bytes": 1999326146560,
+                "scope": "workspace filesystem; virtual disk capacity may exceed physical backing"
+              }
+            },
+            "previous_trials": [
+              {
+                "experiment_id": "70be4572a9824186999857dadeb1237d:8dbdc806a92bda46dc4a6e1c1a934dcfab1dc29b25569efb0104624499310e9a",
+                "candidate": "baseline",
+                "n_cpu_moe": null,
+                "engine_success": true,
+                "correct": true,
+                "quality": {
+                  "passed": 12,
+                  "total": 12,
+                  "completed": 12,
+                  "unique_tasks": 6
+                },
+                "quality_pass": true,
+                "resource_pass": true,
+                "device_peak_mib": 15472.0,
+                "median_decode_tokens_per_second": 47.20860322055161,
+                "median_request_latency_seconds": 0.9479889474996526,
+                "error": null,
+                "engine_error_tail": ""
+              }
+            ],
+            "feedback": {
+              "objective": "Maximize decode speed while every task passes and sampled total-device memory stays within budget",
+              "gpu_budget_mib": 16303,
+              "initial_estimate_n_cpu_moe": 14,
+              "avoid_duplicate_placements": [
+                null
+              ],
+              "previous_errors": {}
+            }
+          },
+          "proposer": {
+            "engine": "ollama",
+            "endpoint": "http://127.0.0.1:11434/api/generate",
+            "requested_model": "gemma3:12b",
+            "temperature": 0,
+            "num_predict": 600,
+            "keep_alive": 0,
+            "model": "gemma3:12b",
+            "created_at": "2026-10-11T21:57:53.362057996Z",
+            "done_reason": "stop",
+            "total_duration": 58324223080,
+            "load_duration": 56705363635,
+            "prompt_eval_count": 968,
+            "prompt_eval_duration": 444724717,
+            "eval_count": 84,
+            "eval_duration": 962603390
+          },
+          "raw_response": "{\n  \"hypothesis\": \"Start with the initial estimate and slightly reduce CPU experts to conserve GPU memory.\",\n  \"code\": \"def choose(context):\\n  n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'] - 1)\\n  return {'n_cpu_moe': n_cpu_moe}\"\n}",
+          "hypothesis": "Start with the initial estimate and slightly reduce CPU experts to conserve GPU memory.",
+          "code": "def choose(context):\n  n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'] - 1)\n  return {'n_cpu_moe': n_cpu_moe}",
+          "path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/inference/70be4572a9824186999857dadeb1237d/policy-e0cbdde534bb.py",
+          "source_hash": "783094ad696d4a7e0dee1171c278ee773fe556821d41661f3ba9fe11177d36e5",
+          "n_cpu_moe": 13,
+          "validation_status": "passed"
+        },
+        "policy_2": {
+          "context": {
+            "model": {
+              "name": "Kimi Linear 48B A3B Instruct",
+              "architecture": "kimi-linear",
+              "block_count": 27,
+              "expert_count": 256,
+              "expert_used_count": 8,
+              "file_bytes": 30061058720
+            },
+            "hardware": {
+              "gpu": {
+                "name": "NVIDIA GeForce RTX 5070 Ti",
+                "total_mib": 16303.0,
+                "used_mib": 1485.0,
+                "free_mib": 14513.0,
+                "driver": "591.86"
+              },
+              "ram": {
+                "total_mib": 48173.13671875,
+                "available_mib": 32550.09375,
+                "scope": "this Linux process; WSL limits apply"
+              },
+              "cpu_count": 20,
+              "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "disk": {
+                "path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent",
+                "free_bytes": 10196213760,
+                "total_bytes": 1999326146560,
+                "scope": "workspace filesystem; virtual disk capacity may exceed physical backing"
+              }
+            },
+            "previous_trials": [
+              {
+                "experiment_id": "70be4572a9824186999857dadeb1237d:8dbdc806a92bda46dc4a6e1c1a934dcfab1dc29b25569efb0104624499310e9a",
+                "candidate": "baseline",
+                "n_cpu_moe": null,
+                "engine_success": true,
+                "correct": true,
+                "quality": {
+                  "passed": 12,
+                  "total": 12,
+                  "completed": 12,
+                  "unique_tasks": 6
+                },
+                "quality_pass": true,
+                "resource_pass": true,
+                "device_peak_mib": 15472.0,
+                "median_decode_tokens_per_second": 47.20860322055161,
+                "median_request_latency_seconds": 0.9479889474996526,
+                "error": null,
+                "engine_error_tail": ""
+              },
+              {
+                "experiment_id": "70be4572a9824186999857dadeb1237d:92f3bbb4f5c2cc6def654e312c4824826b664113ce4dc785171b8ce015e5e393",
+                "candidate": "policy_1",
+                "n_cpu_moe": 13,
+                "engine_success": true,
+                "correct": true,
+                "quality": {
+                  "passed": 12,
+                  "total": 12,
+                  "completed": 12,
+                  "unique_tasks": 6
+                },
+                "quality_pass": true,
+                "resource_pass": true,
+                "device_peak_mib": 15791.0,
+                "median_decode_tokens_per_second": 22.771177992940782,
+                "median_request_latency_seconds": 1.4049264574996414,
+                "error": null,
+                "engine_error_tail": ""
+              }
+            ],
+            "feedback": {
+              "objective": "Maximize decode speed while every task passes and sampled total-device memory stays within budget",
+              "gpu_budget_mib": 16303,
+              "initial_estimate_n_cpu_moe": 14,
+              "avoid_duplicate_placements": [
+                null,
+                13
+              ],
+              "previous_errors": {}
+            },
+            "previous_policy": {
+              "code": "def choose(context):\n  n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'] - 1)\n  return {'n_cpu_moe': n_cpu_moe}",
+              "hypothesis": "Start with the initial estimate and slightly reduce CPU experts to conserve GPU memory."
+            }
+          },
+          "proposer": {
+            "engine": "ollama",
+            "endpoint": "http://127.0.0.1:11434/api/generate",
+            "requested_model": "gemma3:12b",
+            "temperature": 0,
+            "num_predict": 600,
+            "keep_alive": 0,
+            "model": "gemma3:12b",
+            "created_at": "2026-10-11T22:03:15.872585279Z",
+            "done_reason": "stop",
+            "total_duration": 55092468253,
+            "load_duration": 53458960131,
+            "prompt_eval_count": 1310,
+            "prompt_eval_duration": 486548819,
+            "eval_count": 78,
+            "eval_duration": 889718630
+          },
+          "raw_response": "{\"hypothesis\": \"The previous policy reduced CPU experts but slowed down inference. Revert to the initial estimate.\", \"code\": \"def choose(context):\\n  n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'])\\n  return {'n_cpu_moe': n_cpu_moe}\"}",
+          "hypothesis": "The previous policy reduced CPU experts but slowed down inference. Revert to the initial estimate.",
+          "code": "def choose(context):\n  n_cpu_moe = int(context['feedback']['initial_estimate_n_cpu_moe'])\n  return {'n_cpu_moe': n_cpu_moe}",
+          "path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/inference/70be4572a9824186999857dadeb1237d/policy-cb121372ce9b.py",
+          "source_hash": "484b44085239d6b319fedaaad2b0a8ccee5737123dbc09ac0a1588108edbceed",
+          "n_cpu_moe": 14,
+          "validation_status": "passed"
+        }
+      },
+      "proposal_errors": {},
+      "trials": [
+        {
+          "id": "70be4572a9824186999857dadeb1237d:8dbdc806a92bda46dc4a6e1c1a934dcfab1dc29b25569efb0104624499310e9a",
+          "candidate": "baseline",
+          "status": "completed",
+          "attempt": 1,
+          "stage": "tuning",
+          "recipe": {
+            "name": "engine_autofit",
+            "n_cpu_moe": null
+          },
+          "correct": true,
+          "quality": {
+            "passed": 12,
+            "total": 12,
+            "completed": 12,
+            "unique_tasks": 6
+          },
+          "device_peak_mib": 15472.0,
+          "process_rss_peak_mib": 27853.875,
+          "median_decode_tokens_per_second": 47.20860322055161,
+          "median_request_latency_seconds": 0.9479889474996526,
+          "load_seconds": 352.0200483489989,
+          "error": null
+        },
+        {
+          "id": "70be4572a9824186999857dadeb1237d:92f3bbb4f5c2cc6def654e312c4824826b664113ce4dc785171b8ce015e5e393",
+          "candidate": "policy_1",
+          "status": "completed",
+          "attempt": 1,
+          "stage": "tuning",
+          "recipe": {
+            "name": "policy_1",
+            "n_cpu_moe": 13
+          },
+          "correct": true,
+          "quality": {
+            "passed": 12,
+            "total": 12,
+            "completed": 12,
+            "unique_tasks": 6
+          },
+          "device_peak_mib": 15791.0,
+          "process_rss_peak_mib": 28699.64453125,
+          "median_decode_tokens_per_second": 22.771177992940782,
+          "median_request_latency_seconds": 1.4049264574996414,
+          "load_seconds": 214.83721372800028,
+          "error": null
+        },
+        {
+          "id": "70be4572a9824186999857dadeb1237d:219078be99a9e7f0310dbe2a0672ccb1c4a19704f5bd7a1dc3e865e2517b1cac",
+          "candidate": "policy_2",
+          "status": "completed",
+          "attempt": 1,
+          "stage": "tuning",
+          "recipe": {
+            "name": "policy_2",
+            "n_cpu_moe": 14
+          },
+          "correct": true,
+          "quality": {
+            "passed": 12,
+            "total": 12,
+            "completed": 12,
+            "unique_tasks": 6
+          },
+          "device_peak_mib": 15890.0,
+          "process_rss_peak_mib": 28997.57421875,
+          "median_decode_tokens_per_second": 29.768248236634285,
+          "median_request_latency_seconds": 1.136984763998953,
+          "load_seconds": 192.31758002900096,
+          "error": null
+        },
+        {
+          "id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+          "candidate": "holdout_baseline_1",
+          "status": "completed",
+          "attempt": 1,
+          "stage": "holdout",
+          "recipe": {
+            "name": "engine_autofit",
+            "n_cpu_moe": null
+          },
+          "correct": true,
+          "quality": {
+            "passed": 4,
+            "total": 4,
+            "completed": 4,
+            "unique_tasks": 4
+          },
+          "device_peak_mib": 14664.0,
+          "process_rss_peak_mib": 29272.46484375,
+          "median_decode_tokens_per_second": 52.69660369803226,
+          "median_request_latency_seconds": 0.8151383334998172,
+          "load_seconds": 181.80493822599965,
+          "error": null
+        }
+      ],
+      "report_path": "evidence/inference/70be4572a9824186999857dadeb1237d.json",
+      "report_sha256": "ae399ab183c7729a6a952e2df9320d3b780a9ddcf22d8d5aa8e8404fb635f1bb"
     }
   ]
 }

@@ -135,7 +135,7 @@ Both arms use the same trusted local engine and unchanged GGUF. The [pinned llam
 
 `M = max(1024, physical_total_mib - budget_mib)`. The physical-card default still gives the engine a minimum 1,024 MiB automatic-fit margin. A candidate keeps the first `N` layers' expert weights on the CPU; other offloadable weights remain eligible for GPU placement. The initial estimate assumes model bytes are spread evenly across layers and reserves 2,048 MiB. It is a starting guess, not a fit guarantee.
 
-Both arms use 4,096 context tokens, one server slot, eight inference/batch threads, memory-mapped weights, disabled prompt cache, the chat template with thinking disabled, temperature zero, a fixed seed, and at most 96 output tokens per answer. A fixed warmup question precedes scoring. Exact commands and server logs are retained. The current backend allows up to 600 seconds for server readiness and defaults to physical GPU capacity when no budget is supplied.
+Both arms use 4,096 context tokens, one server slot, eight inference/batch threads, memory-mapped weights, disabled prompt cache, temperature zero, a fixed seed, and at most 96 output tokens per answer. Both request `--chat-template-kwargs '{"enable_thinking":false}'` and append `/no_think` to task prompts. Whether those requests disable reasoning depends on the model's chat template; Kimi's template ignores the `enable_thinking` flag. The fixed request settings therefore do not establish that thinking was disabled. A fixed warmup question precedes scoring. Exact commands and server logs are retained. The current backend allows up to 600 seconds for server readiness and defaults to physical GPU capacity when no budget is supplied.
 
 ### Measures and acceptance
 
@@ -201,6 +201,8 @@ Select `atlas_gpu_harness` in Data Explorer, substituting the printed run ID:
 | `decisions` | `{ "run_id": "RUN_ID" }` |
 
 Read generated source/hashes in `runs.proposals`, rejected code in `proposal_errors`, and commands, answers, memory samples, and timings in experiment results. Follow `recommendation.validated_experiment_id` to the passing confirmation. The completed physical-card 35B run is `b88ec5bd304443a3add2b2fa767e2450`; see the [result ledger](INFERENCE_RESULTS.md) for additional runs. The owner confirms the cluster was created through the event's Atlas invitation; Sandbox membership has not been independently checked through the Atlas UI.
+
+For decision-to-result inspection, run the read-only [aggregation pipeline](queries/decision-evidence.json) against `decisions`, replacing `REPLACE_WITH_RUN_ID` in its first stage. Its `$lookup` joins `retrieved_experiment_ids` to experiment records and projects the answer, memory, speed, and error evidence. The [CLI helper](scripts/show_atlas_evidence.py) runs the same query with `--run-id RUN_ID`; it creates no indexes, health records, or Atlas UI saved query.
 
 ## 7. Compatibility, resume, and failure
 

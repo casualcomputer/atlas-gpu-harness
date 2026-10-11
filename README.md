@@ -1,14 +1,14 @@
 # Atlas GPU Harness
 
-**An agent writes and tests the code that decides how a large language model shares a consumer GPU and system RAM.**
+**A 30 GB language model. A 16 GB graphics card. A coding harness that tests how to run it.**
 
-You have a 16 GB graphics card and want to run a capable open model locally. Its weights can exceed the entire card before there is room for conversation memory. Existing inference engines can share work with the CPU, but every new model brings another round of setup, memory failures, and speed tradeoffs. *Did this setting actually work? Is it better than the engine's default? Can I use it again tomorrow?*
+Developers want capable open models on hardware they already own. When model weights exceed GPU memory, CPU offload makes local inference possible—but choosing settings becomes an engineering experiment. Each new model needs a configuration that fits, answers correctly, and responds usefully.
 
-Atlas GPU Harness turns that work into a measured loop. A local coding model writes a small Python placement policy. The harness checks the code, runs the target model through llama.cpp, checks its answers, measures memory and speed, and returns the results for revision. MongoDB Atlas keeps the experiment notebook. A configuration that passes confirmation becomes a saved launch recipe.
+We ran **Kimi-Linear-48B-A3B Q4_K_M, a 30.06 GB file, on a 16 GB RTX 5070 Ti**. llama.cpp's existing automatic CPU/GPU placement passed all 12 tuning checks and four reserved confirmation questions within the card's sampled memory capacity. It remained the selected configuration after two generated policies were tested.
 
-The immediate benefit is **a repeatable route from a supported model file to an evidenced configuration on this machine**. Faster inference is an experimental outcome to establish, not a promise attached to every generated policy.
+**Our contribution is the coding experiment around that engine:** a local agent writes a Python placement policy, the harness tests it against automatic fitting, and measured answers, memory, speed, and errors become feedback for the next attempt. Atlas preserves the code-to-result history. Reserved questions decide whether to accept the candidate or keep the baseline, and a confirmed choice becomes a reusable launch recipe.
 
-[Measured inference results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
+[59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
 
 ## What is running today?
 
@@ -16,13 +16,15 @@ The consumer inference loop is implemented: model inspection, real local code ge
 
 | Model / experiment | Evidence status |
 | --- | --- |
-| Qwen3.5-35B-A3B UD-IQ2_M, **11.39 GB file** | **Completed seven trials.** Each of three tuning trials passed **12/12 checks**; each of four confirmation trials passed **4/4**. The engine baseline was retained. Its tuning peak was **12,880 MiB** on the **16,303 MiB RTX 5070 Ti**. |
+| Kimi-Linear-48B-A3B Q4_K_M, **30.06 GB** | **Completed four trials.** All three tuning trials passed **12/12**; automatic fitting was fastest at **47.21 short-answer decode tokens/s** and **15,472 MiB** sampled peak on the **16,303 MiB GPU**. The selected baseline then passed **4/4 reserved questions**, with **14,664 MiB** sampled peak, and was retained. |
+| Qwen3.5-35B-A3B UD-IQ2_M, **11.39 GB file** | **Completed seven trials.** Each of three tuning trials passed **12/12 checks**; each of four confirmation trials passed **4/4**. The engine baseline was retained. Its tuning peak was **12,880 MiB**. |
 | Qwen3-30B-A3B Q4_K_M, **18.56 GB** | Download complete and full-file SHA-256 verified; larger-than-card inference proof pending. |
-| Kimi-Linear-48B-A3B Q4_K_M, **30.06 GB** | Download complete and full-file SHA-256 verified; real inference run underway, outcome pending. |
 
-**The completed 35B run did not establish an improvement.** Both code-generation attempts produced identical source and chose `n_cpu_moe=0`. The candidate's paired confirmation gains were **+3.5647% and +1.9202%**, both below the predefined 5% threshold, so the harness retained automatic fitting. This demonstrates real generation, execution, feedback, and rejection of an unconfirmed gain; this run did not demonstrate a successful code revision. See the [raw Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json) and [machine-readable summary](evidence/inference-summary.json).
+Each tuning trial's 12 checks are **six distinct questions repeated twice**. Kimi's completed run is `70be4572a9824186999857dadeb1237d`; its baseline establishes operability through existing engine offload. The [full Atlas export](evidence/inference/70be4572a9824186999857dadeb1237d.json) includes both generated policies, all four trials, and the recommendation: **“Engine baseline passed held-out validation.”**
 
-The 35B model's compressed file fits within the card's capacity, so it does **not** establish offloading a file larger than VRAM. Concurrent downloads also confound early speed measurements. The [model manifest](evidence/inference-models.json) records verified sizes, revisions, and full checksums for the two larger downloads. [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md) is the result ledger, including failures and completed confirmations. No general speedup or arbitrary-model compatibility is claimed.
+**Feedback produced a real code revision, but the engine baseline still won.** Kimi's first policy chose **13 CPU expert layers** and achieved **22.77 tokens/s**, about **52% below baseline**. After receiving those results, the next proposal removed the `- 1` from its placement calculation and chose **14 layers**. It reached **29.77 tokens/s**: **30.73% above the first candidate, yet 36.94% below automatic fitting**. Both passed all 12 checks. Policy 2's sampled peak was **15,890 MiB** and median full request time **1.137 s**, versus policy 1's **15,791 MiB** and **1.405 s**. This is partial recovery from a bad candidate, not an improvement over the engine. Only the fastest passing choice—the baseline—received reserved-question confirmation and became the saved recommendation.
+
+The completed 35B run shows the acceptance rule working: both proposals produced identical code with `n_cpu_moe=0`; confirmation gains of **+3.5647% and +1.9202%** missed the predefined 5% threshold, so the baseline stayed selected. It did not produce a successful revision or confirmed speedup. Its smaller file fits within VRAM, and downloads overlapped some timing measurements. See the [raw Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json), [summary](evidence/inference-summary.json), [verified model manifest](evidence/inference-models.json), and [result ledger](INFERENCE_RESULTS.md).
 
 ## How it works
 
@@ -51,7 +53,7 @@ There are two different model roles:
 
 The generated function returns one setting: `n_cpu_moe`, the number of early layers whose expert weights stay on the CPU. It reads model facts, hardware facts, prior trial summaries, its previous code, and failure feedback. Imports, filesystem access, shell commands, loops, and arbitrary function calls are rejected. The fixed answer checks and acceptance rules remain outside the generated code.
 
-**This is a coding harness for placement policies.** It does not generate CUDA kernels, change neural-network weights, invent quantization, or modify the evaluator. Current adapters accept the `qwen35moe`, `qwen3moe`, and `kimi-linear` GGUF architectures; accepting metadata is distinct from passing a real inference run.
+The editable surface is **one placement-policy function**. Current adapters accept the `qwen35moe`, `qwen3moe`, and `kimi-linear` GGUF architectures; the result ledger records which artifacts have actually passed inference.
 
 ## How do we prove it works?
 
@@ -65,7 +67,7 @@ The generated function returns one setting: `n_cpu_moe`, the number of early lay
 
 The reference uses llama.cpp's existing `--gpu-layers auto --fit on` behavior. Every new run measures it first. Candidate policies use `--gpu-layers all --n-cpu-moe N --fit off`. The experiment compares placement strategies while keeping the quantized model file fixed. CPU/GPU offload and automatic fitting are credited to [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/b11429/tools/server/README.md).
 
-The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. There is no artificial 10 GB ceiling in the default workflow. The engine baseline retains its minimum 1,024 MiB fit margin. An optional lower `--gpu-budget-mib` is an explicitly chosen experiment constraint.
+The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. The baseline retains the engine's minimum 1,024 MiB fit margin. An optional lower `--gpu-budget-mib` creates an explicit experiment constraint.
 
 ### Experimental design
 
@@ -75,7 +77,7 @@ The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. Th
 | Treatment | Only the expert-placement setting changes between generated candidates. |
 | Fixed conditions | Model and quantization, engine, 4,096-token context capacity, threads, prompts, decoding settings, and answer rules. |
 | Tuning data | Six short exact-answer tasks, each run twice in reverse question order. Generated policies see trial summaries. |
-| Reserved confirmation data | Four different questions excluded from proposer feedback. If a candidate wins tuning, run **baseline → candidate → candidate → baseline**, with a fresh server each time. |
+| Reserved confirmation data | Four different questions excluded from proposer feedback. Confirm only the best passing tuning choice. A winning generated candidate gets **baseline → candidate → candidate → baseline**; a winning baseline gets one baseline confirmation. |
 | Acceptance gate | All answers pass exact JSON type/value checks; server remains healthy; sampled GPU memory stays within budget. |
 | Speed measure | Engine-reported decode tokens/second, compared by matching question; full nonstream request latency is also retained. |
 | Directional improvement rule | Both confirmation blocks must pass, and each block's median paired decode gain must exceed **5%**. |
@@ -83,9 +85,9 @@ The CLI defaults to the card's **physical memory capacity**: 16,303 MiB here. Th
 
 If an apparent tuning gain fails confirmation, the harness keeps the baseline when both baseline confirmations pass. If only the candidate passes both confirmations, it can be recommended for feasibility with speedup explicitly unproven. If neither is confirmed, the harness returns no recipe. The recorded error must explain what failed before calling a feasibility result a memory-capacity improvement.
 
-These checks establish **short-task operability on the tested hardware**. They do not establish general reasoning quality, long-context quality, production throughput, or a statistical confidence interval. GPU memory is sampled every 250 ms, includes other GPU processes, and can miss brief peaks. Short answers make decode rates noisy. [The result ledger](INFERENCE_RESULTS.md) reports those limits alongside the measurements.
+These checks establish **short-task operability on the tested hardware**. GPU memory is sampled every 250 ms, includes other processes, and can miss brief peaks. Short answers make decode rates noisy; the 5% rule is descriptive, not a confidence interval. [The result ledger](INFERENCE_RESULTS.md) retains the measurements and conditions.
 
-## Why a harness when inference engines already exist?
+## What we add above the inference engine
 
 | Existing work | What we reuse or learn from it | What this project adds |
 | --- | --- | --- |
@@ -94,7 +96,7 @@ These checks establish **short-task operability on the tested hardware**. They d
 | [MongoDB Atlas](https://www.mongodb.com/docs/atlas/) | Durable documents and indexed retrieval. | Experiment evidence becomes the next coding attempt's input and the source of truth for resumed work. |
 | Existing model and GGUF publishers | Pretrained models and compressed weight artifacts. | Hardware-specific evaluation of unchanged artifacts. Model size reduction belongs to their quantization work. |
 
-The useful distinction is **an inspectable chain from generated source → executed placement → measured outcome → accepted recipe**. Compatible tuning evidence feeds the next code revision. The workflow tests whether a proposed configuration deserves to replace the engine's default. We have not yet measured the incremental benefit of code generation over a simple parameter sweep.
+The deliverable is **an inspectable chain from generated source → executed placement → measured outcome → accepted recipe**. The engine supplies the ability to run Kimi; our harness supplies the generated candidate, controlled comparison, feedback, and acceptance decision. A faster or more memory-efficient candidate must earn that claim through the experiment. This is the precise comparison with llama.cpp and the basis for evaluating future algorithms.
 
 ## How Atlas is used
 
@@ -104,13 +106,13 @@ The useful distinction is **an inspectable chain from generated source → execu
 | `experiments` | Exact recipe and command, answer outputs and scores, timings, sampled memory, errors, and tuning/confirmation stage. | Reuse committed trials and compare results under the same context. |
 | `decisions` | Hypothesis, chosen trial, and IDs of available prior experiments. | Trace the evidence supplied before testing the next policy. |
 
-Atlas is on the execution path: results are committed before moving on, and saved evidence is read before a new proposal. The proposer receives only compatible tuning summaries; reserved confirmation results stay out of its context. GPU computation stays on the desktop. [ARCHITECTURE.md](ARCHITECTURE.md) gives exact identities, limits, and Data Explorer filters.
+Atlas is on the execution path: results are committed before moving on, and saved evidence is read before a new proposal. The proposer receives only compatible tuning summaries; reserved confirmation results stay out of its context. A [decision-to-evidence query](queries/decision-evidence.json) joins each decision to the experiments it retrieved. [ARCHITECTURE.md](ARCHITECTURE.md) gives exact identities, limits, and Data Explorer filters.
 
 ## What is “long context” here? Which track fits?
 
-**Statement 2 — Long Horizon Engineering is the closest fit:** the harness preserves measured progress and carries evidence into later coding attempts and resumed runs. The target model currently has a **4,096-token** context capacity. The notebook lives outside that context and supplies bounded summaries; it does not demonstrate a billion-token conversation or days of autonomous work.
+**Statement 1 — Recursive Harnessing:** generated placement code can change in response to measurements, within a fixed evaluator and fixed guardrails. Kimi's policy changed from 13 to 14 CPU expert layers after feedback, improving on its first candidate while remaining slower than automatic fitting. Present this as bounded policy evolution; the completed 35B run generated the same policy twice.
 
-There is a real code-revision loop, but its editable surface is one placement function. The evaluator, tools, guardrails, and overall architecture remain fixed. That is a limited connection to **Statement 1 — Recursive Harnessing**, whose broader self-evolving architecture is not demonstrated. Track acceptance remains with the organizers.
+**Statement 2 — Long Horizon Engineering:** Atlas carries measured progress into later attempts and resumed runs. The model has a **4,096-token** context capacity; the notebook supplies bounded summaries outside that window. This implements durable experimental memory. Full architectural self-improvement, billion-token reasoning, and days of autonomous work are beyond the current demonstration; track acceptance remains with the organizers.
 
 The supplied guide weights round one as impact 20%, technical demo 35%, creativity 15%, and difficulty 30%. The strongest demo shows the model-size problem, working baseline, generated policy and measured outcome, then Atlas evidence and a saved recipe. Finalists must use the event-provided **Atlas Sandbox**. The project owner has confirmed that this cluster was created through the event invitation; this is user confirmation, not an independent Atlas UI verification. [HACKATHON_REVIEW.md](HACKATHON_REVIEW.md) covers criteria and public hackathon guidance reviewed.
 
@@ -151,6 +153,8 @@ Start a local Ollama service with `gemma3:12b` available at `127.0.0.1:11434`. P
   --port 8081
 ```
 
+The Kimi recipe was actually relaunched and answered the same short API check correctly from both WSL and Windows. [Launch receipt](evidence/inference-serve.json) · [Completed-run resume receipt](evidence/inference-resume.json). Its existing llama.cpp interface is at `http://127.0.0.1:8081/` while running.
+
 Keep `recommendation.json` beside `report.json`. The launch helper requires a matching successful confirmation and checks model, engine, hardware, and evaluation compatibility. Once llama.cpp finishes loading, the API is `http://127.0.0.1:8081/v1`. Ctrl+C stops the owned server. Recipe reuse reads local evidence without Atlas or another generation call.
 
 Per-run artifacts include policy `.py` files and receipts, server logs, trial JSON, `report.json`, and `recommendation.json`. If the recommendation's `recipe` is `null`, no configuration met the confirmation rules.
@@ -165,6 +169,12 @@ Per-run artifacts include policy `.py` files and receipts, server logs, trial JS
 ```
 
 These cover generated-code restrictions, metadata, orchestration, measurements, and saved-recipe guards using fixtures. The complete project suite passed **46 tests** at this revision. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
+
+## Scope and next experiments
+
+Current value is the generated-code experiment and evidenced recipe. No confirmed inference gain over automatic fitting has been demonstrated yet, and code generation has not been compared with a simple parameter sweep. The short task suite does not establish general model quality or long-context performance. Support is limited to the implemented architectures and tested artifacts.
+
+After the validated submission, the same evaluation approach could compare new expert-offload algorithms, pruning, or merging, with appropriate quality baselines. These are future work. The current system keeps weights fixed and generates no CUDA kernels.
 
 ## Earlier subsystem evidence
 

@@ -1,0 +1,122 @@
+{
+  "run_id": "70be4572a9824186999857dadeb1237d",
+  "checked_at": "2026-10-11T22:11:04.485225+00:00",
+  "kind": "Completed-run resume, not crash recovery",
+  "command": [
+    ".venv/bin/python",
+    "-m",
+    "atlas_gpu_harness.inference",
+    "evolve",
+    "--model",
+    "artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+    "--engine",
+    "artifacts/engines/llama-b11429/launch-llama.sh",
+    "--resume-run",
+    "70be4572a9824186999857dadeb1237d"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 7.804748721000578,
+  "before": {
+    "status": "completed",
+    "recommendation": {
+      "run_id": "70be4572a9824186999857dadeb1237d",
+      "recipe": {
+        "name": "engine_autofit",
+        "n_cpu_moe": null
+      },
+      "confirmation": null,
+      "validated_experiment_id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+      "selection_reason": "Engine baseline passed held-out validation.",
+      "model_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+      "engine_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/engines/llama-b11429/launch-llama.sh",
+      "gpu_budget_mib": 16303,
+      "context_size": 4096,
+      "context_hash": "e4bf426e0a6176156eaca72905b18c289c6f48a3a05e2988e3f668269741ab9c",
+      "scope": "One quantized local MoE, short exact-answer tasks, sampled memory budget on this physical GPU; no general model quality or arbitrary model support claim"
+    },
+    "proposal_attempts": {
+      "policy_1": {
+        "status": "completed"
+      },
+      "policy_2": {
+        "status": "completed"
+      }
+    },
+    "experiments": [
+      {
+        "id": "70be4572a9824186999857dadeb1237d:8dbdc806a92bda46dc4a6e1c1a934dcfab1dc29b25569efb0104624499310e9a",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:92f3bbb4f5c2cc6def654e312c4824826b664113ce4dc785171b8ce015e5e393",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:219078be99a9e7f0310dbe2a0672ccb1c4a19704f5bd7a1dc3e865e2517b1cac",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+        "attempt": 1,
+        "status": "completed"
+      }
+    ],
+    "decisions": 4
+  },
+  "after": {
+    "status": "completed",
+    "recommendation": {
+      "run_id": "70be4572a9824186999857dadeb1237d",
+      "recipe": {
+        "name": "engine_autofit",
+        "n_cpu_moe": null
+      },
+      "confirmation": null,
+      "validated_experiment_id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+      "selection_reason": "Engine baseline passed held-out validation.",
+      "model_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+      "engine_path": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/engines/llama-b11429/launch-llama.sh",
+      "gpu_budget_mib": 16303,
+      "context_size": 4096,
+      "context_hash": "e4bf426e0a6176156eaca72905b18c289c6f48a3a05e2988e3f668269741ab9c",
+      "scope": "One quantized local MoE, short exact-answer tasks, sampled memory budget on this physical GPU; no general model quality or arbitrary model support claim"
+    },
+    "proposal_attempts": {
+      "policy_1": {
+        "status": "completed"
+      },
+      "policy_2": {
+        "status": "completed"
+      }
+    },
+    "experiments": [
+      {
+        "id": "70be4572a9824186999857dadeb1237d:8dbdc806a92bda46dc4a6e1c1a934dcfab1dc29b25569efb0104624499310e9a",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:92f3bbb4f5c2cc6def654e312c4824826b664113ce4dc785171b8ce015e5e393",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:219078be99a9e7f0310dbe2a0672ccb1c4a19704f5bd7a1dc3e865e2517b1cac",
+        "attempt": 1,
+        "status": "completed"
+      },
+      {
+        "id": "70be4572a9824186999857dadeb1237d:a272641887051186ac3993aee9d204b06d44b972f2303e81775e57033e4ba4c5",
+        "attempt": 1,
+        "status": "completed"
+      }
+    ],
+    "decisions": 4
+  },
+  "unchanged": true,
+  "started_new_trial": false,
+  "returned_saved_recommendation": true
+}

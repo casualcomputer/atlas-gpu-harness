@@ -1,0 +1,11 @@
+{
+  "run_id": "70be4572a9824186999857dadeb1237d",
+  "source": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/inference/70be4572a9824186999857dadeb1237d/report.json",
+  "source_sha256": "ae399ab183c7729a6a952e2df9320d3b780a9ddcf22d8d5aa8e8404fb635f1bb",
+  "test_output": false,
+  "duration_seconds": 59,
+  "video": "/mnt/c/Users/henry/Documents/ChatGPT/gpu-engineer-agent/artifacts/inference-video/70be4572a9824186999857dadeb1237d/atlas-inference-evidence-walkthrough.mp4",
+  "description": "Captioned saved-evidence walkthrough, not live capture; no inference performed",
+  "public_path": "demo/atlas-inference-demo.mp4",
+  "video_sha256": "044cde252fc796d90b920d68c2f73d0430d3f3d07cac7dc156845cbca24ba308"
+}
