@@ -8,7 +8,9 @@ We ran **Kimi-Linear-48B-A3B Q4_K_M, a 30.06 GB file, on a 16 GB RTX 5070 Ti**. 
 
 **Our contribution is the coding experiment around that engine:** a local agent writes a Python placement policy, the harness tests it against automatic fitting, and measured answers, memory, speed, and errors become feedback for the next attempt. Atlas preserves the code-to-result history. Reserved questions decide whether to accept the candidate or keep the baseline, and a confirmed choice becomes a reusable launch recipe.
 
-[59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [Deployment engineer](DEPLOYMENT_ENGINEER.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
+[Visual evidence dashboard](demo-ui/index.html) · [59-second demo video](demo/atlas-inference-demo.mp4) · [Submission text](SUBMISSION.md) · [Measured inference results](INFERENCE_RESULTS.md) · [Deployment engineer](DEPLOYMENT_ENGINEER.md) · [System design](ARCHITECTURE.md) · [Hackathon fit](HACKATHON_REVIEW.md) · [Demo](DEMO.md) · [Original work](NEW_WORK.md)
+
+The visual dashboard uses the design and motion replay from the `ui` branch. Its Kimi chart shows saved inference measurements; the replay below it shows an earlier PyTorch operator experiment. The vLLM, SGLang, and Ollama queue is a planning view, not a live benchmark feed. Serve the repository with `python3 -m http.server 8000` and open `http://127.0.0.1:8000/demo-ui/` to browse the relative evidence links.
 
 ## What the framework does
 
