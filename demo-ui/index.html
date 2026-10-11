@@ -281,12 +281,13 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
     </tbody>
   </table></div>
   <h3 style="margin-top:48px;font-size:22px">Everything recorded in Atlas</h3>
-  <p class="src" style="margin-top:6px;font-size:14px;color:var(--muted)">10 runs · 37 experiments · 37 decisions, each exported from Atlas into <code>evidence/</code>.</p>
+  <p class="src" style="margin-top:6px;font-size:14px;color:var(--muted)">11 runs · 55 experiments · 55 decisions, each exported from Atlas into <code>evidence/</code>.</p>
   <div class="tblwrap"><table>
     <thead><tr><th>Run</th><th>Workload</th><th>Records</th><th>What it shows</th></tr></thead>
     <tbody>
       <tr><td><a href="../evidence/inference/70be4572a9824186999857dadeb1237d.json">70be4572</a></td><td>Kimi-Linear-48B · 30 GB on 16 GB GPU</td><td><small>4 exp · 4 dec</small></td><td><small>Agent revised its code from Atlas feedback; default kept; recipe confirmed and relaunched</small></td></tr>
       <tr><td><a href="../evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json">b88ec5bd</a></td><td>Qwen3.5-35B-A3B · 11.4 GB</td><td><small>7 exp · 7 dec</small></td><td><small>+3.56% / +1.92% candidate rejected by held-out confirmation</small></td></tr>
+      <tr><td><a href="/demo-ui/strata.html">e5359ac4</a></td><td>Strata · 68 GB model on 16 GB GPU · 32K tokens</td><td><small>18 exp · 18 dec</small></td><td><small>+6.2% faster setting rejected: 0/18 passed the answer check, so no policy was promoted; one interrupted trial recovered without rerun</small></td></tr>
       <tr><td><a href="../evidence/harness-ablation.json">ec9eedae</a></td><td>Atlas memory on vs. off · 4 runs, 2 blocks</td><td><small>14 exp · 14 dec</small></td><td><small>With Atlas memory: 3 attempts instead of 4 in both blocks, same 3 correct results, known failure never repeated</small></td></tr>
       <tr><td><a href="../evidence/report-2eb9f21a2e374f358c4a42b9fbe2258d.json">2eb9f21a</a></td><td>GPU operator search</td><td><small>4 exp · 4 dec</small></td><td><small>Controller killed after a commit; resume read Atlas and skipped finished work</small></td></tr>
       <tr><td><a href="../evidence/report-28236d7c01de4472b7ef84bdbe30379e.json">28236d7c</a></td><td>GPU operator search</td><td><small>4 exp · 4 dec</small></td><td><small>Seed run for the memory comparison; wrong-answer candidate rejected before timing</small></td></tr>
