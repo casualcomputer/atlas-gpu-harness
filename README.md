@@ -24,35 +24,37 @@ This is a focused demonstration of those mechanisms. The current policy is deter
 
 **Finalist eligibility also requires the event-provided Atlas Sandbox cluster.** Actual Atlas reads and writes are verified; membership of the supplied cluster in the event's Sandbox project still needs a visual check. This repository is public. An accessible one-minute video and the event submission must still be completed. The main product is the experiment controller and CLI.
 
+## What is long horizon about it?
+
+The problem appears when a task must outlive one running process: completed work, failures, the goal, and the remaining budget must survive. Atlas provides that continuity. A restarted controller reloads completed experiments; a later compatible run can retrieve a previous correctness failure before choosing more work.
+
+**This build has durable experiment memory, not a long LLM context window.** There is no LLM in the current controller. The code's `context_hash` means a fingerprint of the GPU, software, and evaluation contract; it does not refer to conversation tokens. Each decision reads at most 50 compatible historical terminal experiments plus all current-run records. Older failures outside that history window are not guaranteed to influence a new run.
+
+The demonstrated sequence is: **run → save evidence → controller dies → reload evidence → continue**, followed by **new run → retrieve an earlier failure → skip that candidate**. This is a necessary mechanism for long-horizon engineering. Our short, five-candidate demonstration does not establish sustained reasoning, multi-day operation, or billion-token memory.
+
 ## What we built
 
 A harness is the supervisor around an optimization attempt: it chooses permitted work, enforces how work is judged, preserves results, and decides what to do next. This harness searches a small allowlist of GPU operator implementations. PyTorch executes the operators; Atlas holds durable state; the Python controller connects measurement to the next decision.
 
 ```mermaid
-flowchart LR
-    subgraph Desktop[Local WSL2 desktop]
-        CLI[CLI: run, resume, status, export] --> C[Controller: budget, context check, run lock]
-        C --> P[Deterministic candidate policy]
-        P -->|candidate, hypothesis, reason| C
-        C -->|candidate name| W[Worker subprocess and GPU lock]
-        W --> E[Fixed evaluator and independent CPU oracle]
-        E --> G[RTX 5070 Ti running PyTorch]
-        G -->|outputs and CUDA timings| E
-        E -->|correctness, samples, paired recheck| C
-        C --> J[JSON evidence export]
+flowchart TD
+    A[(Atlas memory: runs, experiments, decisions)]
+    subgraph Desktop[Your desktop]
+        P[Choose next eligible GPU candidate]
+        V[Compare GPU output with independent CPU answer]
+        T[Measure correct candidate with CUDA events]
+        R[Controller crashes and restarts]
     end
-    subgraph Cloud[MongoDB Atlas]
-        R[(runs)]
-        X[(experiments)]
-        D[(decisions)]
-    end
-    C -->|objective, budget, progress| R
-    X -->|compatible success and failure history| C
-    C -->|retrieved evidence| P
-    C -->|evidence IDs and proposal| D
-    C -->|claim work, then commit result| X
-    R -->|reload run on resume| C
+    A -->|Read previous results and failures| P
+    P -->|Record choice and evidence IDs| A
+    P --> V
+    V -->|Correct| T
+    V -->|Wrong: save failure without timing| A
+    T -->|Save checks and raw timings before progress update| A
+    R -->|Reload completed work and resume| A
 ```
+
+Read the loop as **remember → choose → check → measure → save**. The restart path returns to saved evidence. The detailed component sequence, ownership checks, and recovery semantics are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Atlas hosts the records and retrieval. GPU execution happens on this desktop.** No model weights, GPU compute service, or vector index is hosted in Atlas by this project.
 
