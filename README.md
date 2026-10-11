@@ -13,9 +13,11 @@
 
 ## Why this matters
 
-Inference is now about two-thirds of AI compute, and memory prices are projected to rise more than 400% from 2024 to the end of 2026 ([J.P. Morgan](https://www.jpmorgan.com/insights/global-research/artificial-intelligence/dram-memory-shortage-from-ai)). Getting more from existing GPUs is the cheapest capacity available. Yet deployment tuning is still manual: every **model × GPU × engine version** needs its own configuration, dozens of flags interact, some requirements can never break, and benchmarks are easy to fool with noise or wrong answers.
+Today, LLM infrastructure engineers tune deployments **by hand, or prompt by prompt with a chat assistant** that cannot run anything, cannot verify an answer, forgets what failed last session, and cannot tell a real speedup from noise.
 
-Data-center deployment engineers face this at fleet scale; developers face it on a single card. Atlas GPU Harness turns it into a controlled, resumable experiment loop.
+The space is too large for that. vLLM documents **180+ engine flags** and SGLang about **135 server flags**; meeting one latency target can exceed **10,000 configuration permutations**, and good configuration is worth **up to 40% (dense) and 50% (MoE)** in performance ([AIConfigurator, arXiv 2601.06288](https://arxiv.org/html/2601.06288v1)). Meanwhile inference is about two-thirds of AI compute and memory prices are projected to rise more than 400% from 2024 to the end of 2026 ([J.P. Morgan](https://www.jpmorgan.com/insights/global-research/artificial-intelligence/dram-memory-shortage-from-ai)) — so the cheapest capacity is existing GPUs, used well.
+
+Atlas GPU Harness replaces that loop with an agent that runs the experiments itself, verifies every result, and remembers it in Atlas. **The agent proposes, the harness decides what is true, and Atlas remembers everything.**
 
 ## Architecture
 

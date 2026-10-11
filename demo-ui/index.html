@@ -176,7 +176,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
  <div class="hsplit"><div>
   <div class="badge"><b>LLM DEPLOYMENT AGENT</b> inference engines · real benchmarks · MongoDB Atlas</div>
   <h1>Deploy any open model.<br>Keep only what's <span class="accent">proven.</span></h1>
-  <p class="lead">Atlas GPU Harness is a deployment agent for inference teams. It launches the model on a real engine, benchmarks each configuration for correctness, memory and speed, and records every experiment in MongoDB Atlas — so a setting goes to production only when the evidence holds.</p>
+  <p class="lead">Atlas GPU Harness is an autonomous deployment agent for LLM infra teams. Instead of tuning by hand or prompt by prompt, it launches the model on a real engine, benchmarks each configuration for correctness, memory and speed, and records every experiment in MongoDB Atlas — so a setting goes to production only when the evidence holds.</p>
   <div class="cta">
     <a class="btn primary" href="#proof">See the measured results →</a>
     <a class="btn" href="#how">How the agent works</a>
@@ -212,14 +212,20 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
 
 <section id="problem"><div class="wrap">
   <div class="eyebrow">The problem</div>
-  <h2>Deployment tuning is still manual — and expensive to get wrong.</h2>
-  <p class="lead">Every new model × GPU × engine version needs its own configuration. Dozens of interdependent flags, hard requirements that can't break, and benchmarks that are easy to fool.</p>
-  <div class="grid3" style="margin-top:36px">
-    <div class="card"><div class="k">Compute is scarce</div><h3>Memory prices up 400%+</h3><p>DRAM is projected to rise more than 400% from 2024 to the end of 2026, and inference is now about two-thirds of AI compute. Getting more from existing GPUs is the cheapest capacity there is.</p></div>
-    <div class="card"><div class="k">Dependencies everywhere</div><h3>Model × hardware × engine</h3><p>Expert offload, GPU layers, KV cache, context, threads — each depends on the GPU, driver, engine version and model architecture. Change one, and you tune again.</p></div>
+  <h2>Today, deployment is tuned by hand — or prompt by prompt.</h2>
+  <p class="lead">LLM infra engineers run a benchmark, paste the output into a chat assistant, try the next suggestion, and repeat. The assistant can't run anything, can't verify an answer, forgets what failed last session, and can't tell a real speedup from noise.</p>
+  <div class="stats" style="margin-top:36px">
+    <div class="stat"><div class="n">180+</div><div class="l">documented vLLM engine flags</div></div>
+    <div class="stat"><div class="n">~135</div><div class="l">documented SGLang server flags</div></div>
+    <div class="stat"><div class="n">10,000+</div><div class="l">configuration permutations for one SLA target</div></div>
+    <div class="stat"><div class="n accent">up to 50%</div><div class="l">MoE performance gain reported from better configuration</div></div>
+  </div>
+  <div class="grid3" style="margin-top:16px">
+    <div class="card"><div class="k">Compute is scarce</div><h3>The cheapest GPU is the one you own</h3><p>Inference is about two-thirds of AI compute, and DRAM is projected to rise more than 400% from 2024 to the end of 2026. Using existing hardware well is the cheapest capacity there is.</p></div>
+    <div class="card"><div class="k">Dependencies everywhere</div><h3>Model × hardware × engine</h3><p>Expert offload, GPU layers, KV cache, context, batching — each depends on the GPU, driver, engine version and model architecture. Change one, and you tune again.</p></div>
     <div class="card"><div class="k">False wins</div><h3>Benchmarks lie quietly</h3><p>A config can be fast and wrong, or "faster" only because of noise. Without controls, a bad result becomes the baseline for every decision after it.</p></div>
   </div>
-  <p class="src">Sources: J.P. Morgan Global Research, Aug 2026 (DRAM); Deloitte via Presenc research (inference share).</p>
+  <p class="src">Sources: vLLM engine arguments docs (flags counted Oct 2026, page partially read — true total higher); SGLang server arguments docs; AIConfigurator, arXiv 2601.06288 (permutations; up to 40% dense / 50% MoE gains from configuration); J.P. Morgan Global Research, Aug 2026 (DRAM); Deloitte via Presenc (inference share).</p>
 </div></section>
 
 <section id="how"><div class="wrap">
