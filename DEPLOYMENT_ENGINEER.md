@@ -65,7 +65,7 @@ python -m atlas_gpu_harness.deployment_engineer compare \
   baseline-vllm.json candidate-vllm.json > comparison.json
 ```
 
-`worked` means the 12 short answer checks passed. It is not a production quality or speedup claim. The comparison sorts passing trials by completion tokens per **full response** second and leaves a caution about hardware, model bytes, tokenizer, and load conditions. A fair conclusion needs a pinned model revision and chat template, identical prompts and context, repeat trials, startup and SSD measurements, and representative concurrency. The existing [llama.cpp workflow](README.md) remains the stricter baseline for its supported GGUF MoE models.
+`worked` means the 12 short answer checks passed. It is not a production quality or speedup claim. The comparison sorts passing trials by completion tokens per **full response** second and leaves a caution about hardware, model bytes, tokenizer, and load conditions. A fair conclusion needs a pinned model revision and chat template, identical prompts and context, repeat trials, startup and SSD measurements, and representative concurrency. The existing [llama.cpp workflow](HACKATHON.md) remains the stricter baseline for its supported GGUF MoE models.
 
 ## Documentation and optimization scope
 

@@ -1,4 +1,4 @@
-"""The `atlas` entry point and run labelling, without Atlas, GPU or engines."""
+"""The `atlas-harness` entry point and run labelling, without Atlas, GPU or engines."""
 
 import contextlib
 import io
@@ -34,7 +34,7 @@ class CliTests(unittest.TestCase):
 
         with mock.patch("importlib.import_module", return_value=mock.Mock(main=fake_main)):
             cli.main(["tune", "--model", "m.gguf"])
-        self.assertEqual(seen["argv"], ["atlas tune", "evolve", "--model", "m.gguf"])
+        self.assertEqual(seen["argv"], ["atlas-harness tune", "evolve", "--model", "m.gguf"])
 
     def test_doctor_reports_missing_uri_and_engine(self):
         with mock.patch.dict("os.environ", {}, clear=True), \
@@ -46,7 +46,7 @@ class CliTests(unittest.TestCase):
                 code = cli.doctor(["--engine", "/nonexistent/launch-llama.sh"])
         self.assertEqual(code, 1)
         self.assertIn("MONGODB_URI is not set", out.getvalue())
-        self.assertIn("atlas setup-engine", out.getvalue())
+        self.assertIn("atlas-harness setup-engine", out.getvalue())
 
 
 class CreateRunTests(unittest.TestCase):

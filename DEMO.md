@@ -124,8 +124,8 @@ Prepare the local engine using [INFERENCE_SETUP.md](INFERENCE_SETUP.md), local O
 MODEL="$PWD/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf"
 ENGINE="$PWD/artifacts/engines/llama-b11429/launch-llama.sh"
 
-uv run atlas inspect --model "$MODEL"
-uv run atlas tune \
+uv run atlas-harness inspect --model "$MODEL"
+uv run atlas-harness tune \
   --model "$MODEL" --engine "$ENGINE" --budget-evals 3
 ```
 
@@ -134,14 +134,14 @@ Default memory budget is the physical card. Three slots cover one baseline plus 
 Resume the printed run ID with unchanged model, engine, machine, and source:
 
 ```bash
-uv run atlas tune \
+uv run atlas-harness tune \
   --model "$MODEL" --engine "$ENGINE" --resume-run RUN_ID
 ```
 
 Launch a confirmed recipe from its matching software revision:
 
 ```bash
-uv run atlas serve \
+uv run atlas-harness serve \
   --recipe artifacts/inference/RUN_ID/recommendation.json --port 8081
 ```
 

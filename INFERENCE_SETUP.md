@@ -13,12 +13,12 @@ The model experiments use the official **llama.cpp b11429**, commit `d81235049`,
 From the repository root:
 
 ```bash
-uv run atlas setup-engine
+uv run atlas-harness setup-engine
 # If the modern C++ runtime is elsewhere:
-uv run atlas setup-engine --cxx-dir /path/to/existing/runtime/lib
+uv run atlas-harness setup-engine --cxx-dir /path/to/existing/runtime/lib
 
 # Read-only checks: pinned engine version, visible CUDA device, cached archive checksums.
-uv run atlas setup-engine --check
+uv run atlas-harness setup-engine --check
 artifacts/engines/llama-b11429/launch-llama.sh --list-devices
 ```
 

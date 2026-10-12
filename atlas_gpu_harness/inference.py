@@ -258,7 +258,7 @@ def main():
         print(json.dumps(plan_model(inspect_gguf(args.model), hardware, budget), indent=2))
         return
     if not args.engine:
-        parser.error(f"no engine: run `atlas setup-engine` to install {DEFAULT_ENGINE}, "
+        parser.error(f"no engine: run `atlas-harness setup-engine` to install {DEFAULT_ENGINE}, "
                      "or pass --engine with a working llama-server launcher")
     Path("artifacts").mkdir(exist_ok=True)
     with FileLock("artifacts/gpu.lock", timeout=0):

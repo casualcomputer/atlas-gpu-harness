@@ -1,4 +1,4 @@
-"""Single entry point: `atlas <command>`.
+"""Hackathon-era experiments: `atlas-harness <command>`.
 
 Each command delegates to an existing module CLI, so `python -m
 atlas_gpu_harness.<module>` keeps working. Run from the repository root:
@@ -44,7 +44,7 @@ DELEGATES = {
 def _delegate(name: str, argv: list[str]) -> None:
     module_name, fixed, _ = DELEGATES[name]
     module = importlib.import_module(module_name)
-    sys.argv = [f"atlas {name}", *fixed, *argv]
+    sys.argv = [f"atlas-harness {name}", *fixed, *argv]
     module.main()
 
 
@@ -86,7 +86,7 @@ def _check_gpu() -> dict:
 
 def _check_engine(path: Path) -> dict:
     if not path.is_file():
-        return _row("fail", "llama.cpp", f"{path} missing", "run: uv run atlas setup-engine")
+        return _row("fail", "llama.cpp", f"{path} missing", "run: uv run atlas-harness setup-engine")
     try:
         out = subprocess.run([str(path), "--version"], capture_output=True, text=True,
                              timeout=30, check=True)
@@ -94,7 +94,7 @@ def _check_engine(path: Path) -> dict:
         return _row("ok", "llama.cpp", version[0] if version else str(path))
     except (OSError, subprocess.SubprocessError) as error:
         return _row("fail", "llama.cpp", f"{path} did not run: {error}",
-                    "run: uv run atlas setup-engine --check")
+                    "run: uv run atlas-harness setup-engine --check")
 
 
 def _check_ollama(model: str) -> dict:
@@ -113,7 +113,7 @@ def _check_torch() -> dict:
     try:
         import torch
     except ImportError:
-        return _row("skip", "PyTorch", "not installed (only needed for `atlas topk`)",
+        return _row("skip", "PyTorch", "not installed (only needed for `atlas-harness topk`)",
                     "uv sync --extra torch")
     cuda = torch.cuda.is_available()
     return _row("ok" if cuda else "warn", "PyTorch",
@@ -121,8 +121,8 @@ def _check_torch() -> dict:
 
 
 def doctor(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="atlas doctor",
-                                     description="Check everything `atlas tune` needs, with fixes.")
+    parser = argparse.ArgumentParser(prog="atlas-harness doctor",
+                                     description="Check everything `atlas-harness tune` needs, with fixes.")
     parser.add_argument("--engine", type=Path, default=DEFAULT_ENGINE)
     parser.add_argument("--proposer-model", default=DEFAULT_PROPOSER)
     parser.add_argument("--json", action="store_true", help="machine-readable output")
@@ -149,7 +149,7 @@ def doctor(argv: list[str]) -> int:
 # -------------------------------------------------------------------- ui ---
 
 def ui(argv: list[str]) -> None:
-    parser = argparse.ArgumentParser(prog="atlas ui", description="Serve the static demo site.")
+    parser = argparse.ArgumentParser(prog="atlas-harness ui", description="Serve the static demo site.")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
     if not Path("demo-ui/index.html").is_file():
@@ -174,11 +174,11 @@ def main(argv: list[str] | None = None) -> None:
                 "ui": "Serve the static demo site on 127.0.0.1"}
     if not argv or argv[0] in ("-h", "--help") or argv[0] not in commands:
         width = max(map(len, commands))
-        print("usage: atlas <command> [options]   (atlas <command> -h for details)\n")
+        print("usage: atlas-harness <command> [options]   (atlas-harness <command> -h for details)\n")
         for name, text in commands.items():
             print(f"  {name:<{width}}  {text}")
         if argv and argv[0] not in ("-h", "--help"):
-            print(f"\natlas: unknown command {argv[0]!r}", file=sys.stderr)
+            print(f"\natlas-harness: unknown command {argv[0]!r}", file=sys.stderr)
             raise SystemExit(2)
         return
     name, rest = argv[0], argv[1:]
