@@ -67,6 +67,7 @@ def _summary_row(trial: dict, with_logs: bool = False) -> dict:
            "gpu_peak_gib": trial.get("gpu_peak_gib"), "error": (trial.get("error") or "")[:300],
            "related_issues": trial.get("related") or [], "issue": issues.describe(trial),
            "phase": trial.get("phase", "trial"), "run_id": trial.get("run_id"), "context": trial.get("context"),
+           "machine": trial.get("machine"),
            "model_revision": (trial.get("artifact") or {}).get("revision")}
     if with_logs and trial["status"] != "ok":
         row["log_tail"] = research.redact(trial.get("logs"))
@@ -166,7 +167,7 @@ class Tuner:
             return []
         self.log(f"Agent ({o.llm}) round {round_no}: researching…")
         try:
-            return agent.propose(o.llm, model=o.model, engines=engines, artifacts=artifacts, hw=hw, goal=o.goal,
+            return agent.propose(o.llm, model=o.model, engines=engines, artifacts=artifacts, hw={**hw, "fingerprint": hardware.fingerprint(hw)}, goal=o.goal,
                                  workload={**self.workload.__dict__, "context": _context(o), "max_ttft_ms": o.max_ttft_ms,
                                            "required_quality_cases": o.quality_cases}, previous=previous,
                                  max_new=o.max_trials * len(engines), use_research=o.research,
@@ -198,7 +199,7 @@ class Tuner:
         engines = [e for e in engines if e in self.allowed]
         workload = self.workload
         candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal, context=_context(o))
-        previous = [_summary_row(a["payload"]) for a in self.store.attempts(o.model, hardware.fingerprint(hw))[-40:]]
+        previous = [_summary_row(a["payload"]) for a in self.store.attempts(o.model)[-40:]]
         candidates += self._agent(hw, artifacts, engines, previous, 1)
         return hw, artifacts, engines, self._cap(candidates)
 
@@ -208,7 +209,7 @@ class Tuner:
         fixes = [f for t in trials
                  for f in agent.rule_fixes(t, by_id.get((t.get("artifact") or {}).get("id")))]
         current = [_summary_row(t, with_logs=self.opts.share_logs) for t in trials]
-        memory = [_summary_row(a["payload"]) for a in self.store.attempts(self.opts.model, hardware.fingerprint(hw))
+        memory = [_summary_row(a["payload"]) for a in self.store.attempts(self.opts.model)
                   if a.get("run_id") != self.run_id]
         return self._cap(fixes + self._agent(hw, artifacts, engines, memory[-20:] + current, round_no))
 
@@ -234,6 +235,7 @@ class Tuner:
                                                             "quality_cases": o.quality_cases}, "hypothesis": f"[{c.origin}] {c.hypothesis}"[:800], "sources": c.sources,
                   "launch": docker_run(engine, art, c.config, context, host_port=8000,
                                        name=f"{c.engine}-serve", production=True)}
+        record["launch"] = [image if arg == engine.image else arg for arg in record["launch"]]
         server = None
         try:
             with GpuSampler() as gpu:

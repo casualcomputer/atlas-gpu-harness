@@ -157,7 +157,16 @@ def _recipe(args) -> int:
         return 1
     best = recipes[0]
     print(f"# {best['engine']} · {best['workload']} · score {best['score']} · verified {best['updated']}")
-    print(shlex.join(best["launch"]))
+    launch = list(best["launch"])
+    trial = store.trial(best["trial_key"])
+    if trial and "@sha256:" in (trial.get("image") or ""):
+        # Older saved recipes used a tag even though their trial recorded the digest.
+        image = trial["image"]
+        repo = image.split("@", 1)[0]
+        if repo.rfind(":") > repo.rfind("/"):
+            repo = repo.rsplit(":", 1)[0]
+        launch = [image if arg == repo or arg.startswith(repo + ":") else arg for arg in launch]
+    print(shlex.join(launch))
     return 0
 
 

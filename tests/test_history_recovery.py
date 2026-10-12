@@ -100,3 +100,15 @@ class HistoryRecoveryTests(unittest.TestCase):
             self.assertEqual(rows[0]['payload']['phase'],'trial')
             self.assertIn('source_commit',rows[0]['payload'])
             self.assertEqual(store.trials(),[])
+
+    def test_agent_history_retains_legacy_hardware_as_labeled_context(self):
+        store=mock.Mock()
+        old=dict(key='k',run_id='old',model='org/m',machine='old-fingerprint',engine='vllm',config={},
+                 artifact=ARTIFACT.to_dict(),status='failed',error='CUDA out of memory',phase='trial')
+        store.attempts.return_value=[{'run_id':'old','payload':old}]
+        t=tuner.Tuner(tuner.Options(model='org/m',llm='test'),store=store,runner=mock.Mock(),log=lambda *_:None)
+        with mock.patch('atlas_tune.agent.propose',return_value=[]) as propose:
+            t.next_round(HW,[ARTIFACT],['vllm'],[],2)
+        self.assertEqual(propose.call_args.kwargs['previous'][0]['machine'],'old-fingerprint')
+        self.assertIn('fingerprint',propose.call_args.kwargs['hw'])
+        store.attempts.assert_called_once_with('org/m')

@@ -145,6 +145,7 @@ class TunerTests(unittest.TestCase):
         self.assertEqual(summary["best"]["vllm"]["config"]["kv_cache_dtype"], "fp8")
         self.assertIn("--kv-cache-dtype fp8", summary["winner"]["launch"])
         self.assertIn("--restart unless-stopped", summary["winner"]["launch"])
+        self.assertIn("@sha256:test", summary["winner"]["launch"])
         recipe = self.store.recipes("org/m")[0]
         self.assertEqual(recipe["engine"], "vllm")
         report = Path(summary["report"]).read_text()

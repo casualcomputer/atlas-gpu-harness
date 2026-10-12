@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import shutil
 import subprocess
 from pathlib import Path
@@ -48,6 +49,15 @@ def docker() -> dict:
             "detail": f"docker {info.get('ServerVersion')}"}
 
 
+def cpu_model() -> str:
+    info = Path("/proc/cpuinfo")
+    if info.is_file():
+        for line in info.read_text().splitlines():
+            if line.startswith("model name"):
+                return line.partition(":")[2].strip()
+    return platform.processor() or os.environ.get("PROCESSOR_IDENTIFIER", "unknown")
+
+
 def detect() -> dict:
     gpu_list = gpus()
     total, available = ram_gib()
@@ -56,12 +66,13 @@ def detect() -> dict:
     return {"gpus": gpu_list, "gpu": gpu_list[0] if gpu_list else None,
             "ram_total_gib": total, "ram_available_gib": available,
             "disk_free_gib": round(shutil.disk_usage(cache).free / 2**30, 1),
-            "cpu_count": os.cpu_count()}
+            "cpu_count": os.cpu_count(), "cpu_model": cpu_model()}
 
 
 def fingerprint(hw: dict) -> str:
-    """Identity of the machine for memory: same GPU model, VRAM and driver → comparable trials."""
+    """Identity of the machine for memory: include CPU and RAM because offloaded inference depends on both."""
     gpu = hw.get("gpu") or {}
     key = {"gpu": gpu.get("name"), "vram": gpu.get("vram_gib"), "driver": gpu.get("driver"),
-           "gpus": len(hw.get("gpus") or [])}
+           "gpus": len(hw.get("gpus") or []), "cpu_model": hw.get("cpu_model"),
+           "cpu_count": hw.get("cpu_count"), "ram_total_gib": hw.get("ram_total_gib")}
     return hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()[:16]
