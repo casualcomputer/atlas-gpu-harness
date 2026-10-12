@@ -4,13 +4,15 @@
 
 **[▶ Agent console (replays recorded Atlas runs)](demo-ui/app.html)** · [offline copy — download and double-click](demo/agent-console-offline.html) · [Overview site](demo-ui/index.html) · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
-**Agent console:** [watch the Kimi run replay (18 s)](docs/screenshots/agent-console-kimi.mp4) — agent decisions, real engine runs and Atlas writes, stepped from the recorded trace.
+[![Agent console replaying the recorded Kimi run: agent decisions, real engine runs and MongoDB Atlas writes](docs/screenshots/agent-console-kimi.gif)](docs/screenshots/agent-console-kimi.mp4)
+
+<sub>Agent console replaying recorded Atlas run 70be4572 (Kimi-48B, 30 GB on a 16 GB GPU). Click for the full-quality video.</sub>
 
 ![Scrolling through the demo site](docs/screenshots/demo-scroll.gif)
 
 <sub>Full-resolution scroll recording: [demo-scroll.mp4](docs/screenshots/demo-scroll.mp4)</sub>
 
-| Agent console replaying recorded run a117ec08 | Same model, same 32K input: llama.cpp vs. Strata |
+| Overview site: recorded run a117ec08 | Same model, same 32K input: llama.cpp vs. Strata |
 | --- | --- |
 | ![Hero with recorded engine-comparison console](docs/screenshots/01-hero.png) | ![Engine comparison: 18.22 vs 107.77 tok/s, 8/8 retrieval, arithmetic mismatch in both](docs/screenshots/02-engine-comparison.png) |
 | **MongoDB Atlas as the agent's memory** | **30 GB Kimi model on a 16 GB GPU** |
