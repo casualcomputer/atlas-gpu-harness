@@ -26,8 +26,37 @@ def _http() -> httpx.Client:
 
 
 def available() -> dict:
+    """GitHub, page fetch and model cards need no key; web search is the only optional one."""
     return {"web_search": bool(os.environ.get("TAVILY_API_KEY") or os.environ.get("BRAVE_API_KEY")),
             "github": True, "fetch": True, "model_card": True}
+
+
+ERROR_LINE = re.compile(r"(out of memory|OutOfMemory|CUDA error|RuntimeError|ValueError|AssertionError|"
+                        r"NotImplementedError|not supported|unsupported|error:|Error:|failed to)", re.IGNORECASE)
+
+
+def error_signature(logs: str | None, fallback: str = "") -> str:
+    """The most specific error line in a log tail, cleaned of paths and numbers, for issue search."""
+    lines = [ln.strip() for ln in (logs or "").splitlines() if ERROR_LINE.search(ln)]
+    if not lines:
+        return ""  # our own messages ("not ready after …") are not engine bugs worth searching
+    line = lines[-1]
+    line = re.sub(r"(/[\w.\-]+)+|0x[0-9a-f]+|\b\d+(\.\d+)?\s*(GiB|MiB|MB|GB)?\b", " ", line)
+    line = re.sub(r"^[^A-Za-z]+|[\[\]():'\"`]", " ", line)
+    words = [w for w in line.split() if len(w) > 2][:8]
+    return " ".join(words)
+
+
+def related_issues(engine: str, logs: str | None, error: str = "", limit: int = 3) -> list[dict]:
+    """Best-effort: GitHub issues matching a failed trial's error. Never raises."""
+    signature = error_signature(logs, error)
+    if not signature:
+        return []
+    try:
+        return [{"title": i["title"], "url": i["url"], "state": i["state"]}
+                for i in search_github_issues(engine, f"is:issue {signature}", max_results=limit)]
+    except Exception:  # noqa: BLE001 - rate limits or offline must not affect the run
+        return []
 
 
 def search_web(query: str, max_results: int = 6) -> list[dict]:
@@ -55,7 +84,7 @@ def search_github_issues(engine: str, query: str, max_results: int = 6) -> list[
     if token := os.environ.get("GITHUB_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
     response = _http().get("https://api.github.com/search/issues",
-                           params={"q": f"repo:{repo} {query}", "per_page": max_results, "sort": "updated"},
+                           params={"q": f"repo:{repo} {query}", "per_page": max_results},
                            headers=headers)
     response.raise_for_status()
     return [{"title": i["title"], "url": i["html_url"], "state": i["state"],
@@ -86,7 +115,7 @@ TOOLS = {"search_web": search_web, "search_github_issues": search_github_issues,
 
 SCHEMAS = [
     {"type": "function", "function": {"name": "search_web", "description":
-        "Web search (Reddit r/LocalLLaMA, blogs, docs, recipes) for serving configs of this model/GPU.",
+        "Web search (blogs, forum threads, recipes) for serving configs of this model/GPU. Needs a search key.",
         "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "search_github_issues", "description":
         "Search issues in an engine's GitHub repo for known bugs, OOMs or required flags for this model.",

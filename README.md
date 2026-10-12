@@ -68,16 +68,20 @@ flowchart LR
 
 Workloads: `chat` (256 in / 256 out, 1–16 concurrent), `rag` (4,000 in / 256 out, 1–4 concurrent), `batch` (512 / 512, 16–64 concurrent).
 
-## The agent and research tools
+## Keys: none required
 
-Set `ATLAS_LLM` to any [LiteLLM](https://docs.litellm.ai/docs/providers) model string: `anthropic/claude-sonnet-5-5`, `ollama_chat/qwen3:8b`, or `openai/<model>` with `OPENAI_API_BASE` for any OpenAI-compatible server. Without it, atlas runs the stock configs only.
+`atlas run` works with no accounts or API keys. Hugging Face and GitHub are used anonymously.
 
-| Tool | Source | Key |
+| Feature | Needs | Without it |
 | --- | --- | --- |
-| `model_card` | Hugging Face README (often has a recommended serve command) | none |
-| `search_github_issues` | vLLM, SGLang and llama.cpp issues for known bugs, OOMs and required flags | optional `GITHUB_TOKEN` |
-| `search_web` | Reddit, blogs, recipes | `TAVILY_API_KEY` or `BRAVE_API_KEY` |
-| `fetch_page` | One public page as text | none |
+| Model lookup, downloads | nothing (`HF_TOKEN` only for gated models like Llama) | — |
+| **Failed trial → matching GitHub issues** in the report | nothing (`GITHUB_TOKEN` raises the rate limit) | — |
+| Agent that reads the model card and issues, then proposes extra configs | one LLM: `ATLAS_LLM` | stock configs only |
+| Agent web search | `TAVILY_API_KEY` or `BRAVE_API_KEY` | agent uses model card + GitHub only |
+
+`ATLAS_LLM` is any [LiteLLM](https://docs.litellm.ai/docs/providers) model string: `anthropic/claude-sonnet-5-5`, `ollama_chat/qwen3:8b`, or `openai/<model>` with `OPENAI_API_BASE` for any OpenAI-compatible server.
+
+We tested the research sources on real models. Model cards for Qwen3 and gpt-oss carry the exact vLLM and SGLang serve commands. Anonymous GitHub issue search returns relevant bugs for a pasted error (for example vLLM out-of-memory errors with fp8 KV cache). Reddit blocks anonymous API access, so it is reached only through optional web search.
 
 A local Ollama model shares your GPU. Its memory shows up in the results, so stop it or use a hosted model for clean numbers.
 

@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import agent, bench, hardware, models
+from . import agent, bench, hardware, models, research
 from .engines import ENGINES, docker_run
 from .runner import DockerRunner, EngineFailed, GpuSampler
 from .store import Store, trial_key
@@ -140,6 +140,10 @@ class Tuner:
         finally:
             if server:
                 self.runner.stop(server)
+        if record["status"] == "failed":
+            record["related"] = research.related_issues(c.engine, record.get("logs"), record.get("error", ""))
+            for issue in record["related"]:
+                self.log(f"  related issue: {issue['title'][:90]}  {issue['url']}")
         self.store.put_trial(record)
         return record
 
@@ -217,8 +221,10 @@ def report(o: Options, hw: dict, trials: list[dict], winner: dict | None) -> str
                      f"{t.get('gpu_peak_gib') or '–'} GiB |")
     failures = [t for t in trials if t.get("error")]
     if failures:
-        lines += ["", "## Failures", ""] + [f"- **{t['engine']}** `{json.dumps(t['config'])}`: {t['error'][:300]}"
-                                            for t in failures]
+        lines += ["", "## Failures", ""]
+        for t in failures:
+            lines.append(f"- **{t['engine']}** `{json.dumps(t['config'])}`: {t['error'][:300]}")
+            lines += [f"  - related: [{i['title'][:100]}]({i['url']}) ({i['state']})" for i in t.get("related") or []]
     lines += ["", "## Launch the winner", ""]
     lines += (["```bash", shlex.join(winner["launch"]), "```"] if winner else ["No configuration passed every check."])
     sources = sorted({s for t in trials for s in t.get("sources") or []})

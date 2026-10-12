@@ -22,13 +22,13 @@ CREATE TABLE IF NOT EXISTS trials (
   key TEXT PRIMARY KEY, run_id TEXT, created TEXT, model TEXT, machine TEXT, engine TEXT,
   image TEXT, artifact TEXT, config TEXT, context INTEGER, workload TEXT, status TEXT,
   quality TEXT, metrics TEXT, gpu_peak_gib REAL, error TEXT, logs TEXT, hypothesis TEXT,
-  sources TEXT, launch TEXT);
+  sources TEXT, launch TEXT, related TEXT);
 CREATE INDEX IF NOT EXISTS trials_model ON trials(model, machine);
 CREATE TABLE IF NOT EXISTS recipes (
   model TEXT, machine TEXT, engine TEXT, goal TEXT, workload TEXT, trial_key TEXT,
   score REAL, launch TEXT, updated TEXT, PRIMARY KEY (model, machine, engine, goal, workload));
 """
-JSON_FIELDS = {"hardware", "summary", "artifact", "config", "quality", "metrics", "sources", "launch"}
+JSON_FIELDS = {"hardware", "summary", "artifact", "config", "quality", "metrics", "sources", "launch", "related"}
 
 
 def now() -> str:
@@ -51,6 +51,9 @@ class Store:
         self.db = sqlite3.connect(self.path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(trials)")}
+        if "related" not in columns:  # databases created by 0.3.0
+            self.db.execute("ALTER TABLE trials ADD COLUMN related TEXT")
         self.mirror = mirror if mirror is not None else AtlasMirror.from_env()
 
     # -- helpers

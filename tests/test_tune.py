@@ -136,14 +136,19 @@ class TunerTests(unittest.TestCase):
     def test_failures_and_wrong_answers_are_recorded_never_selected(self):
         bad = [agent.Candidate("vllm", ARTIFACT.id, {"max_num_seqs": 999}, "oom", origin="llm"),
                agent.Candidate("vllm", ARTIFACT.id, {"enforce_eager": True, "kv_cache_dtype": "fp8"}, "wrong", origin="llm")]
-        with mock.patch("atlas_tune.agent.defaults", return_value=bad):
+        issue = {"title": "[Bug]: OOM at startup", "url": "https://github.com/vllm-project/vllm/issues/1", "state": "open"}
+        with mock.patch("atlas_tune.agent.defaults", return_value=bad), \
+                mock.patch("atlas_tune.research.search_github_issues", return_value=[issue]) as search:
             summary = self._run(FakeRunner())
+        self.assertIn("OutOfMemoryError", search.call_args.args[1])
         statuses = {t["status"] for t in self.store.trials("org/m")}
         self.assertEqual(statuses, {"failed", "quality_failed"})
         self.assertIsNone(summary["winner"])
         failed = next(t for t in self.store.trials("org/m") if t["status"] == "failed")
         self.assertIn("out of memory", failed["error"])
         self.assertIn("OutOfMemoryError", failed["logs"])
+        self.assertEqual(failed["related"], [issue])
+        self.assertIn("issues/1", Path(summary["report"]).read_text())
 
     def test_dry_run_starts_nothing(self):
         runner = FakeRunner()
