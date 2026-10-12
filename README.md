@@ -13,7 +13,7 @@
 
 ## 32K Strata policy demo
 
-The native Strata v0.1.43 adapter runs Qwen3.8-Flash-Next IQ2_XS on the same RTX 5070 Ti with 64 GB host RAM. It compares five documented CPU worker, expert-cache and PCIe policies, with three repeats per policy and **32,768 actual input tokens throughout**. The grid is deterministic; these policies come from Strata’s calibration source. Atlas stores raw answers, counters, timings, resources and decision evidence, and the UI reads those records back. The completed tuning grid shows an observed 6.2% median decode difference for adaptive caching versus default, but arithmetic failures prevent a validated recommendation; all 18 tuning and fresh-prompt requests retrieved every setting correctly. [Protocol and measured results](STRATA_EXPERIMENT.md).
+On the same RTX 5070 Ti, native Strata runs Qwen3.8-Flash-Next at **32,768 input tokens** across five documented CPU, cache, and PCIe policies. Adaptive caching was 6.2% faster than default, but every trial failed the arithmetic check, so nothing was promoted. Atlas holds the answers and timings; the UI reads them back. [Protocol and measured results](STRATA_EXPERIMENT.md).
 
 Long inputs and long experiment histories are separate capabilities: this suite exercises 32K inputs, while Atlas preserves continuity across restarts. Ollama is not an inference target; it remains the earlier coding loop’s model provider. Maya remains a research target.
 
