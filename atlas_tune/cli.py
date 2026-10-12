@@ -96,7 +96,9 @@ def _run(args) -> int:
             print(f"Note: {winner['tie']}")
         print(f"Report and deploy files: {Path(summary['report']).parent}/  (serve.sh, compose.yaml, k8s.yaml)")
     else:
-        print(f"No configuration passed every check. Report: {summary['report']}")
+        print(f"No verified winner. Report: {summary['report']}")
+        if summary.get("provisional"):
+            print(summary["provisional"]["reason"])
     return 0 if winner else 2
 
 
@@ -183,7 +185,7 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--rounds", type=int, default=3,
                      help="1 = planned trials only; each extra round fixes failures and refines (default 3)")
     run.add_argument("--confirm", type=int, default=2,
-                     help="re-measure the top configs this many more times; winner by median (0 = off)")
+                     help="re-measure the top configs this many more times; winner by median (0 = provisional results only)")
     run.add_argument("--retry-failed", action="store_true", help="retry cached failures; transient failures retry automatically on a new run")
     run.add_argument("--no-research", action="store_true", help="agent proposes without web/GitHub search")
     run.add_argument("--no-share-logs", action="store_true",

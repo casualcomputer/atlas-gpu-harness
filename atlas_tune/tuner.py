@@ -283,35 +283,51 @@ class Tuner:
         return [t for t in trials if t["status"] == "ok" and bench.quality_ok(t, reference)
                 and bench.score(t.get("metrics"), self.opts.goal) is not None]
 
-    def _measure(self, t: dict) -> float | None:
+    def _measure(self, t: dict, reference: int) -> float | None:
         engine, art = ENGINES[t["engine"]], models.Artifact(**t["artifact"])
         server = None
+        attempt = {k: v for k, v in t.items() if k not in ("metrics", "quality", "error", "logs", "reused", "issue")}
+        attempt["run_id"] = self.run_id
         try:
-            server = self.runner.start(engine, art, t["config"], t["context"])
-            self.runner.wait_ready(server)
-            return bench.score(bench.load(server.base_url, server.model, bench.WORKLOADS[self.opts.workload]),
-                               self.opts.goal)
-        except Exception as error:  # noqa: BLE001 - a config that fails on relaunch is not reliable
-            self.log(f"  relaunch failed: {type(error).__name__}: {str(error)[:120]}")
-            return None
+            with GpuSampler() as gpu:
+                server = self.runner.start(engine, art, t["config"], t["context"])
+                self.runner.wait_ready(server)
+                q = bench.quality(server.base_url, server.model)
+                metrics = bench.load(server.base_url, server.model, bench.WORKLOADS[self.opts.workload]) if q["pass"] else None
+            attempt.update(status="ok", quality=q, metrics=metrics, gpu_peak_gib=gpu.peak_gib)
+            if not bench.quality_ok(attempt, reference):
+                attempt["status"] = "quality_failed"
+            elif bench.score(metrics, self.opts.goal) is None:
+                attempt["status"] = "load_failed"
+        except Exception as error:  # a config that fails on relaunch is not reliable
+            attempt.update(status="failed", error=f"{type(error).__name__}: {error}"[:1000],
+                           logs=error.logs if isinstance(error, EngineFailed) else None)
+            self.log(f"  relaunch failed: {attempt['error'][:120]}")
         finally:
             if server:
                 self.runner.stop(server)
+        attempt["issue"] = issues.describe(attempt)
+        self.store.record_attempt(attempt, "confirmation")
+        return bench.score(attempt.get("metrics"), self.opts.goal) if attempt["status"] == "ok" else None
 
     def confirm(self, trials: list[dict]) -> None:
         """Re-measure the finalists, interleaved (A B C, A B C) so drift hits all equally.
         One measurement varies ~10% on the same server; the winner is chosen by the median."""
         o = self.opts
         finalists = sorted(self._eligible(trials), key=lambda t: -bench.score(t["metrics"], o.goal))[:o.finalists]
-        if o.confirm < 1 or len(finalists) < 2:
+        if o.confirm < 1 or not finalists:
             return
         self.log(f"\nConfirming {len(finalists)} finalists, {o.confirm} more run(s) each")
+        reference = max((t.get("quality") or {}).get("passed", 0) for t in trials)
+        for t in finalists:
+            t["metrics"]["confirm_scores"] = []  # confirmations belong to this run
+            t["confirmation_run_id"] = self.run_id
         for repeat in range(o.confirm):
             for t in finalists:
                 if time.monotonic() > self.deadline:
                     self.log("  time budget reached during confirmation")
                     return
-                score = self._measure(t)
+                score = self._measure(t, reference)
                 t["metrics"].setdefault("confirm_scores", []).append(score)
                 self.log(f"  [{t['engine']}] {json.dumps(t['config'])} run {repeat + 2}: {score}")
                 self.store.put_trial(t)
@@ -320,7 +336,10 @@ class Tuner:
         o = self.opts
         reference = max(((t.get("quality") or {}).get("passed", 0) for t in trials), default=0)
         best: dict[str, dict] = {}
-        for t in self._eligible(trials):
+        eligible = self._eligible(trials)
+        confirmed = [t for t in eligible if o.confirm > 0 and t.get("confirmation_run_id") == self.run_id
+                     and len(t["metrics"].get("confirm_scores", [])) == o.confirm]
+        for t in confirmed:
             s = final_score(t, o.goal)
             if s is not None and s > best.get(t["engine"], {}).get("score", -1):
                 best[t["engine"]] = {**t, "score": s}
@@ -332,11 +351,16 @@ class Tuner:
         winner = ranked[0] if ranked else None
         tie = None
         if winner:
-            others = sorted((final_score(t, o.goal) or 0 for t in self._eligible(trials) if t["key"] != winner["key"]),
+            others = sorted((final_score(t, o.goal) or 0 for t in confirmed if t["key"] != winner["key"]),
                             reverse=True)
             if others and others[0] >= winner["score"] * 0.95:
                 tie = f"runner-up is within 5% ({others[0]} vs {winner['score']}): treat as a tie"
-        summary = {"run_id": self.run_id, "model": o.model, "goal": o.goal, "workload": o.workload,
+        provisional = sorted((t for t in eligible if final_score(t, o.goal) is not None),
+                             key=lambda t: -final_score(t, o.goal))
+        summary = {"provisional": (None if winner or not provisional else
+                                   {"engine": provisional[0]["engine"], "score": final_score(provisional[0], o.goal),
+                                    "reason": "Requested confirmations were not completed; no verified recipe exported."}),
+                   "run_id": self.run_id, "model": o.model, "goal": o.goal, "workload": o.workload,
                    "trials": len(trials), "best": {e: {"score": t["score"], "config": t["config"],
                                                        "artifact": t["artifact"]["id"]} for e, t in best.items()},
                    "winner": winner and {"engine": winner["engine"], "score": winner["score"],
@@ -370,13 +394,13 @@ def _score_cell(t: dict, goal: str) -> str:
 
 def report(o: Options, hw: dict, trials: list[dict], winner: dict | None, reference: int = 0,
            tie: str | None = None) -> str:
-    unit = "per-user tok/s at lowest concurrency" if o.goal == "latency" else "total output tok/s"
+    unit = "inverse p99 response seconds at lowest concurrency (higher is better)" if o.goal == "latency" else "total output tok/s"
     gpu = hw.get("gpu") or {}
     lines = [f"# {o.model}", "", f"GPU {gpu.get('name')} ({gpu.get('vram_gib')} GiB) · goal **{o.goal}** "
              f"({unit}) · workload **{o.workload}**", "",
              f"Quality reference: the best config answered {reference}/{len(bench.QUALITY_TASKS)} checks; "
              "a config more than one below that cannot win (it degraded the model).", "",
-             f"Context length tested: {_context(o)} tokens (the recipe serves the same).", "",
+             f"Serving context configured: {_context(o)} tokens; prompt lengths follow the workload, not the context limit.", "",
              "| engine | artifact | config | status | quality | score (runs) | TTFT p50 | GPU peak | why tried |",
              "| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |"]
     for t in sorted(trials, key=lambda t: -(final_score(t, o.goal) or bench.score(t.get("metrics"), o.goal) or -1)):
@@ -401,7 +425,8 @@ def report(o: Options, hw: dict, trials: list[dict], winner: dict | None, refere
                   "All pin the measured image digest and require an API key.", "",
                   "```bash", "export API_KEY=$(openssl rand -hex 24)", "./serve.sh", "```"]
     else:
-        lines += ["No configuration passed every check."]
+        lines += ["No configuration completed all quality, load and requested confirmation checks. "
+                  "Unconfirmed measurements are provisional; no verified deployment files were exported."]
     sources = sorted({s for t in trials for s in t.get("sources") or []})
     if sources:
         lines += ["", "## Sources the agent used", ""] + [f"- {s}" for s in sources]

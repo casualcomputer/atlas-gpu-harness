@@ -49,7 +49,7 @@ WORKLOADS = {
     "rag": Workload("rag", 4000, 256, (1, 4)),
     "batch": Workload("batch", 512, 512, (16, 64)),
 }
-WORKLOAD_VERSION = "v2"  # bump whenever prompts, checks or scoring change: memory keys on it
+WORKLOAD_VERSION = "v3"  # bump whenever prompts, checks or scoring change: memory keys on it
 
 
 def score_answer(content: str, expected) -> bool:
@@ -178,6 +178,7 @@ async def _level(base_url: str, model: str, workload: Workload, level: int, time
             "requests_s": round(len(ok) / wall, 3),
             "ttft_p50_ms": round(statistics.median(ttft) * 1000), "ttft_p99_ms": round(_pct(ttft, 0.99) * 1000),
             "tpot_p50_ms": round(statistics.median(tpot) * 1000, 1),
+            "response_p99_ms": round(_pct([r["total"] for r in ok], 0.99) * 1000, 1),
             "per_user_tok_s": round(1 / statistics.median(tpot), 1),
             "retries": sum(1 for r in results if r.get("retried")),
             "errors": [r["error"] for r in results if not r["ok"]][:3]}
@@ -190,13 +191,11 @@ def load(base_url: str, model: str, workload: Workload, timeout: float = 600) ->
 
 
 def score(metrics: dict | None, goal: str) -> float | None:
-    """One number to rank trials: throughput = best total tok/s at any level where every
-    request succeeded; latency = single-user decode tok/s at the lowest concurrency."""
-    if not metrics:
-        return None
-    clean = [lv for lv in metrics.get("levels", []) if lv.get("ok") == lv.get("requests") and lv.get("ok")]
-    if not clean:
+    """All requested load levels must pass. Latency ranks inverse p99 response seconds."""
+    levels = (metrics or {}).get("levels") or []
+    if not levels or any(not lv.get("ok") or lv.get("ok") != lv.get("requests") for lv in levels):
         return None
     if goal == "latency":
-        return min(clean, key=lambda lv: lv["concurrency"])["per_user_tok_s"]
-    return max(lv["output_tok_s"] for lv in clean)
+        latency = min(levels, key=lambda lv: lv["concurrency"]).get("response_p99_ms")
+        return round(1000 / latency, 4) if latency and latency > 0 else None
+    return max(lv["output_tok_s"] for lv in levels)

@@ -168,7 +168,9 @@ class TunerTests(unittest.TestCase):
         runner = FakeRunner()
         summary = self._run(runner, rounds=1, confirm=0)
         self.assertEqual(runner.started, [])
-        self.assertEqual(summary["winner"]["engine"], "vllm")
+        self.assertIsNone(summary["winner"])
+        self.assertEqual(summary["provisional"]["engine"], "vllm")
+        self.assertEqual(self.store.recipes(), [])
 
     def test_failures_and_wrong_answers_are_recorded_never_selected(self):
         bad = [agent.Candidate("vllm", ARTIFACT.id, {"max_num_seqs": 999}, "oom", origin="llm"),
@@ -360,11 +362,11 @@ class BenchTests(unittest.TestCase):
         self.assertTrue(bench.quality_ok({"quality": {"pass": True, "passed": 5}}, reference_passed=6))
         self.assertFalse(bench.quality_ok(worse, reference_passed=6))
 
-    def test_score_ignores_levels_with_failed_requests(self):
+    def test_score_rejects_any_level_with_failed_requests(self):
         metrics = {"levels": [{"concurrency": 1, "requests": 8, "ok": 8, "output_tok_s": 50, "per_user_tok_s": 50},
                               {"concurrency": 16, "requests": 32, "ok": 30, "output_tok_s": 900}]}
-        self.assertEqual(bench.score(metrics, "throughput"), 50)
-        self.assertEqual(bench.score(metrics, "latency"), 50)
+        self.assertIsNone(bench.score(metrics, "throughput"))
+        self.assertIsNone(bench.score(metrics, "latency"))
 
 
 if __name__ == "__main__":
