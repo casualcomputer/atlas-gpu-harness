@@ -96,6 +96,9 @@ def defaults(engines: list[str], artifacts: list[Artifact], hw: dict, max_concur
     return out
 
 
+RESERVATION_OOM = re.compile(r"Free memory on device[^\n]*less than desired GPU memory utilization", re.IGNORECASE)
+
+
 OOM = re.compile(r"out of memory|OutOfMemory|\bOOM\b|insufficient memory|failed to allocate|cudaMalloc|"
                  r"larger than the maximum number of tokens that can be stored in KV cache|"
                  r"No available memory for the cache blocks|Not enough memory", re.IGNORECASE)
@@ -104,15 +107,21 @@ OOM = re.compile(r"out of memory|OutOfMemory|\bOOM\b|insufficient memory|failed 
 def rule_fixes(trial: dict, art: Artifact | None) -> list[Candidate]:
     """No-LLM fixes for the most common failure: running out of GPU memory."""
     text = f"{trial.get('error') or ''}\n{trial.get('logs') or ''}"
-    if trial.get("status") != "failed" or not OOM.search(text):
+    if trial.get("status") != "failed" or not (OOM.search(text) or RESERVATION_OOM.search(text)):
         return []
     engine, cfg = trial["engine"], dict(trial["config"])
     fixes: list[tuple[dict, str]] = []
     if engine == "vllm":
+        if RESERVATION_OOM.search(text):
+            # This guard runs before weights/KV/graphs are allocated. Changing
+            # cache precision cannot fix a request for more VRAM than is free.
+            fixed = {**cfg, "gpu_memory_utilization": round(max(0.5, cfg.get("gpu_memory_utilization", 0.9) - 0.05), 2)}
+            return [Candidate(engine, trial["artifact"]["id"], fixed,
+                              "OOM: lower the startup VRAM reservation", origin="fix")]
         if cfg.get("kv_cache_dtype", "auto") == "auto":
             fixes.append(({**cfg, "kv_cache_dtype": "fp8"}, "OOM: fp8 KV cache"))
         fixes.append(({**cfg, "gpu_memory_utilization": round(max(0.5, cfg.get("gpu_memory_utilization", 0.9) - 0.05), 2),
-                       "max_num_seqs": max(4, cfg.get("max_num_seqs", 256) // 4)}, "OOM: fewer sequences, less VRAM claimed"))
+                       "max_num_seqs": max(1, cfg.get("max_num_seqs", 256) // 4)}, "OOM: fewer sequences, less VRAM claimed"))
         if not cfg.get("enforce_eager"):
             fixes.append(({**cfg, "enforce_eager": True}, "OOM: no CUDA graphs"))
     elif engine == "sglang":
