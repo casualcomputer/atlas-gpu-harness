@@ -29,17 +29,11 @@ def gpus() -> list[dict]:
 
 
 def ram_gib() -> tuple[float, float]:
-    total = available = 0.0
-    try:
-        for line in Path("/proc/meminfo").read_text().splitlines():
-            key, value = line.split(":", 1)
-            if key == "MemTotal":
-                total = int(value.split()[0]) / 2**20
-            elif key == "MemAvailable":
-                available = int(value.split()[0]) / 2**20
-    except (OSError, ValueError):
-        pass
-    return round(total, 1), round(available, 1)
+    """(total, available) GiB on Linux, WSL, Windows and macOS."""
+    import psutil
+
+    memory = psutil.virtual_memory()
+    return round(memory.total / 2**30, 1), round(memory.available / 2**30, 1)
 
 
 def docker() -> dict:

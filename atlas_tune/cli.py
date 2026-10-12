@@ -29,8 +29,10 @@ def _doctor(args) -> int:
     d = hardware.docker()
     rows.append(("Docker", d["ok"], d["detail"], "install Docker Engine (WSL: Docker Desktop with WSL integration)"))
     if d["ok"]:
-        rows.append(("NVIDIA runtime", d.get("nvidia_runtime"), "nvidia" if d.get("nvidia_runtime") else "not registered",
-                     "install the NVIDIA Container Toolkit, then restart Docker"))
+        # Docker Desktop (Windows/WSL2) passes GPUs through without listing an "nvidia" runtime.
+        rows.append(("NVIDIA runtime", True if d.get("nvidia_runtime") else None,
+                     "nvidia" if d.get("nvidia_runtime") else "not listed (normal on Docker Desktop)",
+                     "Linux: install the NVIDIA Container Toolkit; Docker Desktop: enable the WSL2 backend"))
     gpus = hardware.gpus()
     rows.append(("GPU", bool(gpus), "; ".join(f"{g['name']} {g['vram_gib']} GiB ({g['used_gib']} used)" for g in gpus)
                  or "nvidia-smi found no GPU", "install the NVIDIA driver"))
@@ -64,7 +66,7 @@ def _doctor(args) -> int:
         print(f" {mark} {name:<{width}}  {detail}")
         if not ok and fix:
             print(f"   {'':<{width}}  → {fix}")
-    return 1 if any(ok is False for name, ok, *_ in rows if name in ("Docker", "NVIDIA runtime", "GPU", "Local memory")) else 0
+    return 1 if any(ok is False for name, ok, *_ in rows if name in ("Docker", "GPU", "Local memory")) else 0
 
 
 def _run(args) -> int:
