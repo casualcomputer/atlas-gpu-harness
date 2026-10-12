@@ -2,7 +2,7 @@
 
 **An LLM deployment agent: it runs open models on real inference engines, benchmarks every configuration for correctness, memory and speed, and records each experiment in MongoDB Atlas — so a setting reaches production only when the evidence holds.**
 
-**[▶ Live demo](demo-ui/index.html)** · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
+**[▶ Agent console (replays recorded Atlas runs)](demo-ui/app.html)** · [Overview site](demo-ui/index.html) · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
 ![Scrolling through the demo site](docs/screenshots/demo-scroll.gif)
 
