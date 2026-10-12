@@ -383,31 +383,42 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
 </div></section>
 
 <section id="strata"><div class="wrap">
-  <div class="eyebrow">Measured · Atlas run e5359ac4 · Strata v0.1.43 · RTX 5070 Ti</div>
-  <h2>A 68 GB model at 32K tokens — and a fake win caught.</h2>
-  <p class="lead">Qwen3.8-Flash-Next IQ2_XS (68 GB across two shards) on a 16 GB GPU, exactly 32,768 uncached input tokens in every trial. Five real Strata policies, three repeats each, plus fresh-prompt confirmation — 18 experiments and 18 decisions in Atlas.</p>
-  <div class="grid2" style="margin-top:32px">
+  <div class="eyebrow">32K Qwen experiment history · RTX 5070 Ti</div>
+  <h2>A 68 GB model at 32K: baseline and policy results.</h2>
+  <p class="lead">Qwen3.8-Flash-Next IQ2_XS on a 16 GB GPU. The engine check compares llama.cpp with Strata on identical 32,768-token input. The earlier policy sweep measures changes within Strata. Each result below names its run and repeat count.</p>
+  <div class="card" style="margin-top:28px" aria-label="Measured llama.cpp baseline and Strata comparison">
+    <div class="k">Engine comparison · Atlas run a117ec08 · one request per engine</div>
+    <h3 style="margin-top:10px">The measured llama.cpp baseline</h3>
+    <div class="chart" id="strata-baseline-chart">
+      <div class="row"><div class="name">llama.cpp baseline<small>b11429 · auto-fit</small></div><div class="bar"><i class="neu" data-v="18.216690527655825" data-max="120"></i></div><div class="v">18.22</div></div>
+      <div class="row"><div class="name">Strata<small>v0.1.43 · shipped settings</small></div><div class="bar"><i class="keep" data-v="107.76525648131042" data-max="120"></i></div><div class="v">107.77</div></div>
+    </div>
+    <p><b style="color:var(--text)">5.92× observed generation throughput.</b> Tokens/s, one request each; both retrieved 8/8 document values and both had an arithmetic mismatch. Strata used MTP and reported expert skipping, while llama.cpp had no draft head. <a href="#comparison">Full timings, limits and raw evidence →</a></p>
+  </div>
+  <h3 style="margin-top:32px">Earlier Strata policy sweep · run e5359ac4</h3>
+  <p class="src" style="color:var(--muted)">Five Strata policies × three tuning repeats, plus three fresh-prompt default checks: 18 requests. The reference for this sweep is Strata default. The single llama.cpp measurement above is not part of these repeated trials.</p>
+  <div class="grid2" style="margin-top:20px">
     <div class="card">
-      <div class="k">Median decode speed · tokens/s · 3 repeats each</div>
+      <div class="k">Within Strata · median tokens/s · 3 tuning repeats each</div>
       <div class="chart" id="chart2">
         <div class="row"><div class="name">Strata default<small>13 CPU workers</small></div><div class="bar"><i class="neu" data-v="108.00" data-max="120"></i></div><div class="v">108.0</div></div>
-        <div class="row"><div class="name">Adaptive cache<small>160 swaps / window</small></div><div class="bar"><i class="rej" data-v="114.73" data-max="120"></i></div><div class="v">114.7</div></div>
-        <div class="row"><div class="name">7 CPU workers<small>expert work split</small></div><div class="bar"><i class="rej" data-v="105.10" data-max="120"></i></div><div class="v">105.1</div></div>
-        <div class="row"><div class="name">PCIe offload off<small>ablation</small></div><div class="bar"><i class="rej" data-v="101.71" data-max="120"></i></div><div class="v">101.7</div></div>
-        <div class="row"><div class="name">4 CPU workers<small>expert work split</small></div><div class="bar"><i class="rej" data-v="98.59" data-max="120"></i></div><div class="v">98.6</div></div>
+        <div class="row"><div class="name">Adaptive cache<small>160 swaps / window</small></div><div class="bar"><i class="neu" data-v="114.73" data-max="120"></i></div><div class="v">114.7</div></div>
+        <div class="row"><div class="name">7 CPU workers<small>expert work split</small></div><div class="bar"><i class="neu" data-v="105.10" data-max="120"></i></div><div class="v">105.1</div></div>
+        <div class="row"><div class="name">PCIe offload off<small>ablation</small></div><div class="bar"><i class="neu" data-v="101.71" data-max="120"></i></div><div class="v">101.7</div></div>
+        <div class="row"><div class="name">4 CPU workers<small>expert work split</small></div><div class="bar"><i class="neu" data-v="98.59" data-max="120"></i></div><div class="v">98.6</div></div>
       </div>
-      <p class="src">All five arms failed the answer check (red = candidate, grey = default). Default ranged 76.5–114.4 tok/s across repeats — one run alone is an unreliable comparison.</p>
+      <p class="src">All five configurations completed inference. Strata default ranged 76.5–114.4 tok/s across repeats. The +6.2% median difference compares adaptive caching with Strata default; it is separate from the 5.92× engine comparison above.</p>
     </div>
     <div class="card">
-      <div class="k">What the harness decided</div>
+      <div class="k">What the policy sweep measured</div>
       <ul class="tl">
         <li class="g"><b>18/18 real inference requests</b> completed at exactly 32,768 input tokens.</li>
-        <li class="r"><b>Adaptive cache looked +6.2% faster</b> than the default.</li>
-        <li class="r"><b>0/18 passed the full answer check</b> — every arm retrieved the 8 settings but got the sum wrong.</li>
-        <li class="g"><b>No policy promoted.</b> Speed never overrides correctness.</li>
+        <li><b>Adaptive cache median: +6.2%</b> versus Strata default.</li>
+        <li class="g"><b>18/18 retrieved all eight document values.</b> A separate arithmetic check mismatched in every answer.</li>
+        <li><b>No policy promoted under the full-answer rule.</b> Recorded throughput remains available for comparison.</li>
         <li class="g"><b>Interrupted mid-run, resumed from Atlas</b> — the committed trial was recovered, not repeated. 0 dangling references.</li>
       </ul>
-      <div class="verdict" style="background:var(--red-d);border-color:rgba(255,92,92,.4)"><b style="color:var(--red)">Recommendation: no validated policy.</b> Every failed candidate stays in the Atlas ledger.</div>
+      <div class="locked"><b style="color:var(--text)">Measured performance, with answer checks recorded.</b> All configurations and their outcomes remain in Atlas.</div>
     </div>
   </div>
   <div class="links2">
@@ -480,7 +491,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   } else els.forEach(function(e){e.classList.add('in')});
 })();
 (function(){
-  var charts=document.querySelectorAll('#chart, #chart2, #comparison-chart');
+  var charts=document.querySelectorAll('#chart, #chart2, #comparison-chart, #strata-baseline-chart');
   function fill(chart){chart.querySelectorAll('.bar i').forEach(function(b){b.style.width=(parseFloat(b.dataset.v)/parseFloat(b.dataset.max||50)*100)+'%'})}
   if('IntersectionObserver' in window){
     var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){fill(e.target);io.unobserve(e.target)}})},{threshold:.3});
