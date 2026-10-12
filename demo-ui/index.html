@@ -84,6 +84,7 @@ section{padding:88px 0;border-bottom:1px solid var(--line)}
 .bar i{display:block;height:100%;width:0;border-radius:6px;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
 .bar i.keep{background:var(--green)}
 .bar i.rej{background:var(--red);opacity:.85}
+.bar i.neu{background:var(--muted);opacity:.7}
 .row .v{font-family:var(--mono);font-size:15px;text-align:right}
 @media(max-width:600px){.row{grid-template-columns:110px 1fr 56px}}
 .verdict{margin-top:20px;border-radius:12px;padding:16px 18px;background:var(--green-d);border:1px solid rgba(118,255,138,.35);font-size:15px}
@@ -167,7 +168,7 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
 <nav><div class="wrap">
   <a class="brand" href="#top"><i></i>Atlas GPU Harness</a>
   <div class="links">
-    <a href="/demo-ui/strata.html">32K policy lab</a><a href="#problem">Problem</a><a href="#how">How it works</a><a href="#atlas">Atlas</a><a href="#proof">Proof</a><a href="#engines">Engines</a><a href="#roadmap">Roadmap</a>
+    <a href="/demo-ui/strata.html">32K policy lab</a><a href="#problem">Problem</a><a href="#how">How it works</a><a href="#atlas">Atlas</a><a href="#proof">Proof</a><a href="#strata">Strata 32K</a><a href="#engines">Engines</a><a href="#roadmap">Roadmap</a>
   </div>
   <a class="gh" href="https://github.com/casualcomputer/atlas-gpu-harness">GitHub</a>
 </div></nav>
@@ -352,6 +353,41 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   </div>
 </div></section>
 
+<section id="strata"><div class="wrap">
+  <div class="eyebrow">Measured · Atlas run e5359ac4 · Strata v0.1.43 · RTX 5070 Ti</div>
+  <h2>A 68 GB model at 32K tokens — and a fake win caught.</h2>
+  <p class="lead">Qwen3.8-Flash-Next IQ2_XS (68 GB across two shards) on a 16 GB GPU, exactly 32,768 uncached input tokens in every trial. Five real Strata policies, three repeats each, plus fresh-prompt confirmation — 18 experiments and 18 decisions in Atlas.</p>
+  <div class="grid2" style="margin-top:32px">
+    <div class="card">
+      <div class="k">Median decode speed · tokens/s · 3 repeats each</div>
+      <div class="chart" id="chart2">
+        <div class="row"><div class="name">Strata default<small>13 CPU workers</small></div><div class="bar"><i class="neu" data-v="108.00" data-max="120"></i></div><div class="v">108.0</div></div>
+        <div class="row"><div class="name">Adaptive cache<small>160 swaps / window</small></div><div class="bar"><i class="rej" data-v="114.73" data-max="120"></i></div><div class="v">114.7</div></div>
+        <div class="row"><div class="name">7 CPU workers<small>expert work split</small></div><div class="bar"><i class="rej" data-v="105.10" data-max="120"></i></div><div class="v">105.1</div></div>
+        <div class="row"><div class="name">PCIe offload off<small>ablation</small></div><div class="bar"><i class="rej" data-v="101.71" data-max="120"></i></div><div class="v">101.7</div></div>
+        <div class="row"><div class="name">4 CPU workers<small>expert work split</small></div><div class="bar"><i class="rej" data-v="98.59" data-max="120"></i></div><div class="v">98.6</div></div>
+      </div>
+      <p class="src">All five arms failed the answer check (red = candidate, grey = default). Default ranged 76.5–114.4 tok/s across repeats — one run alone is an unreliable comparison.</p>
+    </div>
+    <div class="card">
+      <div class="k">What the harness decided</div>
+      <ul class="tl">
+        <li class="g"><b>18/18 real inference requests</b> completed at exactly 32,768 input tokens.</li>
+        <li class="r"><b>Adaptive cache looked +6.2% faster</b> than the default.</li>
+        <li class="r"><b>0/18 passed the full answer check</b> — every arm retrieved the 8 settings but got the sum wrong.</li>
+        <li class="g"><b>No policy promoted.</b> Speed never overrides correctness.</li>
+        <li class="g"><b>Interrupted mid-run, resumed from Atlas</b> — the committed trial was recovered, not repeated. 0 dangling references.</li>
+      </ul>
+      <div class="verdict" style="background:var(--red-d);border-color:rgba(255,92,92,.4)"><b style="color:var(--red)">Recommendation: no validated policy.</b> Every failed candidate stays in the Atlas ledger.</div>
+    </div>
+  </div>
+  <div class="links2">
+    <a href="/demo-ui/strata.html">Open the interactive 32K policy lab →</a>
+    <a href="../evidence/strata/latest.json">Strata Atlas export</a>
+    <a href="../STRATA_EXPERIMENT.md">Protocol &amp; results</a>
+  </div>
+</div></section>
+
 <section id="engines"><div class="wrap">
   <div class="eyebrow">Inference engines</div>
   <h2>One agent, many engines.</h2>
@@ -407,11 +443,11 @@ footer{padding:40px 0 60px;color:var(--dim);font-size:13px}
   } else els.forEach(function(e){e.classList.add('in')});
 })();
 (function(){
-  var max=50, bars=document.querySelectorAll('#chart .bar i');
-  function fill(){bars.forEach(function(b){b.style.width=(parseFloat(b.dataset.v)/max*100)+'%'})}
+  var max=50, bars=document.querySelectorAll('#chart .bar i, #chart2 .bar i');
+  function fill(){bars.forEach(function(b){b.style.width=(parseFloat(b.dataset.v)/parseFloat(b.dataset.max||max)*100)+'%'})}
   if('IntersectionObserver' in window){
     var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){fill();io.disconnect()}},{threshold:.3});
-    io.observe(document.getElementById('chart'));
+    io.observe(document.getElementById('chart'));io.observe(document.getElementById('chart2'));
   } else fill();
 })();
 </script>
