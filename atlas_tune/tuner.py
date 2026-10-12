@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shlex
 import statistics
+import subprocess
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -64,7 +65,9 @@ def _summary_row(trial: dict, with_logs: bool = False) -> dict:
            "levels": [{k: lv.get(k) for k in ("concurrency", "ok", "requests", "output_tok_s", "ttft_p50_ms",
                                               "per_user_tok_s", "errors")} for lv in m.get("levels", [])],
            "gpu_peak_gib": trial.get("gpu_peak_gib"), "error": (trial.get("error") or "")[:300],
-           "related_issues": trial.get("related") or [], "issue": issues.describe(trial)}
+           "related_issues": trial.get("related") or [], "issue": issues.describe(trial),
+           "phase": trial.get("phase", "trial"), "run_id": trial.get("run_id"), "context": trial.get("context"),
+           "model_revision": (trial.get("artifact") or {}).get("revision")}
     if with_logs and trial["status"] != "ok":
         row["log_tail"] = research.redact(trial.get("logs"))
     return row
@@ -82,6 +85,12 @@ class Tuner:
         self.tried: set = set()
         w = bench.WORKLOADS[opts.workload]
         self.workload = bench.Workload(w.name, w.input_tokens, w.output_tokens, opts.concurrency or w.concurrency)
+        try:
+            revision = subprocess.run(["git", "-C", str(Path(__file__).resolve().parent), "rev-parse", "HEAD"],
+                                      capture_output=True, text=True, timeout=3)
+            self.source_commit = revision.stdout.strip() if revision.returncode == 0 else None
+        except (OSError, subprocess.SubprocessError):
+            self.source_commit = None
 
     def _quality(self, server):
         return bench.quality(server.base_url, server.model, extra_tasks=self.opts.quality_cases)
@@ -219,7 +228,7 @@ class Tuner:
             reused = {**seen, "run_id": self.run_id, "reused": True}
             self.store.record_attempt(reused, "reuse")
             return reused
-        record = {"key": key, "run_id": self.run_id, "model": o.model, "machine": machine, "engine": c.engine,
+        record = {"source_commit": self.source_commit, "workload_version": bench.WORKLOAD_VERSION, "key": key, "run_id": self.run_id, "model": o.model, "machine": machine, "engine": c.engine,
                   "image": image, "artifact": art.to_dict(), "config": c.config, "context": context,
                   "workload": o.workload, "requirements": {"concurrency": self.workload.concurrency, "max_ttft_ms": o.max_ttft_ms,
                                                             "quality_cases": o.quality_cases}, "hypothesis": f"[{c.origin}] {c.hypothesis}"[:800], "sources": c.sources,
@@ -235,6 +244,10 @@ class Tuner:
                 metrics = self._load(server) if q["pass"] else None
             record.update(status="ok" if q["pass"] else "quality_failed", quality=q, metrics=metrics,
                           gpu_peak_gib=gpu.peak_gib)
+        except KeyboardInterrupt:
+            record.update(status="interrupted", error="Trial interrupted before completion")
+            self.store.record_attempt(record, "trial")
+            raise
         except EngineFailed as error:
             record.update(status="failed", error=str(error), logs=error.logs)
         except Exception as error:  # noqa: BLE001 - one bad trial must not stop the run
@@ -309,7 +322,7 @@ class Tuner:
         engine, art = ENGINES[t["engine"]], models.Artifact(**t["artifact"])
         server = None
         attempt = {k: v for k, v in t.items() if k not in ("metrics", "quality", "error", "logs", "reused", "issue")}
-        attempt["run_id"] = self.run_id
+        attempt.update(run_id=self.run_id, source_commit=self.source_commit, workload_version=bench.WORKLOAD_VERSION)
         try:
             with GpuSampler() as gpu:
                 server = self.runner.start(engine, art, t["config"], t["context"])
@@ -321,6 +334,10 @@ class Tuner:
                 attempt["status"] = "quality_failed"
             elif bench.score(metrics, self.opts.goal) is None:
                 attempt["status"] = "load_failed"
+        except KeyboardInterrupt:
+            attempt.update(status="interrupted", error="Confirmation interrupted before completion")
+            self.store.record_attempt(attempt, "confirmation")
+            raise
         except Exception as error:  # a config that fails on relaunch is not reliable
             attempt.update(status="failed", error=f"{type(error).__name__}: {error}"[:1000],
                            logs=error.logs if isinstance(error, EngineFailed) else None)

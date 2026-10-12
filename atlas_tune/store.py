@@ -121,14 +121,14 @@ class Store:
                        mirror: bool = True) -> None:
         row = {"id": attempt_id or uuid.uuid4().hex, "run_id": trial["run_id"],
                "trial_key": trial["key"], "model": trial["model"], "machine": trial["machine"],
-               "phase": phase, "created": now(), "payload": trial}
+               "phase": phase, "created": now(), "payload": {**trial, "phase": phase}}
         # INSERT IGNORE preserves immutable attempt rows, including legacy imports.
         if mirror:
             self._write("attempts", row, conflict="IGNORE")
         else:
             self.db.execute("INSERT OR IGNORE INTO attempts VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                             (*[row[k] for k in ("id", "run_id", "trial_key", "model", "machine", "phase", "created")],
-                             json.dumps(trial, default=str)))
+                             json.dumps(row["payload"], default=str)))
             self.db.commit()
 
     def attempts(self, model: str | None = None, machine: str | None = None,

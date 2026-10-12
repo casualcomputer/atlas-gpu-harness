@@ -4,6 +4,9 @@ import re
 
 
 def describe(trial: dict) -> dict | None:
+    if trial.get("status") == "interrupted":
+        return {"category": "interrupted", "explanation": "The attempt was interrupted before completion; no result is verified.",
+                "retryable": True}
     text = f"{trial.get('error') or ''}\n{trial.get('logs') or ''}"
     rules = [
         ("memory_reservation", r"Free memory on device[^\n]*less than desired GPU memory utilization",

@@ -84,3 +84,19 @@ class HistoryRecoveryTests(unittest.TestCase):
         failed={'engine':'vllm','artifact':ARTIFACT.to_dict(),'config':{'max_num_seqs':8},'status':'failed',
                 'error':'CUDA out of memory','reused':True}
         self.assertTrue(t.next_round(HW,[ARTIFACT],['vllm'],[failed],2))
+
+    def test_interrupted_trials_are_preserved_and_not_cached_as_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store=Store(Path(tmp)/'db',mirror=False)
+            runner=mock.Mock()
+            runner.image_id.return_value='image@sha256:test'
+            runner.start.side_effect=KeyboardInterrupt
+            t=tuner.Tuner(tuner.Options(model='org/m'),store=store,runner=runner,log=lambda *_:None)
+            with mock.patch('atlas_tune.hardware.gpus',return_value=[]), self.assertRaises(KeyboardInterrupt):
+                t.trial(HW,[ARTIFACT],agent.Candidate('vllm',ARTIFACT.id,{}))
+            rows=store.attempts()
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['payload']['status'],'interrupted')
+            self.assertEqual(rows[0]['payload']['phase'],'trial')
+            self.assertIn('source_commit',rows[0]['payload'])
+            self.assertEqual(store.trials(),[])

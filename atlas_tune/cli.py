@@ -114,6 +114,8 @@ def _history(args) -> int:
         rows = []
         for a in attempts:
             t = {**a["payload"], "issue": issues.describe(a["payload"])}
+            if t.get("error"):
+                t["error"] = research.redact(t["error"])
             if t.get("logs"):
                 t["logs"] = research.redact(t["logs"])
             rows.append({**a, "payload": t})
