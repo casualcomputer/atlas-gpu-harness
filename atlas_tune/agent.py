@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field
 
 from . import research
 from .engines import ENGINES, Knob
-from .models import Artifact
+from .models import Artifact, parallel_slots
 
 
 @dataclass
@@ -50,31 +50,34 @@ def _moe_estimate(art: Artifact, vram: float) -> int | None:
 
 
 def defaults(engines: list[str], artifacts: list[Artifact], hw: dict, max_concurrency: int,
-             goal: str) -> list[Candidate]:
+             goal: str, context: int = 8192) -> list[Candidate]:
     """Baseline per artifact, plus well-known variants on the best artifact."""
     vram = (hw.get("gpu") or {}).get("vram_gib") or 0
+    used = (hw.get("gpu") or {}).get("used_gib") or 0
     threads = max(1, (hw.get("cpu_count") or 8) // 2)
     out: list[Candidate] = []
     for engine in engines:
         for rank, art in enumerate(_for_engine(engine, artifacts)):
+            slots = parallel_slots(art, vram, context, max_concurrency, used,
+                                   fraction=0.85 if engine == "sglang" else 0.9)
             if engine == "vllm":
-                base = {"gpu_memory_utilization": 0.9}
+                base = {"gpu_memory_utilization": 0.9, "max_num_seqs": slots}
                 variants = [
                     ({**base, "kv_cache_dtype": "fp8"}, "fp8 KV cache frees memory for more concurrent sequences"),
-                    ({**base, "max_num_seqs": 8 if goal == "latency" else max(64, 4 * max_concurrency)},
-                     "match scheduler concurrency to the goal"),
+                    ({**base, "max_num_seqs": max(1, slots // 2)},
+                     "fewer active sequences reduce scheduler and graph memory"),
                     ({**base, "max_num_batched_tokens": 2048 if goal == "latency" else 8192},
                      "smaller steps protect decode latency; larger steps speed prefill"),
                     ({**base, "async_scheduling": True}, "overlap scheduling with GPU work")]
             elif engine == "sglang":
-                base = {"mem_fraction_static": 0.85}
+                base = {"mem_fraction_static": 0.85, "max_running_requests": slots}
                 variants = [
                     ({**base, "kv_cache_dtype": "fp8_e4m3"}, "fp8 KV cache frees memory for batching"),
                     ({**base, "chunked_prefill_size": 2048}, "smaller prefill chunks smooth decode latency"),
                     ({**base, "schedule_policy": "lpm"}, "prefix-aware scheduling"),
                     ({**base, "cuda_graph_max_bs": max(16, 2 * max_concurrency)}, "CUDA graphs cover the batch sizes used")]
             else:  # llamacpp
-                base = {"n_gpu_layers": 999, "flash_attn": "on", "parallel": min(max_concurrency, 16)}
+                base = {"n_gpu_layers": 999, "flash_attn": "on", "parallel": min(slots, 16)}
                 variants = [
                     ({**base, "cache_type_k": "q8_0", "cache_type_v": "q8_0"}, "q8 KV cache halves KV memory"),
                     ({**base, "batch_size": 2048, "ubatch_size": 512}, "larger batches speed up prompt processing"),

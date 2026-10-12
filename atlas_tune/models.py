@@ -20,6 +20,7 @@ class Artifact:
     file: str | None = None
     moe: bool = False
     layers: int | None = None
+    kv_bytes_per_token: int | None = None  # FP16/BF16 K + V across all layers
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -46,6 +47,40 @@ def _config(repo: str) -> dict:
         return {}
 
 
+def _kv_bytes_per_token(cfg: dict) -> int | None:
+    """Full-context FP16/BF16 cache estimate; weight quantization does not shrink KV.
+
+    Explicit head_dim matters (Qwen3-4B's is not hidden_size / attention_heads).
+    Unknown architectures use a conservative single-slot default in the planner.
+    """
+    text = cfg.get("text_config") or cfg
+    layers = text.get("num_hidden_layers")
+    heads = text.get("num_attention_heads")
+    kv_heads = text.get("num_key_value_heads", heads)
+    dim = text.get("head_dim")
+    if dim is None:
+        hidden = text.get("hidden_size")
+        if isinstance(hidden, int) and isinstance(heads, int) and heads > 0 and hidden % heads == 0:
+            dim = hidden // heads
+    if not all(isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in (layers, kv_heads, dim)):
+        return None
+    return layers * kv_heads * dim * 2 * 2
+
+
+def parallel_slots(art: Artifact, vram_gib: float, context: int, requested: int,
+                   used_gib: float = 0, fraction: float = 0.9) -> int:
+    """Slots whose weights + full KV fit the budget, before runtime verification.
+
+    Leave room for existing device use as well as the engine's workspace. Unknown
+    KV layouts and MoE offload plans start with one slot; real trials decide fit.
+    """
+    if not art.kv_bytes_per_token or context <= 0:
+        return 1
+    room = vram_gib * min(fraction, 0.9) - used_gib - art.size_gib
+    per_slot = context * art.kv_bytes_per_token / 2**30
+    return max(1, min(requested, int(room // per_slot)))
+
+
 def _hf_artifact(info, cfg: dict) -> Artifact | None:
     size = _weights_gib(info, ".safetensors")
     if not size:
@@ -55,7 +90,8 @@ def _hf_artifact(info, cfg: dict) -> Artifact | None:
     moe = bool(text.get("num_experts") or text.get("num_local_experts") or text.get("n_routed_experts"))
     return Artifact(id=f"hf:{info.id}", engine_format="hf", repo=info.id, size_gib=size,
                     quant=match.group(1).lower() if match else str(text.get("torch_dtype", "bf16")),
-                    moe=moe, layers=text.get("num_hidden_layers"))
+                    moe=moe, layers=text.get("num_hidden_layers"),
+                    kv_bytes_per_token=_kv_bytes_per_token(cfg))
 
 
 def _gguf_repos(api, base: str, explicit: str | None, model_org: str = "") -> list[str]:
@@ -95,7 +131,7 @@ def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] 
                 continue
             out.append(Artifact(id=f"gguf:{repo}:{quant.group(1)}", engine_format="gguf", repo=repo,
                                 file=name, quant=quant.group(1), size_gib=round((sibling.size or 0) / 2**30, 2),
-                                moe=moe, layers=layers))
+                                moe=moe, layers=layers, kv_bytes_per_token=_kv_bytes_per_token(cfg)))
     return out
 
 
@@ -103,21 +139,28 @@ def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] 
 GGUF_PREFERENCE = ("Q8_0", "Q6_K", "Q5_K_M", "Q4_K_M", "IQ4_XS", "Q3_K_M", "IQ3_XXS", "Q2_K")
 
 
-def shortlist(artifacts: list[Artifact], vram_gib: float, ram_gib: float) -> list[Artifact]:
+def shortlist(artifacts: list[Artifact], vram_gib: float, ram_gib: float,
+              context: int = 8192, used_gib: float = 0) -> list[Artifact]:
     """Keep what can plausibly run on this machine, highest precision first.
 
-    HF: up to two repos whose weights fit in VRAM. GGUF (one repo): the best two common
+    HF: up to two repos whose weights and one full-context KV cache fit in VRAM.
+    GGUF (one repo): the best two common
     quants that fit in VRAM, plus for MoE models one quant (Q4_K_M preferred) that only
     fits with experts offloaded to RAM, since that is often faster than a tiny quant.
     """
     gpu_room, ram_room = vram_gib * 0.85, ram_gib * 0.7
-    hf = sorted((a for a in artifacts if a.engine_format == "hf" and 0 < a.size_gib <= gpu_room),
+
+    def fits_one(a):
+        kv_gib = (a.kv_bytes_per_token or 0) * context / 2**30
+        return 0 < a.size_gib <= gpu_room and a.size_gib + kv_gib <= vram_gib * 0.9 - used_gib
+
+    hf = sorted((a for a in artifacts if a.engine_format == "hf" and fits_one(a)),
                 key=lambda a: -a.size_gib)[:2]
     gguf_all = [a for a in artifacts if a.engine_format == "gguf" and a.size_gib > 0]
     repo = gguf_all[0].repo if gguf_all else None
     by_quant = {a.quant.upper(): a for a in gguf_all if a.repo == repo}
     preferred = [by_quant[q] for q in GGUF_PREFERENCE if q in by_quant]
-    fits = [a for a in preferred if a.size_gib <= gpu_room][:2]
+    fits = [a for a in preferred if fits_one(a)][:2]
     offload = [a for a in preferred if gpu_room < a.size_gib <= gpu_room + ram_room and a.moe]
     offload.sort(key=lambda a: (a.quant.upper() != "Q4_K_M", -a.size_gib))
     return hf + fits + offload[:1]

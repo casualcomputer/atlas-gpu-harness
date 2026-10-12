@@ -156,7 +156,8 @@ class Tuner:
         self.log(f"GPU: {gpu.get('name', 'none detected')} {gpu.get('vram_gib', '?')} GiB · "
                  f"RAM {hw['ram_available_gib']}/{hw['ram_total_gib']} GiB free · disk {hw['disk_free_gib']} GiB free")
         all_artifacts = models.resolve(o.model, o.gguf_repo, o.extra_hf)
-        artifacts = models.shortlist(all_artifacts, gpu.get("vram_gib") or 0, hw["ram_available_gib"])
+        artifacts = models.shortlist(all_artifacts, gpu.get("vram_gib") or 0, hw["ram_available_gib"],
+                                     context=_context(o), used_gib=gpu.get("used_gib") or 0)
         for a in artifacts:
             self.log(f"  artifact {a.id}  {a.size_gib} GiB")
         engines = [e for e in o.engines if any(a.engine_format == ENGINES[e].format for a in artifacts)]
@@ -166,7 +167,7 @@ class Tuner:
         self.inspect_engines(engines)
         engines = [e for e in engines if e in self.allowed]
         workload = bench.WORKLOADS[o.workload]
-        candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal)
+        candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal, context=_context(o))
         previous = [_summary_row(t) for t in self.store.trials(o.model, hardware.fingerprint(hw))]
         candidates += self._agent(hw, artifacts, engines, previous, 1)
         return hw, artifacts, engines, self._cap(candidates)
