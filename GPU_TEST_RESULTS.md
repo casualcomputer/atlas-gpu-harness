@@ -123,3 +123,55 @@ These are design recommendations, not implemented feedback-loop features.
 - The extra user-only arithmetic prompt failed on the generated 4B server, despite 8/8 benchmark prompts passing; broader prompt robustness remains unverified.
 - Eight exact-answer quality questions are a smoke test. No broad quality benchmark, gated models, cloud-LLM proposal loop, or MongoDB mirror was validated.
 - Autoresearch-inspired append-only history changes are recommendations, not implemented features.
+
+
+## Follow-up: history, recovery and offloading fixes
+
+This follow-up supersedes the earlier statements that append-only history and model revision pins were only recommendations. The original full-run measurements above remain historical results from their original workload/scorer version.
+
+Implemented and regression-tested:
+
+- Immutable trial, reuse, confirmation and interruption records; one-time legacy snapshot migration; hypotheses, sources, model revision, source commit, workload version, failures and full measurements retained. The initial interrupted download attempt predated interruption-record handling and has only its run status.
+- Readable categories for memory reservation, allocator/KV OOM, storage, ports, authentication, unsupported options/hardware, timeouts, network/TLS, quality, load, latency limits and interruptions. Unknown failures remain unknown; categories are hints, not asserted root causes.
+- Automatic retry of transient cached failures on a new run; explicit `--retry-failed`; cached OOMs can still produce deterministic fixes.
+- Complete confirmation required even for a lone finalist. Quality and load gates run on every confirmation. Incomplete/disabled confirmation is provisional and exports no verified recipe.
+- Every requested concurrency level must pass. Optional `--concurrency`, `--max-ttft-ms`, and `--quality-file` define additional requirements. Custom exact-answer prompts retain their specified system/user structure and all must pass. Latency ranking uses inverse p99 response time.
+- Opt-in dense-model CPU offloading with RAM/KV estimates and one active sequence; required offload settings are not silently stripped. HF revisions, GGUF URLs and saved image commands are pinned.
+- CPU model/count and total RAM now participate in cache identity. Legacy hardware records remain visible to the agent as labeled context, but are not automatically reusable measurements.
+- The AI receives actual serving context, required workload and recent experiment history. Architecture remains one optional LLM agent with research/proposal tools, plus deterministic execution, scoring and storage modules.
+
+Final suite: **61 tests passed in 48.058 seconds**. Includes fake-provider research, failure recovery, legacy migration, immutable attempts, interrupted trials, relaunch quality failures, incomplete confirmations, workload gates, offload planning, immutable launches and cache identity.
+
+### Real partial-offload regression
+
+Physical hardware: the same RTX 5070 Ti (16,303 MiB), Intel Core i7-14700F, WSL2/Docker Desktop. Used an **artificial 8 GiB planning budget** to force partial CPU execution of the already-cached Qwen3-8B Q8_0 model; this does not claim validation on a physical 8 GiB GPU.
+
+The Python validation fixture supplied only the pinned Q8_0 artifact to `Tuner` so the shortlist could not select a smaller GPU-fitting quant. Options: `engines=['llamacpp']`, `workload='smoke'`, `vram_gib=8`, `allow_cpu_offload=True`, `max_trials=1`, `rounds=1`, `confirm=2`, `budget_minutes=30`. The regular planner chose `n_gpu_layers=19`, `parallel=1`, `threads=10`, FP16 KV and context 8192.
+
+Run: `22967e409d42`; code loaded at `c317e59`; workload/scorer `v4`. New llama.cpp image: build 11561, commit e937b17a2, `ghcr.io/ggml-org/llama.cpp@sha256:20c6e722e2fcc5ca9c15401d3fd8e35408aaf8f9c54a12f32920f637c57959bb`. Model revision: `7c41481f57cb95916b40956ab2f0b139b296d974`.
+
+| Attempt | Quality | Requests at concurrency 1 / 2 | Best output tokens/s | Sampled peak GiB |
+| --- | --- | --- | ---: | ---: |
+| trial | 8/8 | 8/8 / 8/8 | 14.5 | 5.99 |
+| confirmation | 8/8 | 8/8 / 8/8 | 14.5 | 5.99 |
+| confirmation | 8/8 | 8/8 / 8/8 | 14.5 | 5.99 |
+
+Median: **14.5 tokens/s**. Smoke workload: 64 target input tokens, 32 output tokens, concurrency 1/2. This is functional offload validation; its score is not directly comparable with the earlier chat workload or older image. All three launches retained complete measurements in local history.
+
+All four output files were written under `atlas-out/22967e409d42/`. The generated `serve.sh` actually started the pinned model/image, passed all eight original quality prompts and the additional user-only arithmetic prompt, returned HTTP 200 with authentication and HTTP 401 without it. Both YAMLs parsed; the server was removed afterward.
+
+Cache observation: a copied GGUF without a matching `.etag` sidecar was removed and redownloaded by the native URL downloader. Interrupted that redundant download through normal harness cleanup, verified the cached model's SHA256 against Hugging Face metadata, and prepared the matching ETag before retrying. The subsequent trial, both confirmations and generated server loaded the persistent file successfully. This behavior matches [llama.cpp's URL cache validation](https://github.com/ggml-org/llama.cpp/blob/e937b17a2/common/download.cpp). Existing unpinned caches may need a one-time download into the new revision-specific path.
+
+Commands/probes executed in this follow-up:
+
+```bash
+uv run python -m unittest discover -s tests
+uv run atlas run --help
+uv run atlas history Qwen/Qwen3-4B --details
+# Temporary, locally executed validation fixtures:
+.venv/bin/python /tmp/atlas-live-offload.py
+.venv/bin/python /tmp/atlas-verify-offload-serve.py Qwen/Qwen3-8B
+uv run atlas history --run-id 22967e409d42 --json
+```
+
+Still unverified: a live external-LLM research/recovery loop (no configured provider or key was found), vLLM/SGLang's new automatic CPU-offload baselines, oversized-model MoE offloading on this GPU, and deployed Compose/Kubernetes workloads. Original full-GPU vLLM/SGLang results remain documented above. No multiagent orchestration was introduced.

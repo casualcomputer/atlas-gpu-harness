@@ -48,17 +48,17 @@ flowchart LR
   DB -. optional .-> A[(MongoDB Atlas)]
 ```
 
-1. **Resolve.** Reads the model from Hugging Face and finds what each engine can load: the safetensors repo for vLLM/SGLang, and common GGUF quants for llama.cpp. Only artifacts that fit your GPU are kept, plus one MoE quant that fits with experts offloaded to RAM.
+1. **Resolve.** Reads the model from Hugging Face and finds what each engine can load: the safetensors repo for vLLM/SGLang, and common GGUF quants for llama.cpp. By default it keeps GPU-fitting artifacts plus one MoE offload option. `--allow-cpu-offload` also admits a bounded oversized dense HF/GGUF option when RAM and KV headroom permit; these start with one active sequence.
 2. **Read the image's own docs.** atlas runs `--help` and `--version` inside each pulled image, with no network. Only tuning flags that exist in that exact version are used, so renamed or removed flags never reach the engine. The agent reads the same help text.
 3. **Propose.** Each artifact gets an engine baseline, then known variants (see the table below). With an agent LLM, it also reads the model card, the engine's GitHub issues and the web, and proposes configs with the URLs that motivated them.
-4. **Run.** One container at a time. Each trial must answer 8 exact-answer questions correctly before it is load-tested with streaming requests at several concurrency levels.
+4. **Run.** One container at a time. Each trial runs eight exact-answer smoke checks before streaming load tests. At least two must pass to continue; winner eligibility compares against the best configuration. Any extra cases supplied with `--quality-file` must all pass.
 5. **Troubleshoot and refine** (`--rounds`, default 3). After each round:
    - an out-of-memory failure gets an automatic fix, no LLM needed: fp8/q8 KV cache, less VRAM claimed, fewer sequences, more MoE layers in RAM
    - every failed trial gets matching GitHub issues attached
    - the agent, if set, sees each failure's redacted log tail, wrong answers and those issues, writes a diagnosis, researches further, and proposes fixes and refinements of the best result.
-6. **Confirm.** The top 3 configs are relaunched and re-measured twice more, interleaved, and ranked by the median. On a real server the same config varies about 10% between runs, so a single measurement can't pick a winner. If the runner-up is within 5%, the report calls it a tie.
-7. **Judge.** A config can win only if every load-test request succeeded and it answered the quality checks about as well as the best config of the same model (within one check), so a config that degrades the model is excluded. `--goal throughput` ranks by total output tokens/s; `--goal latency` by single-user decode speed.
-8. **Remember.** Every trial and every image's help text is stored locally. Re-running skips anything already measured on this machine, image digest and config, and the agent sees past results before proposing.
+6. **Confirm.** The top 3 configs are relaunched and re-measured twice more, interleaved, and ranked by the median. On a real server the same config varies about 10% between runs, so a single measurement can't pick a winner. Quality is rechecked on each relaunch. Even a lone finalist must complete every requested confirmation. Disabled or incomplete confirmations produce provisional results without deployment files. If the runner-up is within 5%, the report calls it a tie.
+7. **Judge.** A config can win only if every load-test request succeeded and it answered the quality checks about as well as the best config of the same model (within one check), so a config that degrades the model is excluded. `--goal throughput` ranks by total output tokens/s; `--goal latency` by inverse p99 response time at the lowest requested concurrency (higher score is better). `--max-ttft-ms` optionally enforces a TTFT p99 limit at every requested level.
+8. **Remember.** Every measured attempt, reuse and confirmation is recorded separately, along with cached image help. Cache identity includes CPU/RAM and GPU identity, model revision, image, configuration, context and workload requirements. Legacy hardware identities remain visible in history but require new measurements before cache reuse. Transient cached failures retry on a new run; `--retry-failed` also retries other cached failures. The agent sees recent attempt history and diagnostic categories before proposing; history from other or legacy hardware is labeled by fingerprint and treated as context, not reusable proof.
 
 **The agent proposes; the measurement decides.** Configs from an LLM or a web page must use the flags in the table below, must exist in the image's `--help`, and can only win by being measured.
 
@@ -76,13 +76,13 @@ Not tuned yet: speculative decoding (needs a draft model), attention-backend sel
 
 ## Agent and harness
 
-atlas has two halves:
+atlas uses **one optional LLM agent**, not a multiagent team. Research, planning and diagnosis happen in that same agent; execution, scoring and storage are ordinary Python modules. It has two halves:
 - **The harness** decides what is true. It runs containers one at a time, checks answers, load-tests, re-measures, and keeps the record. It works with no LLM at all.
 - **The agent** (optional) only proposes. It reads the image help, docs, issues and the web, and suggests configs and fixes. It can't run anything, and its ideas count only after the harness has measured them.
 
 ## Deploy files
 
-For the winner, atlas writes three files. All of them pin the exact image digest that was measured, use the same arguments and context length, and require an API key:
+For a confirmed winner, atlas writes three files. They pin the measured image digest and resolved model revision, use the same arguments and context length, and require an API key:
 
 | File | Use |
 | --- | --- |
@@ -108,11 +108,34 @@ For the winner, atlas writes three files. All of them pin the exact image digest
 | `atlas run MODEL` | Benchmark every engine and keep the best. Options: `--context 8192` (what you'll serve), `--goal throughput\|latency`, `--workload smoke\|chat\|rag\|batch`, `--engines vllm,llamacpp`, `--budget-minutes 90`, `--max-trials 5` (per engine per round), `--rounds 3`, `--confirm 2`, `--llm …`, `--no-research`, `--no-share-logs` |
 | `atlas run MODEL --dry-run [--gpu-gib 24]` | Show the artifacts, trials and docker commands without starting anything, optionally for another GPU size |
 | `atlas run MODEL --hf-repo org/MODEL-AWQ` | Also try a quantized safetensors repo with vLLM/SGLang (for models whose full weights don't fit) |
-| `atlas history [MODEL]` | Past runs and trials from local memory |
+| `atlas history [MODEL] [--details] [--run-id ID] [--json]` | Past runs and immutable attempts, explanations and measurements |
 | `atlas recipe MODEL` | The best verified launch command on this machine |
 | `atlas sync` | Copy local memory to MongoDB Atlas |
 
 Workloads: `smoke` (64 in / 32 out, 1–2 concurrent; checks a setup in minutes), `chat` (256 / 256, 1–16), `rag` (4,000 / 256, 1–4), `batch` (512 / 512, 16–64).
+
+## Offloading, retries and your workload
+
+```bash
+uv run atlas run Qwen/Qwen3-8B --allow-cpu-offload
+uv run atlas run Qwen/Qwen3-8B --retry-failed
+uv run atlas history Qwen/Qwen3-8B --details
+uv run atlas history --run-id RUN_ID --json
+uv run atlas run Qwen/Qwen3-8B --concurrency 1,4 --max-ttft-ms 1000 --quality-file checks.json
+```
+
+`checks.json` is a list of additional exact-answer checks. Without `system`, the prompt is sent as a user-only message. For example:
+
+```json
+[
+  {"name": "arithmetic", "prompt": "What is 37 + 58? Return only the integer answer.", "expected": 95},
+  {"name": "extract", "system": "Return only the city.", "prompt": "City: Oslo", "expected": "Oslo"}
+]
+```
+
+These checks supplement the built-in suite and must all pass in both trials and confirmations. Load prompts remain synthetic; this does not implement production-traffic replay. New requirements change the cache key. `--confirm 0` intentionally produces provisional measurements only.
+
+Offload amounts are conservative estimates, then measured on the hardware. CPU execution and transfers can be much slower. Missing required offload flags cause the candidate to be skipped rather than silently launching an all-GPU configuration. HF models use `--revision`; GGUFs use an immutable download URL and a persistent revision-specific cache filename. An old unpinned GGUF cache may require a one-time download into the new path.
 
 ## Keys: none required
 
@@ -147,9 +170,11 @@ A local Ollama model shares your GPU. Its memory shows up in the results, so sto
 
 ## Memory
 
-Local memory is a SQLite file at `~/.atlas-tune/atlas.db` (change it with `ATLAS_HOME`). It holds runs, every trial (config, quality answers, latency and throughput per concurrency level, sampled GPU memory, errors and log tail, sources) and the best recipe per model, machine, engine and goal.
+Local memory is a SQLite file at `~/.atlas-tune/atlas.db` (change it with `ATLAS_HOME`). It holds runs, a reusable configuration cache, append-only attempts (config, hypothesis, sources, source commit, workload version, model revision, quality answers, latency/throughput per level, GPU peak and failures), and confirmed recipes. Confirmations retain their full measurements. Existing databases import their last known cached rows once as `legacy`; overwritten historical attempts cannot be reconstructed.
 
-Set `MONGODB_URI` and install the extra (`uv sync --extra atlas`), and the same records are mirrored to MongoDB Atlas (`tune_runs`, `tune_trials`, `tune_recipes`), so a team or several machines share verified results. `atlas sync` backfills Atlas from local memory.
+Set `MONGODB_URI` and install the extra (`uv sync --extra atlas`), and the same records are mirrored to MongoDB Atlas (`tune_runs`, `tune_trials`, `tune_attempts`, `tune_recipes`), so a team or several machines share verified results. `atlas sync` backfills Atlas from local memory.
+
+Failure descriptions distinguish memory reservations, allocator/KV OOMs, disk exhaustion, occupied ports, authentication, unsupported settings/hardware, timeouts, network/TLS failures, quality failures, load failures and latency-limit breaches. Unknown failures stay unknown. These are evidence-based hints, not proof of the root cause; the optional LLM can research logs and propose a more specific diagnosis.
 
 ## What has been tested, and known limits
 
@@ -167,15 +192,15 @@ Testing also found and fixed:
 - a 25+ GB image filling the disk mid-pull
 - old results being reused after the scoring changed
 
-**Not yet tested on a GPU.** vLLM and SGLang have never been launched through atlas, and GPU memory sampling and out-of-memory fixes are only unit-tested. Run `atlas run MODEL --workload smoke` on a GPU before trusting a full run.
+**RTX 5070 Ti validation:** llama.cpp, vLLM and SGLang completed real GPU runs, including finalist confirmations and generated serving checks. A real vLLM startup memory refusal recovered through the deterministic fix loop. See [GPU_TEST_RESULTS.md](GPU_TEST_RESULTS.md) for exact versions, measurements and limitations. No agent provider was configured, so live LLM-driven research/recovery remains unverified; its tool flow is covered with a fake provider.
 
 **Known limits:**
 - One host, one GPU, one engine at a time. No tensor/expert parallelism, multi-node or fleet runs.
 - The workload is synthetic. Output lengths vary by model, so compare tokens/s rather than request times; replaying your own traffic is not supported yet.
 - Quality is an 8-question smoke test relative to the model's best config. It catches broken templates and quantization damage, not subtle accuracy loss; run your own eval on the winner.
-- Ranking is throughput or single-user speed. There's no "max throughput under a p99 latency SLO" goal yet.
+- Ranking is throughput or inverse p99 response time at the lowest concurrency. An optional TTFT p99 ceiling gates every level; this is not a full production SLO evaluator.
 - Not tuned: speculative decoding, attention backend, environment-variable settings, TensorRT-LLM, TGI.
-- vLLM and SGLang need weights that fit in VRAM; pass a quantized `--hf-repo` for larger models (no automatic AWQ/FP8 discovery yet).
+- vLLM/SGLang CPU offloading is opt-in and image-dependent; its new automatic planning has unit coverage but still needs live validation. Quantized `--hf-repo` remains available; automatic AWQ/FP8 discovery is not implemented.
 - `k8s.yaml` has passed YAML checks but has not been applied to a cluster. It assumes a `model-cache` PVC and NVIDIA's device plugin.
 - Security: see [SECURITY.md](SECURITY.md). It's a single-user CLI with no SSO, RBAC or audit log.
 
