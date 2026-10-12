@@ -58,14 +58,16 @@ def _hf_artifact(info, cfg: dict) -> Artifact | None:
                     moe=moe, layers=text.get("num_hidden_layers"))
 
 
-def _gguf_repos(api, base: str, explicit: str | None) -> list[str]:
+def _gguf_repos(api, base: str, explicit: str | None, model_org: str = "") -> list[str]:
+    """GGUF repos named exactly <model>-GGUF: the model author's own first, then known quantizers."""
     if explicit:
         return [explicit]
     want = base.lower() + "-gguf"
     found = [m.id for m in api.list_models(search=base, filter="gguf", sort="downloads", limit=40)
              if m.id.split("/")[1].lower() == want]
     rank = {org.lower(): i for i, org in enumerate(GGUF_ORGS)}
-    return sorted(found, key=lambda rid: rank.get(rid.split("/")[0].lower(), 99))[:2]
+    org = lambda rid: rid.split("/")[0].lower()  # noqa: E731
+    return sorted(found, key=lambda rid: (org(rid) != model_org.lower(), rank.get(org(rid), 99)))[:2]
 
 
 def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] = ()) -> list[Artifact]:
@@ -82,7 +84,7 @@ def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] 
     base = model.split("/")[-1]
     moe = any(a.moe for a in out)
     layers = next((a.layers for a in out if a.layers), None)
-    for repo in _gguf_repos(api, base, gguf_repo):
+    for repo in _gguf_repos(api, base, gguf_repo, model.split("/")[0]):
         ginfo = api.model_info(repo, files_metadata=True)
         for sibling in ginfo.siblings:
             name = sibling.rfilename

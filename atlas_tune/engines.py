@@ -75,6 +75,9 @@ class Engine:
     # How to read this image's own documentation: (entrypoint or "", args) for --help and version.
     help_cmd: tuple = ()
     version_cmd: tuple = ()
+    # knob → newer name, used when an image has the new flag but not the old one
+    aliases: tuple = ()
+    image_gib: int = 10          # rough disk needed to pull the image (checked before pulling)
 
     def supported(self, help_text: str | None) -> dict[str, Knob]:
         """Knobs present in this image's --help (all of them if the help is unknown)."""
@@ -88,20 +91,22 @@ class Engine:
             raise ValueError(f"{self.name}: unknown settings {sorted(unknown)}")
         return {k: self.knobs[k].validate(k, v) for k, v in sorted(config.items())}
 
-    def args(self, artifact: Artifact, config: dict, context: int) -> list[str]:
+    def args(self, artifact: Artifact, config: dict, context: int, port: int | None = None,
+             host: str = "0.0.0.0") -> list[str]:
         """Container command (everything after the image name)."""
         config = self.validate(config)
+        port = port or self.port
         tuned = [arg for key, value in config.items() for arg in self.knobs[key].argv(value)]
         if self.name == "vllm":
-            return ["--model", artifact.repo, "--host", "0.0.0.0", "--port", str(self.port),
+            return ["--model", artifact.repo, "--host", host, "--port", str(port),
                     "--max-model-len", str(context), *tuned]
         if self.name == "sglang":
             return ["python3", "-m", "sglang.launch_server", "--model-path", artifact.repo,
-                    "--host", "0.0.0.0", "--port", str(self.port), "--context-length", str(context), *tuned]
+                    "--host", host, "--port", str(port), "--context-length", str(context), *tuned]
         if self.name == "llamacpp":
             # -c is shared by all parallel slots, so give each slot the requested context.
             slots = int(config.get("parallel", 1))
-            return ["-hf", f"{artifact.repo}:{artifact.quant}", "--host", "0.0.0.0", "--port", str(self.port),
+            return ["-hf", f"{artifact.repo}:{artifact.quant}", "--host", host, "--port", str(port),
                     "-c", str(context * slots), "--jinja", *tuned]
         raise ValueError(f"unknown engine {self.name}")
 
@@ -128,7 +133,7 @@ ENGINES: dict[str, Engine] = {
         "async_scheduling": Knob("--async-scheduling", bool, help="overlap scheduling with execution"),
         "cpu_offload_gb": Knob("--cpu-offload-gb", float, 0, 512, help="weights kept in CPU RAM; needs fast CPU-GPU link"),
         "kv_offloading_size": Knob("--kv-offloading-size", float, 0, 512, help="GiB of KV cache offloaded to CPU RAM"),
-    }, VLLM_DOCS, help_cmd=("vllm", ("serve", "--help=all")), version_cmd=("vllm", ("--version",))),
+    }, VLLM_DOCS, help_cmd=("vllm", ("serve", "--help=all")), version_cmd=("vllm", ("--version",)), image_gib=35),
     "sglang": Engine("sglang", _image("sglang", "lmsysorg/sglang:latest"), 30000, "hf", {
         "mem_fraction_static": Knob("--mem-fraction-static", float, 0.4, 0.95, help="share of VRAM for weights + KV pool; lower on OOM"),
         "max_running_requests": Knob("--max-running-requests", int, 1, 4096),
@@ -140,11 +145,13 @@ ENGINES: dict[str, Engine] = {
         "disable_radix_cache": Knob("--disable-radix-cache", bool, help="turn off prefix (radix) caching"),
         "page_size": Knob("--page-size", int, choices=(1, 16, 32, 64), help="tokens per KV page"),
         "cuda_graph_max_bs": Knob("--cuda-graph-max-bs", int, 1, 1024, help="largest batch captured in a CUDA graph"),
+        "cuda_graph_max_bs_decode": Knob("--cuda-graph-max-bs-decode", int, 1, 1024, help="newer SGLang: largest decode batch in a CUDA graph"),
         "disable_cuda_graph": Knob("--disable-cuda-graph", bool, help="less memory, slower decode"),
         "dtype": Knob("--dtype", str, choices=("auto", "bfloat16", "float16")),
         "cpu_offload_gb": Knob("--cpu-offload-gb", int, 0, 512),
     }, SGLANG_DOCS, help_cmd=("", ("python3", "-m", "sglang.launch_server", "--help")),
-       version_cmd=("", ("python3", "-c", "import sglang; print(sglang.__version__)"))),
+       version_cmd=("", ("python3", "-c", "import sglang; print(sglang.__version__)")),
+       aliases=(("cuda_graph_max_bs", "cuda_graph_max_bs_decode"),), image_gib=40),
     "llamacpp": Engine("llamacpp", _image("llamacpp", "ghcr.io/ggml-org/llama.cpp:server-cuda"), 8080, "gguf", {
         "n_gpu_layers": Knob("-ngl", int, 0, 999, help="layers on GPU (999 = all)"),
         "n_cpu_moe": Knob("--n-cpu-moe", int, 0, 512, help="keep MoE experts of the first N layers in CPU RAM"),
@@ -160,24 +167,59 @@ ENGINES: dict[str, Engine] = {
         "kv_unified": Knob("--kv-unified", bool, off_flag="--no-kv-unified", help="one KV buffer shared by all slots"),
         "kv_offload": Knob("--kv-offload", bool, off_flag="--no-kv-offload", help="keep KV cache on GPU (off moves it to RAM)"),
         "cache_reuse": Knob("--cache-reuse", int, 0, 4096, help="min chunk size to reuse cached prompt via KV shifting"),
-    }, LLAMA_DOCS, help_cmd=("", ("--help",)), version_cmd=("", ("--version",))),
+    }, LLAMA_DOCS, help_cmd=("", ("--help",)), version_cmd=("", ("--version",)), image_gib=5),
 }
+
+
+PROXY_VARS = ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "no_proxy")
+CA_PATH = "/etc/ssl/atlas-ca.pem"
+
+
+def container_env() -> list[str]:
+    """GPU, network, proxy and CA options shared by trials, help checks and recipes.
+
+    ATLAS_GPUS          "all" (default), a device list like "device=0", or "none" for CPU images
+    ATLAS_DOCKER_NETWORK "bridge" (default) or "host" (needed when the proxy is on 127.0.0.1)
+    ATLAS_CA_BUNDLE      PEM file to trust inside containers (corporate TLS inspection)
+    HTTPS_PROXY etc.     passed through by name, so values never appear in recipes or logs
+    """
+    argv = []
+    gpus = os.environ.get("ATLAS_GPUS", "all")
+    if gpus != "none":
+        argv += ["--gpus", gpus]
+    if os.environ.get("ATLAS_DOCKER_NETWORK") == "host":
+        argv += ["--network", "host"]
+    for name in PROXY_VARS:
+        if os.environ.get(name):
+            argv += ["-e", name]
+    ca = os.environ.get("ATLAS_CA_BUNDLE")
+    if ca:
+        argv += ["-v", f"{Path(ca).expanduser().resolve()}:{CA_PATH}:ro"]
+        for name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+            argv += ["-e", f"{name}={CA_PATH}"]
+    return argv
 
 
 def docker_run(engine: Engine, artifact: Artifact, config: dict, context: int, *, host_port: int,
                name: str, production: bool = False, labels: dict | None = None) -> list[str]:
     """Full `docker run` argv.
 
-    Only the two model caches are mounted, never the working directory or home folder.
-    Trials bind to 127.0.0.1 only; the production recipe publishes the port and restarts.
+    Only the two model caches (and an optional CA file) are mounted, never the working
+    directory or home folder. Trials listen on 127.0.0.1 only; the production recipe
+    publishes the port and restarts automatically.
     """
     hf_cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface"))
     llama_cache = Path(os.environ.get("LLAMA_CACHE", Path.home() / ".cache/llama.cpp"))
-    publish = f"{host_port}:{engine.port}" if production else f"127.0.0.1:{host_port}:{engine.port}"
+    host_network = os.environ.get("ATLAS_DOCKER_NETWORK") == "host"
     argv = ["docker", "run", "-d", *(["--restart", "unless-stopped"] if production else []),
-            "--gpus", "all", "--ipc=host", "--security-opt", "no-new-privileges", "--name", name, "-p", publish,
+            "--ipc=host", "--security-opt", "no-new-privileges", "--name", name, *container_env(),
             "-v", f"{hf_cache}:/root/.cache/huggingface", "-v", f"{llama_cache}:/root/.cache/llama.cpp",
             "-e", "LLAMA_CACHE=/root/.cache/llama.cpp", "-e", "HF_TOKEN"]
+    if host_network:  # the engine listens on the host port itself
+        port, host = host_port, ("0.0.0.0" if production else "127.0.0.1")
+    else:
+        argv += ["-p", f"{host_port}:{engine.port}" if production else f"127.0.0.1:{host_port}:{engine.port}"]
+        port, host = engine.port, "0.0.0.0"
     for key, value in (labels or {}).items():
         argv += ["--label", f"{key}={value}"]
-    return [*argv, engine.image, *engine.args(artifact, config, context)]
+    return [*argv, engine.image, *engine.args(artifact, config, context, port=port, host=host)]

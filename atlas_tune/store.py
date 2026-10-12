@@ -95,7 +95,8 @@ class Store:
         return self._decode(self.db.execute("SELECT * FROM trials WHERE key=?", (key,)).fetchone())
 
     def put_trial(self, trial: dict) -> None:
-        self._write("trials", {"created": now(), **trial})
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(trials)")}
+        self._write("trials", {k: v for k, v in {"created": now(), **trial}.items() if k in columns})
 
     def trials(self, model: str | None = None, machine: str | None = None, run_id: str | None = None) -> list[dict]:
         clauses, args = [], []

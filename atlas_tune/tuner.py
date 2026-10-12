@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import shlex
+import statistics
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import agent, bench, hardware, models, research
+from . import agent, bench, deploy, hardware, models, research
 from .engines import ENGINES, docker_run
 from .runner import DockerRunner, EngineFailed, GpuSampler
 from .store import Store, trial_key
@@ -31,13 +32,20 @@ class Options:
     dry_run: bool = False
     vram_gib: float | None = None  # plan for a different GPU size (with --dry-run)
     rounds: int = 3                # 1 = planned trials only; more = fix failures and refine
+    confirm: int = 2               # re-measure the finalists this many more times (0 = off)
+    finalists: int = 3
     share_logs: bool = True        # send redacted log tails of failed trials to the agent LLM
     out_dir: Path = Path("atlas-out")
 
 
+DEFAULT_CONTEXT = 8192
+
+
 def _context(opts: Options) -> int:
+    """Trials run at the context length you will serve: KV memory, and so what fits and how
+    fast it is, depends on it. A recipe tuned at a smaller context can OOM in production."""
     w = bench.WORKLOADS[opts.workload]
-    return opts.context or (w.input_tokens + w.output_tokens + 512)
+    return opts.context or max(DEFAULT_CONTEXT, w.input_tokens + w.output_tokens + 512)
 
 
 def _summary_row(trial: dict, with_logs: bool = False) -> dict:
@@ -77,7 +85,13 @@ class Tuner:
                 self.allowed[name] = dict(engine.knobs)
                 self.log(f"  {name}: {engine.image} not pulled yet; flags are checked against its --help at run time")
                 continue
-            image = self.runner.image_id(engine)
+            if not self.opts.dry_run and not self.runner.has_image(engine):
+                free = self.runner.docker_free_gib()
+                if free is not None and free < engine.image_gib:
+                    self.log(f"  skip {name}: pulling {engine.image} needs about {engine.image_gib} GiB free "
+                             f"in Docker's storage, only {free:.0f} GiB left")
+                    continue
+            image = self.runner.image_id(engine, pull=not self.opts.dry_run)
             info = self.store.engine_info(image)
             if not info:
                 self.log(f"  reading {name} --help from {engine.image}")
@@ -93,6 +107,9 @@ class Tuner:
     def _fit(self, c: agent.Candidate) -> agent.Candidate | None:
         """Drop settings this image doesn't have; skip anything already tried."""
         allowed = self.allowed.get(c.engine, ENGINES[c.engine].knobs)
+        for old, new in ENGINES[c.engine].aliases:
+            if old in c.config and old not in allowed and new in allowed:
+                c.config[new] = c.config.pop(old)
         c.config = {k: v for k, v in c.config.items() if k in allowed}
         key = (c.engine, c.artifact_id, json.dumps(c.config, sort_keys=True))
         if key in self.tried:
@@ -147,6 +164,7 @@ class Tuner:
             self.log(f"  skip {skipped}: no {ENGINES[skipped].format} artifact fits this machine "
                      f"(pass --hf-repo with an AWQ/FP8 variant, or a smaller model)")
         self.inspect_engines(engines)
+        engines = [e for e in engines if e in self.allowed]
         workload = bench.WORKLOADS[o.workload]
         candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal)
         previous = [_summary_row(t) for t in self.store.trials(o.model, hardware.fingerprint(hw))]
@@ -219,6 +237,17 @@ class Tuner:
         if removed:
             self.log(f"  removed {removed} leftover atlas-tune container(s)")
         trials: list[dict] = []
+        try:
+            self._rounds(hw, artifacts, engines, candidates, trials)
+            self.confirm(trials)
+        except KeyboardInterrupt:
+            self.log("\nInterrupted: the running trial's container was removed; reporting what was measured.")
+            self.store.finish_run(self.run_id, "interrupted", {"trials": len(trials)})
+            raise
+        return self.finish(hw, trials)
+
+    def _rounds(self, hw, artifacts, engines, candidates, trials) -> None:
+        o = self.opts
         for round_no in range(1, o.rounds + 1):
             if not candidates:
                 break
@@ -238,50 +267,116 @@ class Tuner:
                 break
             if round_no < o.rounds:
                 candidates = self.next_round(hw, artifacts, engines, trials, round_no + 1)
-        return self.finish(hw, trials)
+
+    # ---------------------------------------------------------------- confirm
+    def _eligible(self, trials: list[dict]) -> list[dict]:
+        reference = max(((t.get("quality") or {}).get("passed", 0) for t in trials), default=0)
+        return [t for t in trials if t["status"] == "ok" and bench.quality_ok(t, reference)
+                and bench.score(t.get("metrics"), self.opts.goal) is not None]
+
+    def _measure(self, t: dict) -> float | None:
+        engine, art = ENGINES[t["engine"]], models.Artifact(**t["artifact"])
+        server = None
+        try:
+            server = self.runner.start(engine, art, t["config"], t["context"])
+            self.runner.wait_ready(server)
+            return bench.score(bench.load(server.base_url, server.model, bench.WORKLOADS[self.opts.workload]),
+                               self.opts.goal)
+        except Exception as error:  # noqa: BLE001 - a config that fails on relaunch is not reliable
+            self.log(f"  relaunch failed: {type(error).__name__}: {str(error)[:120]}")
+            return None
+        finally:
+            if server:
+                self.runner.stop(server)
+
+    def confirm(self, trials: list[dict]) -> None:
+        """Re-measure the finalists, interleaved (A B C, A B C) so drift hits all equally.
+        One measurement varies ~10% on the same server; the winner is chosen by the median."""
+        o = self.opts
+        finalists = sorted(self._eligible(trials), key=lambda t: -bench.score(t["metrics"], o.goal))[:o.finalists]
+        if o.confirm < 1 or len(finalists) < 2:
+            return
+        self.log(f"\nConfirming {len(finalists)} finalists, {o.confirm} more run(s) each")
+        for repeat in range(o.confirm):
+            for t in finalists:
+                if time.monotonic() > self.deadline:
+                    self.log("  time budget reached during confirmation")
+                    return
+                score = self._measure(t)
+                t["metrics"].setdefault("confirm_scores", []).append(score)
+                self.log(f"  [{t['engine']}] {json.dumps(t['config'])} run {repeat + 2}: {score}")
+                self.store.put_trial(t)
 
     def finish(self, hw: dict, trials: list[dict]) -> dict:
         o = self.opts
+        reference = max(((t.get("quality") or {}).get("passed", 0) for t in trials), default=0)
         best: dict[str, dict] = {}
-        for t in trials:
-            s = bench.score(t.get("metrics"), o.goal)
-            if t["status"] == "ok" and s is not None and s > best.get(t["engine"], {}).get("score", -1):
+        for t in self._eligible(trials):
+            s = final_score(t, o.goal)
+            if s is not None and s > best.get(t["engine"], {}).get("score", -1):
                 best[t["engine"]] = {**t, "score": s}
         for engine, t in best.items():
             self.store.put_recipe({"model": o.model, "machine": t["machine"], "engine": engine, "goal": o.goal,
                                    "workload": o.workload, "trial_key": t["key"], "score": t["score"],
                                    "launch": t["launch"]})
-        winner = max(best.values(), key=lambda t: t["score"], default=None)
+        ranked = sorted(best.values(), key=lambda t: -t["score"])
+        winner = ranked[0] if ranked else None
+        tie = None
+        if winner:
+            others = sorted((final_score(t, o.goal) or 0 for t in self._eligible(trials) if t["key"] != winner["key"]),
+                            reverse=True)
+            if others and others[0] >= winner["score"] * 0.95:
+                tie = f"runner-up is within 5% ({others[0]} vs {winner['score']}): treat as a tie"
         summary = {"run_id": self.run_id, "model": o.model, "goal": o.goal, "workload": o.workload,
                    "trials": len(trials), "best": {e: {"score": t["score"], "config": t["config"],
                                                        "artifact": t["artifact"]["id"]} for e, t in best.items()},
                    "winner": winner and {"engine": winner["engine"], "score": winner["score"],
-                                         "launch": shlex.join(winner["launch"])}}
+                                         "launch": shlex.join(winner["launch"]), "tie": tie}}
         self.store.finish_run(self.run_id, "completed", summary)
         out = o.out_dir / self.run_id
         out.mkdir(parents=True, exist_ok=True)
-        (out / "report.md").write_text(report(o, hw, trials, winner), encoding="utf-8")
+        (out / "report.md").write_text(report(o, hw, trials, winner, reference, tie), encoding="utf-8")
         if winner:
-            (out / "serve.sh").write_text("#!/usr/bin/env bash\n# " + f"{o.model} on {winner['engine']}, "
-                                          f"verified by atlas-tune run {self.run_id}\n" + shlex.join(winner["launch"]) + "\n")
-            (out / "serve.sh").chmod(0o755)
+            deploy.write_all(out, winner, self.run_id, o.model)
         summary["report"] = str(out / "report.md")
         return summary
 
 
-def report(o: Options, hw: dict, trials: list[dict], winner: dict | None) -> str:
+def final_score(t: dict, goal: str) -> float | None:
+    """Median of the first measurement and any confirmation runs; a failed relaunch disqualifies."""
+    first = bench.score(t.get("metrics"), goal)
+    runs = [first, *((t.get("metrics") or {}).get("confirm_scores") or [])]
+    if first is None or any(r is None for r in runs):
+        return None
+    return round(statistics.median(runs), 1)
+
+
+def _score_cell(t: dict, goal: str) -> str:
+    first = bench.score(t.get("metrics"), goal)
+    runs = [first, *((t.get("metrics") or {}).get("confirm_scores") or [])]
+    if first is None:
+        return "–"
+    return f"{final_score(t, goal) or 'unstable'} ({', '.join(str(r) for r in runs)})" if len(runs) > 1 else str(first)
+
+
+def report(o: Options, hw: dict, trials: list[dict], winner: dict | None, reference: int = 0,
+           tie: str | None = None) -> str:
     unit = "per-user tok/s at lowest concurrency" if o.goal == "latency" else "total output tok/s"
     gpu = hw.get("gpu") or {}
     lines = [f"# {o.model}", "", f"GPU {gpu.get('name')} ({gpu.get('vram_gib')} GiB) · goal **{o.goal}** "
              f"({unit}) · workload **{o.workload}**", "",
-             "| engine | artifact | config | status | quality | score | TTFT p50 | GPU peak | why tried |",
+             f"Quality reference: the best config answered {reference}/{len(bench.QUALITY_TASKS)} checks; "
+             "a config more than one below that cannot win (it degraded the model).", "",
+             f"Context length tested: {_context(o)} tokens (the recipe serves the same).", "",
+             "| engine | artifact | config | status | quality | score (runs) | TTFT p50 | GPU peak | why tried |",
              "| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |"]
-    for t in sorted(trials, key=lambda t: -(bench.score(t.get("metrics"), o.goal) or -1)):
+    for t in sorted(trials, key=lambda t: -(final_score(t, o.goal) or bench.score(t.get("metrics"), o.goal) or -1)):
         levels = (t.get("metrics") or {}).get("levels") or [{}]
         q = t.get("quality") or {}
         lines.append(f"| {t['engine']} | {(t.get('artifact') or {}).get('id')} | `{json.dumps(t['config'])}` | "
-                     f"{t['status']}{' (memory)' if t.get('reused') else ''} | {q.get('passed', '–')}/{q.get('total', '–')} | "
-                     f"{bench.score(t.get('metrics'), o.goal) or '–'} | {levels[0].get('ttft_p50_ms', '–')} ms | "
+                     f"{t['status']}{' (memory)' if t.get('reused') else ''} | {q.get('passed', '–')}/{q.get('total', '–')}"
+                     f"{' degraded' if t['status'] == 'ok' and not bench.quality_ok(t, reference) else ''} | "
+                     f"{_score_cell(t, o.goal)} | {levels[0].get('ttft_p50_ms', '–')} ms | "
                      f"{t.get('gpu_peak_gib') or '–'} GiB | {(t.get('hypothesis') or '').replace('|', '/')[:160]} |")
     failures = [t for t in trials if t.get("error")]
     if failures:
@@ -289,8 +384,15 @@ def report(o: Options, hw: dict, trials: list[dict], winner: dict | None) -> str
         for t in failures:
             lines.append(f"- **{t['engine']}** `{json.dumps(t['config'])}`: {t['error'][:300]}")
             lines += [f"  - related: [{i['title'][:100]}]({i['url']}) ({i['state']})" for i in t.get("related") or []]
-    lines += ["", "## Launch the winner", ""]
-    lines += (["```bash", shlex.join(winner["launch"]), "```"] if winner else ["No configuration passed every check."])
+    lines += ["", "## Deploy the winner", ""]
+    if winner:
+        if tie:
+            lines += [f"Note: {tie}. Prefer the simpler config, or re-run with `--confirm 4`.", ""]
+        lines += ["`serve.sh` (Docker on this machine), `compose.yaml` and `k8s.yaml` are next to this report. "
+                  "All pin the measured image digest and require an API key.", "",
+                  "```bash", "export API_KEY=$(openssl rand -hex 24)", "./serve.sh", "```"]
+    else:
+        lines += ["No configuration passed every check."]
     sources = sorted({s for t in trials for s in t.get("sources") or []})
     if sources:
         lines += ["", "## Sources the agent used", ""] + [f"- {s}" for s in sources]

@@ -15,6 +15,7 @@ import json
 import os
 import shlex
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -79,7 +80,8 @@ def _run(args) -> int:
                    context=args.context, budget_minutes=args.budget_minutes, max_trials=args.max_trials,
                    llm=args.llm or os.environ.get("ATLAS_LLM"), research=not args.no_research,
                    gguf_repo=args.gguf_repo, extra_hf=tuple(args.hf_repo), dry_run=args.dry_run,
-                   vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs)
+                   vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs,
+                   confirm=max(0, args.confirm))
     if not args.dry_run and not hardware.docker()["ok"]:
         print("Docker is not available; run `atlas doctor`.", file=sys.stderr)
         return 1
@@ -90,7 +92,9 @@ def _run(args) -> int:
     winner = summary.get("winner")
     if winner:
         print(f"Best: {winner['engine']} · score {winner['score']} ({args.goal})")
-        print(f"Report: {summary['report']}\nLaunch:\n  {winner['launch']}")
+        if winner.get("tie"):
+            print(f"Note: {winner['tie']}")
+        print(f"Report and deploy files: {Path(summary['report']).parent}/  (serve.sh, compose.yaml, k8s.yaml)")
     else:
         print(f"No configuration passed every check. Report: {summary['report']}")
     return 0 if winner else 2
@@ -147,12 +151,15 @@ def main(argv: list[str] | None = None) -> None:
                      help=f"comma-separated subset of {','.join(ENGINES)}")
     run.add_argument("--goal", choices=("throughput", "latency"), default="throughput")
     run.add_argument("--workload", choices=list(bench.WORKLOADS), default="chat")
-    run.add_argument("--context", type=int, help="max context per request (default: workload size)")
+    run.add_argument("--context", type=int,
+                     help="context length you will serve; trials run at it (default 8192)")
     run.add_argument("--budget-minutes", type=float, default=90)
     run.add_argument("--max-trials", type=int, default=5, help="trials per engine")
     run.add_argument("--llm", help="LiteLLM model for the agent (default: $ATLAS_LLM; none = defaults only)")
     run.add_argument("--rounds", type=int, default=3,
                      help="1 = planned trials only; each extra round fixes failures and refines (default 3)")
+    run.add_argument("--confirm", type=int, default=2,
+                     help="re-measure the top configs this many more times; winner by median (0 = off)")
     run.add_argument("--no-research", action="store_true", help="agent proposes without web/GitHub search")
     run.add_argument("--no-share-logs", action="store_true",
                      help="don't send redacted engine log tails of failed trials to the agent LLM")

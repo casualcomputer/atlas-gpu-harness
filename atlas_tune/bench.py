@@ -44,22 +44,30 @@ class Workload:
 
 
 WORKLOADS = {
+    "smoke": Workload("smoke", 64, 32, (1, 2)),       # minutes, not hours: check a setup works
     "chat": Workload("chat", 256, 256, (1, 4, 16)),
     "rag": Workload("rag", 4000, 256, (1, 4)),
     "batch": Workload("batch", 512, 512, (16, 64)),
 }
-WORKLOAD_VERSION = "v1"
+WORKLOAD_VERSION = "v2"  # bump whenever prompts, checks or scoring change: memory keys on it
 
 
 def score_answer(content: str, expected) -> bool:
+    """Correct answer, as {"answer": ...} JSON or as a bare value. Formatting is not judged:
+    the point is to catch a config that breaks the model (bad template, quantization, KV)."""
     content = re.sub(r"<think>.*?</think>", "", content or "", flags=re.DOTALL).strip()
+    content = re.sub(r"^```\w*|```$", "", content.strip()).strip()
     match = re.search(r"\{.*\}", content, re.DOTALL)
-    try:
-        value = json.loads(match.group(0) if match else content)
-    except (ValueError, TypeError):
-        return False
-    return (isinstance(value, dict) and set(value) == {"answer"}
-            and type(value["answer"]) is type(expected) and value["answer"] == expected)
+    value = content
+    if match:
+        try:
+            parsed = json.loads(match.group(0))
+            if isinstance(parsed, dict) and "answer" in parsed:
+                value = parsed["answer"]
+        except (ValueError, TypeError):
+            pass
+    text = str(value).strip().strip('"\'` .').strip()
+    return text == str(expected) or text.lower() == str(expected).lower()
 
 
 def quality(base_url: str, model: str, timeout: float = 120) -> dict:
@@ -76,7 +84,15 @@ def quality(base_url: str, model: str, timeout: float = 120) -> dict:
             except (httpx.HTTPError, ValueError, KeyError, IndexError) as error:
                 rows.append({"task": name, "passed": False, "error": f"{type(error).__name__}: {error}"[:300]})
     passed = sum(r["passed"] for r in rows)
-    return {"passed": passed, "total": len(rows), "pass": passed == len(rows), "tasks": rows}
+    # "pass" here only means the server answers sensibly at all. Whether a config degraded the
+    # model is judged against the best config of the same model (see quality_ok).
+    return {"passed": passed, "total": len(rows), "pass": passed >= 2, "tasks": rows}
+
+
+def quality_ok(trial: dict, reference_passed: int, tolerance: int = 1) -> bool:
+    """A config may win only if it answers about as well as the best config of this model."""
+    q = trial.get("quality") or {}
+    return bool(q.get("pass")) and q.get("passed", 0) >= reference_passed - tolerance
 
 
 def _prompt(tokens: int, seed: int) -> str:
@@ -89,6 +105,16 @@ def _prompt(tokens: int, seed: int) -> str:
 
 
 async def _one(client: httpx.AsyncClient, url: str, model: str, prompt: str, max_tokens: int) -> dict:
+    """One streamed request. A transport error before any byte arrives is retried once and
+    counted: that is the client/network, not the engine. Errors after streaming starts count."""
+    result = await _attempt(client, url, model, prompt, max_tokens)
+    if not result["ok"] and result.get("before_first_byte"):
+        result = await _attempt(client, url, model, prompt, max_tokens)
+        result["retried"] = True
+    return result
+
+
+async def _attempt(client: httpx.AsyncClient, url: str, model: str, prompt: str, max_tokens: int) -> dict:
     body = {"model": model, "temperature": 0.7, "max_tokens": max_tokens, "stream": True,
             "stream_options": {"include_usage": True}, **NO_THINK,
             "messages": [{"role": "user", "content": prompt}]}
@@ -111,7 +137,9 @@ async def _one(client: httpx.AsyncClient, url: str, model: str, prompt: str, max
                         chunks += 1
                         first = first or time.perf_counter()
     except (httpx.HTTPError, ValueError) as error:
-        return {"ok": False, "error": f"{type(error).__name__}: {error}"[:200]}
+        transport = isinstance(error, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError))
+        return {"ok": False, "error": f"{type(error).__name__}: {error}"[:200],
+                "before_first_byte": transport and first is None}
     end = time.perf_counter()
     tokens = usage_tokens or chunks
     if not first or tokens < 2:
@@ -129,7 +157,9 @@ async def _level(base_url: str, model: str, workload: Workload, level: int, time
     url = base_url + "/v1/chat/completions"
     count = workload.requests_at(level)
     gate = asyncio.Semaphore(level)
-    limits = httpx.Limits(max_connections=level, max_keepalive_connections=level)
+    # No connection reuse: with queued requests, reusing a keep-alive connection the server is
+    # closing made ~10% of requests fail against real llama.cpp. Localhost connects are cheap.
+    limits = httpx.Limits(max_connections=level, max_keepalive_connections=0)
     async with httpx.AsyncClient(timeout=timeout, limits=limits, trust_env=False) as client:
         async def run(i):
             async with gate:
@@ -149,6 +179,7 @@ async def _level(base_url: str, model: str, workload: Workload, level: int, time
             "ttft_p50_ms": round(statistics.median(ttft) * 1000), "ttft_p99_ms": round(_pct(ttft, 0.99) * 1000),
             "tpot_p50_ms": round(statistics.median(tpot) * 1000, 1),
             "per_user_tok_s": round(1 / statistics.median(tpot), 1),
+            "retries": sum(1 for r in results if r.get("retried")),
             "errors": [r["error"] for r in results if not r["ok"]][:3]}
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 import socket
 import subprocess
 import threading
@@ -70,15 +72,26 @@ class DockerRunner:
         return subprocess.run(["docker", *args], capture_output=True, text=True, timeout=timeout,
                               check=check).stdout.strip()
 
-    def image_id(self, engine: Engine) -> str:
+    def image_id(self, engine: Engine, pull: bool = True) -> str:
         """Pull once per run and return the immutable digest, so memory keys on the exact version."""
         if engine.image not in self._pulled:
-            self.log(f"  pulling {engine.image} (first time can take several minutes)")
-            self._docker("pull", "-q", engine.image, timeout=3600)
+            if pull:
+                self.log(f"  pulling {engine.image} (first time can take several minutes)")
+                self._docker("pull", "-q", engine.image, timeout=3600)
             digest = self._docker("image", "inspect", "--format",
                                   "{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}", engine.image)
             self._pulled[engine.image] = digest
         return self._pulled[engine.image]
+
+    def docker_free_gib(self) -> float | None:
+        """Free space where Docker keeps images (None if unknown)."""
+        import shutil
+
+        try:
+            root = self._docker("info", "--format", "{{.DockerRootDir}}", timeout=15)
+            return shutil.disk_usage(root).free / 2**30
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None  # e.g. Docker Desktop's VM disk is not visible from the host
 
     def has_image(self, engine: Engine) -> bool:
         try:
@@ -90,7 +103,8 @@ class DockerRunner:
     def _inside(self, engine: Engine, command: tuple, timeout: int = 300) -> str:
         """Run a read-only command in the engine image: no network, removed afterwards."""
         entrypoint, args = command
-        argv = ["docker", "run", "--rm", "--network", "none", "--gpus", "all",
+        gpus = os.environ.get("ATLAS_GPUS", "all")
+        argv = ["docker", "run", "--rm", "--network", "none", *(["--gpus", gpus] if gpus != "none" else []),
                 *(["--entrypoint", entrypoint] if entrypoint else []), engine.image, *args]
         result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
         return (result.stdout + "\n" + result.stderr).strip()
@@ -100,8 +114,11 @@ class DockerRunner:
         help_text = self._inside(engine, engine.help_cmd)
         if engine.name == "vllm" and "--max-num-seqs" not in help_text:  # older vLLM: no --help=all
             help_text = self._inside(engine, ("vllm", ("serve", "--help")))
-        version = self._inside(engine, engine.version_cmd, timeout=120).splitlines()
-        return {"version": (version[-1] if version else "unknown")[:200], "help": help_text[-200_000:]}
+        lines = [ln.strip() for ln in self._inside(engine, engine.version_cmd, timeout=120).splitlines() if ln.strip()]
+        named = [ln for ln in lines if "version" in ln.lower()]
+        bare = [ln for ln in lines if re.fullmatch(r"v?\d+(\.\d+)+\S*", ln)]  # vllm/sglang print just "0.11.0"
+        version = (named or bare or lines or ["unknown"])[-1]
+        return {"version": version[:200], "help": help_text[-200_000:]}
 
     def start(self, engine: Engine, artifact: Artifact, config: dict, context: int) -> Server:
         port, name = free_port(), f"{LABEL}-{engine.name}-{uuid.uuid4().hex[:8]}"

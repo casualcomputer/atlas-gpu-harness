@@ -76,11 +76,14 @@ class FakeRunner:
     def __init__(self):
         self.started, self.servers, self.described = [], {}, 0
 
-    def image_id(self, engine):
+    def image_id(self, engine, pull=True):
         return f"{engine.image}@sha256:test"
 
     def has_image(self, engine):
         return True
+
+    def docker_free_gib(self):
+        return 500.0
 
     def describe(self, engine):
         self.described += 1
@@ -145,13 +148,25 @@ class TunerTests(unittest.TestCase):
         recipe = self.store.recipes("org/m")[0]
         self.assertEqual(recipe["engine"], "vllm")
         report = Path(summary["report"]).read_text()
-        self.assertIn("Launch the winner", report)
-        self.assertTrue((Path(summary["report"]).parent / "serve.sh").exists())
+        self.assertIn("Deploy the winner", report)
+        self.assertIn("(runs)", report)
+        out = Path(summary["report"]).parent
+        serve = (out / "serve.sh").read_text()
+        self.assertIn('--api-key "$API_KEY"', serve)
+        self.assertIn("@sha256:test", serve)                     # pinned to the measured image digest
+        import yaml
+        compose = yaml.safe_load((out / "compose.yaml").read_text())
+        self.assertIn("--kv-cache-dtype", compose["services"]["llm"]["command"])
+        docs = list(yaml.safe_load_all((out / "k8s.yaml").read_text()))
+        container = docs[0]["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["args"][-2:], ["--api-key", "$(API_KEY)"])
+        self.assertEqual(container["startupProbe"]["httpGet"]["path"], "/health")
+        self.assertEqual(docs[1]["kind"], "Service")
 
     def test_second_run_reuses_memory_instead_of_relaunching(self):
-        self._run(FakeRunner(), rounds=1)
+        self._run(FakeRunner(), rounds=1, confirm=0)
         runner = FakeRunner()
-        summary = self._run(runner, rounds=1)
+        summary = self._run(runner, rounds=1, confirm=0)
         self.assertEqual(runner.started, [])
         self.assertEqual(summary["winner"]["engine"], "vllm")
 
@@ -230,6 +245,15 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             vllm.validate({"kv_cache_dtype": "int2"})
         self.assertEqual(vllm.validate({"max_num_seqs": "32"}), {"max_num_seqs": 32})
+
+    def test_renamed_flag_is_mapped_to_the_images_new_name(self):
+        from atlas_tune.tuner import Options, Tuner
+        tuner_ = Tuner(Options(model="m"), store=mock.Mock(), runner=mock.Mock(), log=lambda *_: None)
+        sglang = engines.ENGINES["sglang"]
+        newer_help = "--mem-fraction-static F\n--cuda-graph-max-bs-decode N\n"
+        tuner_.allowed["sglang"] = sglang.supported(newer_help)
+        c = tuner_._fit(agent.Candidate("sglang", "hf:x", {"mem_fraction_static": 0.85, "cuda_graph_max_bs": 32}))
+        self.assertEqual(c.config, {"mem_fraction_static": 0.85, "cuda_graph_max_bs_decode": 32})
 
     def test_llamacpp_context_scales_with_slots(self):
         art = models.Artifact("gguf:r:Q4_K_M", "gguf", "r", 5, quant="Q4_K_M")
@@ -321,9 +345,20 @@ class ResearchSafetyTests(unittest.TestCase):
 
 
 class BenchTests(unittest.TestCase):
-    def test_score_answer_tolerates_think_blocks_and_fences(self):
+    def test_score_answer_judges_correctness_not_format(self):
         self.assertTrue(bench.score_answer('<think>hmm</think>```json\n{"answer": 95}\n```', 95))
-        self.assertFalse(bench.score_answer('{"answer": "95"}', 95))
+        self.assertTrue(bench.score_answer('{"answer": "95"}', 95))
+        self.assertTrue(bench.score_answer("Oslo", "Oslo"))          # real llama.cpp output that was wrongly failed
+        self.assertTrue(bench.score_answer("AX-204.", "AX-204"))
+        self.assertFalse(bench.score_answer("195", 95))               # real wrong answer from a 0.5B model
+        self.assertFalse(bench.score_answer('{"answer": 94}', 84))
+
+    def test_quality_is_judged_against_the_best_config(self):
+        good = {"quality": {"pass": True, "passed": 6}}
+        worse = {"quality": {"pass": True, "passed": 4}}
+        self.assertTrue(bench.quality_ok(good, reference_passed=6))
+        self.assertTrue(bench.quality_ok({"quality": {"pass": True, "passed": 5}}, reference_passed=6))
+        self.assertFalse(bench.quality_ok(worse, reference_passed=6))
 
     def test_score_ignores_levels_with_failed_requests(self):
         metrics = {"levels": [{"concurrency": 1, "requests": 8, "ok": 8, "output_tok_s": 50, "per_user_tok_s": 50},

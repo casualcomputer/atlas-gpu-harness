@@ -213,7 +213,7 @@ wheels = [
 
 [[package]]
 name = "atlas-tune"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -231,6 +231,7 @@ atlas = [
 [package.dev-dependencies]
 dev = [
     { name = "pymongo" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -245,7 +246,10 @@ requires-dist = [
 provides-extras = ["atlas"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pymongo", specifier = ">=4.10,<5" }]
+dev = [
+    { name = "pymongo", specifier = ">=4.10,<5" },
+    { name = "pyyaml", specifier = ">=6" },
+]
 
 [[package]]
 name = "attrs"

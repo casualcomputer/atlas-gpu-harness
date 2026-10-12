@@ -1,6 +1,6 @@
 [project]
 name = "atlas-tune"
-version = "0.4.0"
+version = "0.5.0"
 description = "Pick a model; atlas tries vLLM, SGLang and llama.cpp on your GPU and keeps the fastest verified serving config."
 readme = "README.md"
 license = "MIT"
@@ -22,7 +22,7 @@ atlas = ["pymongo>=4.10,<5"]
 atlas = "atlas_tune.cli:main"
 
 [dependency-groups]
-dev = ["pymongo>=4.10,<5"]
+dev = ["pymongo>=4.10,<5", "pyyaml>=6"]
 
 [build-system]
 requires = ["hatchling>=1.25"]
