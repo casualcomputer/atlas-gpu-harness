@@ -4,6 +4,8 @@
 
 **[▶ Agent console (replays recorded Atlas runs)](demo-ui/app.html)** · [Overview site](demo-ui/index.html) · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
+**Agent console:** [watch the Kimi run replay (18 s)](docs/screenshots/agent-console-kimi.mp4) — agent decisions, real engine runs and Atlas writes, stepped from the recorded trace.
+
 ![Scrolling through the demo site](docs/screenshots/demo-scroll.gif)
 
 <sub>Full-resolution scroll recording: [demo-scroll.mp4](docs/screenshots/demo-scroll.mp4)</sub>
