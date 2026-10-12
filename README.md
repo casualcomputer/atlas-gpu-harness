@@ -4,6 +4,8 @@
 
 **[▶ Live demo](demo-ui/index.html)** · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
+*The recordings and screenshots below show the earlier Kimi and Strata policy demos; the live page includes the newer engine comparison above.*
+
 ![Scrolling through the demo site](docs/screenshots/demo-scroll.gif)
 
 <sub>Full-resolution scroll recording: [demo-scroll.mp4](docs/screenshots/demo-scroll.mp4)</sub>
@@ -20,12 +22,33 @@
 
 | | |
 | --- | --- |
-| **Headline result** | **Kimi-Linear-48B-A3B, a 30.06 GB model, served on a 16 GB RTX 5070 Ti.** Every tuning trial passed 12/12 answer checks; the selected configuration passed 4/4 unseen confirmation questions. |
+| **Latest measured comparison** | **Qwen3.8-Flash-Next at 32K input: llama.cpp 18.22 tok/s, Strata 107.77 tok/s — 5.92× observed generation throughput.** One request per engine, same weights and input, reasoning off. Different runtime optimizations; not a harness-generated policy gain. |
+| **Earlier Kimi result** | A 30.06 GB model served on a 16 GB RTX 5070 Ti. Every tuning trial passed 12/12 checks; the selected engine default passed 4/4 unseen confirmation questions. |
 | **Agent behaviour** | The coding agent read its own failure from Atlas and rewrote its policy (+30.73% over its first attempt). That was still 36.94% slower than the engine default, so the harness kept the default. |
 | **Honesty gate** | On Qwen3.5-35B-A3B, a +3.56% / +1.92% "speedup" missed the 5% confirmation rule and was rejected. **No unproven speedup is ever promoted.** |
 | **Durability** | Resuming a finished run returns its saved recipe from Atlas in 7.80 s without re-running anything; the saved recipe relaunches and serves correct answers. |
 
-## 32K Strata policy demo
+## Latest: llama.cpp versus Strata at 32K
+
+Same Qwen3.8-Flash-Next IQ2_XS files and 32,768 input token IDs, native Windows, RTX 5070 Ti 16 GB, i7-14700F and 64 GB RAM. Reasoning disabled; one request per engine.
+
+| Metric | llama.cpp b11429 | Strata v0.1.43 |
+| --- | ---: | ---: |
+| Generation, tokens/s | **18.22** | **107.77** |
+| Prompt processing, tokens/s | 146.13 | 2,814.73 |
+| First token, seconds | 224.30 | 11.66 |
+| Request time excluding loading, seconds | 244.01 | 14.90 |
+| Document retrieval | 8/8 correct | 8/8 correct |
+
+**5.92× observed decode throughput in this run.** Both engines completed inference and retrieved every final document value, but both reported 413 for a separate arithmetic total whose correct value is 503. These are fictional service values in a synthetic document, not engine settings.
+
+Strata used MTP4 and reported route-tail expert skipping; llama.cpp had no draft head. Kernels and cache formats differ. The first measured long request after a short warmup may include startup/cache effects. This is a descriptive runtime comparison, not a repeatability claim, proof of equivalent output quality or a generated-policy improvement.
+
+[Comparison GUI](demo-ui/index.html#comparison) · [Verified measurements](evidence/engine-comparison/summary.json) · [Atlas records and raw answers](evidence/engine-comparison/latest.json) · [Reproduction runner](scripts/quick_engine_comparison.py)
+
+**Atlas inventory:** 61 experiment records and 61 decisions across 14 runs, including one superseded run and one failed preflight. Of these, 58 records belong to 13 runs marked completed; that status includes the preflight and does not mean every trial passed. [Read-back count audit](evidence/engine-comparison/atlas-counts.json).
+
+## Earlier 32K Strata policy sweep
 
 On the same RTX 5070 Ti, native Strata runs Qwen3.8-Flash-Next at **32,768 input tokens** across five documented CPU, cache, and PCIe policies. Adaptive caching was 6.2% faster than default, but every trial failed the arithmetic check, so nothing was promoted. Atlas holds the answers and timings; the UI reads them back. [Protocol and measured results](STRATA_EXPERIMENT.md).
 
@@ -101,7 +124,7 @@ RTX 5070 Ti (16,303 MiB), i7-14700F, WSL with ~48 GiB RAM, llama.cpp b11429. Ful
 
 **Qwen3.5-35B-A3B UD-IQ2_M, 11.39 GB** — run `b88ec5bd…` ([Atlas export](evidence/inference/b88ec5bd304443a3add2b2fa767e2450.json)): seven trials, all answers passed; candidate confirmation gains of +3.56% and +1.92% missed the 5% rule, so the default was kept.
 
-Limits: short exact-answer tasks, not a production throughput or general-quality benchmark; GPU memory is sampled, not allocator-enforced; one machine. No speedup over llama.cpp is claimed.
+Limits of the earlier Kimi and Qwen3.5 trials: short exact-answer tasks, not a production throughput or general-quality benchmark; GPU memory is sampled, not allocator-enforced; one machine. No generated-policy speedup over llama.cpp was validated in those trials. The separate Qwen3.8 engine comparison is reported above.
 
 ## Inference engines
 

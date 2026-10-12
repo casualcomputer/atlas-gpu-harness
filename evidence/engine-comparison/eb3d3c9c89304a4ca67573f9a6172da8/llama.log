@@ -1,0 +1,10 @@
+0.00.002.752 I srv  llama_server: initializing ...
+0.00.194.784 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.195.095 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.211.569 I srv    load_model: loading model 'C:\Users\henry\Documents\ChatGPT\gpu-engineer-agent\artifacts\Strata-data\models\IQ2_XS\Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf'
+0.04.731.389 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+0.16.255.912 I cmn          init: llama threadpool init, n_threads = 13
+0.40.832.778 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 33792, kv_unified = 'false'
+0.40.840.602 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.40.840.642 I srv  llama_server: model loaded
+0.40.840.647 I srv  llama_server: listening on http://127.0.0.1:8977

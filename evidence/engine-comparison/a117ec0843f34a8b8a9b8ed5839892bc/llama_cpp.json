@@ -1,0 +1,2241 @@
+{
+  "engine": "llama.cpp",
+  "policy": "engine_autofit",
+  "command": [
+    "C:\\Users\\henry\\Documents\\ChatGPT\\gpu-engineer-agent\\artifacts\\engines\\llama-b11429-windows\\llama-server.exe",
+    "-m",
+    "C:\\Users\\henry\\Documents\\ChatGPT\\gpu-engineer-agent\\artifacts\\Strata-data\\models\\IQ2_XS\\Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+    "-c",
+    "33792",
+    "--fit-ctx",
+    "33792",
+    "--parallel",
+    "1",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8977",
+    "-t",
+    "13",
+    "-tb",
+    "13",
+    "--reasoning",
+    "off",
+    "--reasoning-budget",
+    "0",
+    "--flash-attn",
+    "on",
+    "-ctk",
+    "q8_0",
+    "-ctv",
+    "q8_0",
+    "--load-mode",
+    "mmap",
+    "--lazy-mode",
+    "on",
+    "--no-warmup"
+  ],
+  "prompt_tokens": 32768,
+  "correct": false,
+  "speculative_decoding": false,
+  "engine_success": true,
+  "load_seconds": 12.560463000001619,
+  "tokenizer_match": true,
+  "tokenizer_check": "Identical saved token IDs decode to identical text in both engines; re-encoding concatenated token sections can merge boundaries",
+  "warmup": {
+    "cache_n": 0,
+    "prompt_n": 15,
+    "prompt_ms": 66560.073,
+    "prompt_per_token_ms": 4437.3382,
+    "prompt_per_second": 0.2253603297580518,
+    "predicted_n": 3,
+    "predicted_ms": 205.787,
+    "predicted_per_token_ms": 102.8935,
+    "predicted_per_second": 9.718786901019014
+  },
+  "request_seconds": 244.01109310000174,
+  "first_token_seconds": 224.30139560000316,
+  "answer_text": "{\n  \"settings\": {\n    \"service_1b38c3\": 84,\n    \"service_ba6749\": 85,\n    \"service_326b44\": 24,\n    \"service_c7f830\": 27,\n    \"service_3e320d\": 86,\n    \"service_aa4d9a\": 70,\n    \"service_4c53fa\": 39,\n    \"service_321efc\": 88\n  },\n  \"total\": 413,\n  \"review\": \"The resolution process involved scanning the entire document for DEPLOY_SETTING entries, treating them as authoritative configuration values. For services with multiple entries, the last occurrence in the document order was selected, as per the rule that later entries supersede earlier ones. Specifically, service_ba6749 was initially set to 78 but was amended to 85 later in the log. Similarly, service_aa4d9a was initially set to 63 but was amended to 70. The other services had single entries, so their values remained unchanged. The total sum of these final authoritative integers is 413. To validate this deployment, an operator should verify that the runtime configuration matches these final values. It is critical to ensure that the amendment logic is correctly implemented in the deployment pipeline, as ignoring the later entries would result in incorrect service behavior. Operators should also check for any hidden or malformed entries that might disrupt the parsing order, ensuring that the 'last entry wins' rule is strictly enforced during the build or deployment phase.\"\n}",
+  "telemetry": {
+    "index": 0,
+    "content": "",
+    "tokens": [],
+    "id_slot": 0,
+    "stop": true,
+    "model": "C:\\Users\\henry\\Documents\\ChatGPT\\gpu-engineer-agent\\artifacts\\Strata-data\\models\\IQ2_XS\\Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+    "tokens_predicted": 360,
+    "tokens_evaluated": 32768,
+    "generation_settings": {
+      "seed": 20293779,
+      "temperature": 0.0,
+      "dynatemp_range": 0.0,
+      "dynatemp_exponent": 1.0,
+      "top_k": 20,
+      "top_p": 0.949999988079071,
+      "min_p": 0.05000000074505806,
+      "top_n_sigma": -1.0,
+      "xtc_probability": 0.0,
+      "xtc_threshold": 0.10000000149011612,
+      "typical_p": 1.0,
+      "repeat_last_n": 64,
+      "repeat_penalty": 1.0,
+      "presence_penalty": 0.0,
+      "frequency_penalty": 0.0,
+      "dry_multiplier": 0.0,
+      "dry_base": 1.75,
+      "dry_allowed_length": 2,
+      "dry_penalty_last_n": 64,
+      "dry_sequence_breakers": [
+        "\n",
+        ":",
+        "\"",
+        "*"
+      ],
+      "mirostat": 0,
+      "mirostat_tau": 5.0,
+      "mirostat_eta": 0.10000000149011612,
+      "adaptive_target": -1.0,
+      "adaptive_decay": 0.8999999761581421,
+      "stop": [],
+      "max_tokens": 768,
+      "n_predict": 768,
+      "n_keep": 0,
+      "n_discard": 0,
+      "ignore_eos": false,
+      "stream": true,
+      "logit_bias": [],
+      "n_probs": 0,
+      "min_keep": 0,
+      "grammar": "",
+      "grammar_lazy": false,
+      "grammar_triggers": [],
+      "preserved_tokens": [],
+      "chat_format": "Content-only",
+      "reasoning_format": "deepseek",
+      "reasoning_in_content": false,
+      "generation_prompt": "",
+      "samplers": [
+        "penalties",
+        "dry",
+        "top_n_sigma",
+        "top_k",
+        "typ_p",
+        "top_p",
+        "min_p",
+        "xtc",
+        "temperature"
+      ],
+      "speculative.types": "none",
+      "timings_per_token": false,
+      "post_sampling_probs": false,
+      "backend_sampling": false,
+      "lora": []
+    },
+    "prompt": "<|im_start|>user\nReview this generated deployment repository and its change log. DEPLOY_SETTING entries are authoritative; a later entry for the same service supersedes an earlier one. Other code is background material. Read the entire document.\nDOCUMENT START\n# module 0: deployment telemetry\ndef probe_0(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 1: deployment telemetry\ndef probe_1(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 2: deployment telemetry\ndef probe_2(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 3: deployment telemetry\ndef probe_3(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 4: deployment telemetry\ndef probe_4(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 5: deployment telemetry\ndef probe_5(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 6: deployment telemetry\ndef probe_6(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 7: deployment telemetry\ndef probe_7(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 8: deployment telemetry\ndef probe_8(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 9: deployment telemetry\ndef probe_9(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 10: deployment telemetry\ndef probe_10(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 11: deployment telemetry\ndef probe_11(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 12: deployment telemetry\ndef probe_12(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 13: deployment telemetry\ndef probe_13(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 14: deployment telemetry\ndef probe_14(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 15: deployment telemetry\ndef probe_15(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 16: deployment telemetry\ndef probe_16(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 17: deployment telemetry\ndef probe_17(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 18: deployment telemetry\ndef probe_18(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 19: deployment telemetry\ndef probe_19(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 20: deployment telemetry\ndef probe_20(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 21: deployment telemetry\ndef probe_21(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 22: deployment telemetry\ndef probe_22(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 23: deployment telemetry\ndef probe_23(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 24: deployment telemetry\ndef probe_24(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 25: deployment telemetry\ndef probe_25(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 26: deployment telemetry\ndef probe_26(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 27: deployment telemetry\ndef probe_27(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 28: deployment telemetry\ndef probe_28(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 29: deployment telemetry\ndef probe_29(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 30: deployment telemetry\ndef probe_30(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 31: deployment telemetry\ndef probe_31(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 32: deployment telemetry\ndef probe_32(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 33: deployment telemetry\ndef probe_33(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 34: deployment telemetry\ndef probe_34(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 35: deployment telemetry\ndef probe_35(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 36: deployment telemetry\ndef probe_36(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 37: deployment telemetry\ndef probe_37(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 38: deployment telemetry\ndef probe_38(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 39: deployment telemetry\ndef probe_39(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 40: deployment telemetry\ndef probe_40(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 41: deployment telemetry\ndef probe_41(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 42: deployment telemetry\ndef probe_42(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 43: deployment telemetry\ndef probe_43(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 44: deployment telemetry\ndef probe_44(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 45: deployment telemetry\ndef probe_45(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 46: deployment telemetry\ndef probe_46(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 47: deployment telemetry\ndef probe_47(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 48: deployment telemetry\ndef probe_48(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 49: deployment telemetry\ndef probe_49(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 50: deployment telemetry\ndef probe_50(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 51: deployment telemetry\ndef probe_51(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 52: deployment telemetry\ndef probe_52(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 53: deployment telemetry\ndef probe_53(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 54: deployment telemetry\ndef probe_54(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 55: deployment telemetry\ndef probe_55(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 56: deployment telemetry\ndef probe_56(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 57: deployment telemetry\ndef probe_57(samples):\n    return sum(samples[-70:]) / max(1, len(samples))\n\n# module 58: deployment telemetry\ndef probe_58(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 59: deployment telemetry\ndef probe_59(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 60: deployment telemetry\ndef probe_60(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 61: deployment telemetry\ndef probe_61(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 62: deployment telemetry\ndef probe_62(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 63: deployment telemetry\ndef probe_63(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 64: deployment telemetry\ndef probe_64(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 65: deployment telemetry\ndef probe_65(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 66: deployment telemetry\ndef probe_66(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 67: deployment telemetry\ndef probe_67(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 68: deployment telemetry\ndef probe_68(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 69: deployment telemetry\ndef probe_69(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 70: deployment telemetry\ndef probe_70(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 71: deployment telemetry\ndef probe_71(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 72: deployment telemetry\ndef probe_72(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 73: deployment telemetry\ndef probe_73(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 74: deployment telemetry\ndef probe_74(samples):\n    return sum(samples[-47:]) / max(1, len(samples))\n\n# module 75: deployment telemetry\ndef probe_75(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 76: deployment telemetry\ndef probe_76(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 77: deployment telemetry\ndef probe_77(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 78: deployment telemetry\ndef probe_78(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 79: deployment telemetry\ndef probe_79(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 80: deployment telemetry\ndef probe_80(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 81: deployment telemetry\ndef probe_81(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 82: deployment telemetry\ndef probe_82(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 83: deployment telemetry\ndef probe_83(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 84: deployment telemetry\ndef probe_84(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 85: deployment telemetry\ndef probe_85(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 86: deployment telemetry\ndef probe_86(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 87: deployment telemetry\n\nDEPLOY_SETTING service_1b38c3 = 84\ndef probe_87(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 88: deployment telemetry\ndef probe_88(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 89: deployment telemetry\ndef probe_89(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 90: deployment telemetry\ndef probe_90(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 91: deployment telemetry\ndef probe_91(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 92: deployment telemetry\ndef probe_92(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 93: deployment telemetry\ndef probe_93(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 94: deployment telemetry\ndef probe_94(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 95: deployment telemetry\ndef probe_95(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 96: deployment telemetry\ndef probe_96(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 97: deployment telemetry\ndef probe_97(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 98: deployment telemetry\ndef probe_98(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 99: deployment telemetry\ndef probe_99(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 100: deployment telemetry\ndef probe_100(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 101: deployment telemetry\ndef probe_101(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 102: deployment telemetry\ndef probe_102(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 103: deployment telemetry\ndef probe_103(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 104: deployment telemetry\ndef probe_104(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 105: deployment telemetry\ndef probe_105(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 106: deployment telemetry\ndef probe_106(samples):\n    return sum(samples[-47:]) / max(1, len(samples))\n\n# module 107: deployment telemetry\ndef probe_107(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 108: deployment telemetry\ndef probe_108(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 109: deployment telemetry\ndef probe_109(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 110: deployment telemetry\ndef probe_110(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 111: deployment telemetry\ndef probe_111(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 112: deployment telemetry\ndef probe_112(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 113: deployment telemetry\ndef probe_113(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 114: deployment telemetry\ndef probe_114(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 115: deployment telemetry\ndef probe_115(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 116: deployment telemetry\ndef probe_116(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 117: deployment telemetry\ndef probe_117(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 118: deployment telemetry\ndef probe_118(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 119: deployment telemetry\ndef probe_119(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 120: deployment telemetry\ndef probe_120(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 121: deployment telemetry\ndef probe_121(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 122: deployment telemetry\ndef probe_122(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 123: deployment telemetry\ndef probe_123(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 124: deployment telemetry\ndef probe_124(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 125: deployment telemetry\ndef probe_125(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 126: deployment telemetry\ndef probe_126(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 127: deployment telemetry\ndef probe_127(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 128: deployment telemetry\ndef probe_128(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 129: deployment telemetry\ndef probe_129(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 130: deployment telemetry\ndef probe_130(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 131: deployment telemetry\ndef probe_131(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 132: deployment telemetry\ndef probe_132(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 133: deployment telemetry\ndef probe_133(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 134: deployment telemetry\ndef probe_134(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 135: deployment telemetry\ndef probe_135(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 136: deployment telemetry\ndef probe_136(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 137: deployment telemetry\ndef probe_137(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 138: deployment telemetry\ndef probe_138(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 139: deployment telemetry\ndef probe_139(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 140: deployment telemetry\ndef probe_140(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 141: deployment telemetry\ndef probe_141(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 142: deployment telemetry\ndef probe_142(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 143: deployment telemetry\ndef probe_143(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 144: deployment telemetry\ndef probe_144(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 145: deployment telemetry\ndef probe_145(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 146: deployment telemetry\ndef probe_146(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 147: deployment telemetry\ndef probe_147(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 148: deployment telemetry\ndef probe_148(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 149: deployment telemetry\ndef probe_149(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 150: deployment telemetry\ndef probe_150(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 151: deployment telemetry\ndef probe_151(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 152: deployment telemetry\ndef probe_152(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 153: deployment telemetry\ndef probe_153(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 154: deployment telemetry\ndef probe_154(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 155: deployment telemetry\ndef probe_155(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 156: deployment telemetry\ndef probe_156(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 157: deployment telemetry\ndef probe_157(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 158: deployment telemetry\ndef probe_158(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 159: deployment telemetry\ndef probe_159(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 160: deployment telemetry\ndef probe_160(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 161: deployment telemetry\ndef probe_161(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 162: deployment telemetry\ndef probe_162(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 163: deployment telemetry\ndef probe_163(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 164: deployment telemetry\ndef probe_164(samples):\n    return sum(samples[-59:]) / max(1, len(samples))\n\n# module 165: deployment telemetry\ndef probe_165(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 166: deployment telemetry\ndef probe_166(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 167: deployment telemetry\ndef probe_167(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 168: deployment telemetry\ndef probe_168(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 169: deployment telemetry\ndef probe_169(samples):\n    return sum(samples[-95:]) /\nDEPLOY_SETTING service_ba6749 = 78\n max(1, len(samples))\n\n# module 170: deployment telemetry\ndef probe_170(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 171: deployment telemetry\ndef probe_171(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 172: deployment telemetry\ndef probe_172(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 173: deployment telemetry\ndef probe_173(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 174: deployment telemetry\ndef probe_174(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 175: deployment telemetry\ndef probe_175(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 176: deployment telemetry\ndef probe_176(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 177: deployment telemetry\ndef probe_177(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 178: deployment telemetry\ndef probe_178(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 179: deployment telemetry\ndef probe_179(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 180: deployment telemetry\ndef probe_180(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 181: deployment telemetry\ndef probe_181(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 182: deployment telemetry\ndef probe_182(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 183: deployment telemetry\ndef probe_183(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 184: deployment telemetry\ndef probe_184(samples):\n    return sum(samples[-50:]) / max(1, len(samples))\n\n# module 185: deployment telemetry\ndef probe_185(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 186: deployment telemetry\ndef probe_186(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 187: deployment telemetry\ndef probe_187(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 188: deployment telemetry\ndef probe_188(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 189: deployment telemetry\ndef probe_189(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 190: deployment telemetry\ndef probe_190(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 191: deployment telemetry\ndef probe_191(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 192: deployment telemetry\ndef probe_192(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 193: deployment telemetry\ndef probe_193(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 194: deployment telemetry\ndef probe_194(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 195: deployment telemetry\ndef probe_195(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 196: deployment telemetry\ndef probe_196(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 197: deployment telemetry\ndef probe_197(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 198: deployment telemetry\ndef probe_198(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 199: deployment telemetry\ndef probe_199(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 200: deployment telemetry\ndef probe_200(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 201: deployment telemetry\ndef probe_201(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 202: deployment telemetry\ndef probe_202(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 203: deployment telemetry\ndef probe_203(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 204: deployment telemetry\ndef probe_204(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 205: deployment telemetry\ndef probe_205(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 206: deployment telemetry\ndef probe_206(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 207: deployment telemetry\ndef probe_207(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 208: deployment telemetry\ndef probe_208(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 209: deployment telemetry\ndef probe_209(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 210: deployment telemetry\ndef probe_210(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 211: deployment telemetry\ndef probe_211(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 212: deployment telemetry\ndef probe_212(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 213: deployment telemetry\ndef probe_213(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 214: deployment telemetry\ndef probe_214(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 215: deployment telemetry\ndef probe_215(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 216: deployment telemetry\ndef probe_216(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 217: deployment telemetry\ndef probe_217(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 218: deployment telemetry\ndef probe_218(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 219: deployment telemetry\ndef probe_219(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 220: deployment telemetry\ndef probe_220(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 221: deployment telemetry\ndef probe_221(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 222: deployment telemetry\ndef probe_222(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 223: deployment telemetry\ndef probe_223(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 224: deployment telemetry\ndef probe_224(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 225: deployment telemetry\ndef probe_225(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 226: deployment telemetry\ndef probe_226(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 227: deployment telemetry\ndef probe_227(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 228: deployment telemetry\ndef probe_228(samples):\n    return sum(samples[-59:]) / max(1, len(samples))\n\n# module 229: deployment telemetry\ndef probe_229(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 230: deployment telemetry\ndef probe_230(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 231: deployment telemetry\ndef probe_231(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 232: deployment telemetry\ndef probe_232(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 233: deployment telemetry\ndef probe_233(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 234: deployment telemetry\ndef probe_234(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 235: deployment telemetry\ndef probe_235(samples):\n    return sum(samples[-50:]) / max(1, len(samples))\n\n# module 236: deployment telemetry\ndef probe_236(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 237: deployment telemetry\ndef probe_237(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 238: deployment telemetry\ndef probe_238(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 239: deployment telemetry\ndef probe_239(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 240: deployment telemetry\ndef probe_240(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 241: deployment telemetry\ndef probe_241(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 242: deployment telemetry\ndef probe_242(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 243: deployment telemetry\ndef probe_243(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 244: deployment telemetry\ndef probe_244(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 245: deployment telemetry\ndef probe_245(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 246: deployment telemetry\ndef probe_246(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 247: deployment telemetry\ndef probe_247(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 248: deployment telemetry\ndef probe_248(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 249: deployment telemetry\ndef probe_249(samples):\n    return sum(samples[-70:]) / max(1, len(samples))\n\n# module 250: deployment telemetry\ndef probe_250(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 251: deployment telemetry\ndef probe_251(samples):\n    return sum(samples\nDEPLOY_SETTING service_326b44 = 24\n[-91:]) / max(1, len(samples))\n\n# module 252: deployment telemetry\ndef probe_252(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 253: deployment telemetry\ndef probe_253(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 254: deployment telemetry\ndef probe_254(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 255: deployment telemetry\ndef probe_255(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 256: deployment telemetry\ndef probe_256(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 257: deployment telemetry\ndef probe_257(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 258: deployment telemetry\ndef probe_258(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 259: deployment telemetry\ndef probe_259(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 260: deployment telemetry\ndef probe_260(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 261: deployment telemetry\ndef probe_261(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 262: deployment telemetry\ndef probe_262(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 263: deployment telemetry\ndef probe_263(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 264: deployment telemetry\ndef probe_264(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 265: deployment telemetry\ndef probe_265(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 266: deployment telemetry\ndef probe_266(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 267: deployment telemetry\ndef probe_267(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 268: deployment telemetry\ndef probe_268(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 269: deployment telemetry\ndef probe_269(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 270: deployment telemetry\ndef probe_270(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 271: deployment telemetry\ndef probe_271(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 272: deployment telemetry\ndef probe_272(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 273: deployment telemetry\ndef probe_273(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 274: deployment telemetry\ndef probe_274(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 275: deployment telemetry\ndef probe_275(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 276: deployment telemetry\ndef probe_276(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 277: deployment telemetry\ndef probe_277(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 278: deployment telemetry\ndef probe_278(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 279: deployment telemetry\ndef probe_279(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 280: deployment telemetry\ndef probe_280(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 281: deployment telemetry\ndef probe_281(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 282: deployment telemetry\ndef probe_282(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 283: deployment telemetry\ndef probe_283(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 284: deployment telemetry\ndef probe_284(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 285: deployment telemetry\ndef probe_285(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 286: deployment telemetry\ndef probe_286(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 287: deployment telemetry\ndef probe_287(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 288: deployment telemetry\ndef probe_288(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 289: deployment telemetry\ndef probe_289(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 290: deployment telemetry\ndef probe_290(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 291: deployment telemetry\ndef probe_291(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 292: deployment telemetry\ndef probe_292(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 293: deployment telemetry\ndef probe_293(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 294: deployment telemetry\ndef probe_294(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 295: deployment telemetry\ndef probe_295(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 296: deployment telemetry\ndef probe_296(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 297: deployment telemetry\ndef probe_297(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 298: deployment telemetry\ndef probe_298(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 299: deployment telemetry\ndef probe_299(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 300: deployment telemetry\ndef probe_300(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 301: deployment telemetry\ndef probe_301(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 302: deployment telemetry\ndef probe_302(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 303: deployment telemetry\ndef probe_303(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 304: deployment telemetry\ndef probe_304(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 305: deployment telemetry\ndef probe_305(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 306: deployment telemetry\ndef probe_306(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 307: deployment telemetry\ndef probe_307(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 308: deployment telemetry\ndef probe_308(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 309: deployment telemetry\ndef probe_309(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 310: deployment telemetry\ndef probe_310(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 311: deployment telemetry\ndef probe_311(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 312: deployment telemetry\ndef probe_312(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 313: deployment telemetry\ndef probe_313(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 314: deployment telemetry\ndef probe_314(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 315: deployment telemetry\ndef probe_315(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 316: deployment telemetry\ndef probe_316(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 317: deployment telemetry\ndef probe_317(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 318: deployment telemetry\ndef probe_318(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 319: deployment telemetry\ndef probe_319(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 320: deployment telemetry\ndef probe_320(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 321: deployment telemetry\ndef probe_321(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 322: deployment telemetry\ndef probe_322(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 323: deployment telemetry\ndef probe_323(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 324: deployment telemetry\ndef probe_324(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 325: deployment telemetry\ndef probe_325(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 326: deployment telemetry\ndef probe_326(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 327: deployment telemetry\ndef probe_327(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 328: deployment telemetry\ndef probe_328(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 329: deployment telemetry\ndef probe_329(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 330: deployment telemetry\ndef probe_330(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 331: deployment telemetry\ndef probe_331(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 332: deployment telemetry\ndef probe_332(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 333: deployment telemetry\ndef probe_333(samples):\nDEPLOY_SETTING service_c7f830 = 27\n\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 334: deployment telemetry\ndef probe_334(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 335: deployment telemetry\ndef probe_335(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 336: deployment telemetry\ndef probe_336(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 337: deployment telemetry\ndef probe_337(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 338: deployment telemetry\ndef probe_338(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 339: deployment telemetry\ndef probe_339(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 340: deployment telemetry\ndef probe_340(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 341: deployment telemetry\ndef probe_341(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 342: deployment telemetry\ndef probe_342(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 343: deployment telemetry\ndef probe_343(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 344: deployment telemetry\ndef probe_344(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 345: deployment telemetry\ndef probe_345(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 346: deployment telemetry\ndef probe_346(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 347: deployment telemetry\ndef probe_347(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 348: deployment telemetry\ndef probe_348(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 349: deployment telemetry\ndef probe_349(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 350: deployment telemetry\ndef probe_350(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 351: deployment telemetry\ndef probe_351(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 352: deployment telemetry\ndef probe_352(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 353: deployment telemetry\ndef probe_353(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 354: deployment telemetry\ndef probe_354(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 355: deployment telemetry\ndef probe_355(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 356: deployment telemetry\ndef probe_356(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 357: deployment telemetry\ndef probe_357(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 358: deployment telemetry\ndef probe_358(samples):\n    return sum(samples[-59:]) / max(1, len(samples))\n\n# module 359: deployment telemetry\ndef probe_359(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 360: deployment telemetry\ndef probe_360(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 361: deployment telemetry\ndef probe_361(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 362: deployment telemetry\ndef probe_362(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 363: deployment telemetry\ndef probe_363(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 364: deployment telemetry\ndef probe_364(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 365: deployment telemetry\ndef probe_365(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 366: deployment telemetry\ndef probe_366(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 367: deployment telemetry\ndef probe_367(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 368: deployment telemetry\ndef probe_368(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 369: deployment telemetry\ndef probe_369(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 370: deployment telemetry\ndef probe_370(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 371: deployment telemetry\ndef probe_371(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 372: deployment telemetry\ndef probe_372(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 373: deployment telemetry\ndef probe_373(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 374: deployment telemetry\ndef probe_374(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 375: deployment telemetry\ndef probe_375(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 376: deployment telemetry\ndef probe_376(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 377: deployment telemetry\ndef probe_377(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 378: deployment telemetry\ndef probe_378(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 379: deployment telemetry\ndef probe_379(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 380: deployment telemetry\ndef probe_380(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 381: deployment telemetry\ndef probe_381(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 382: deployment telemetry\ndef probe_382(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 383: deployment telemetry\ndef probe_383(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 384: deployment telemetry\ndef probe_384(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 385: deployment telemetry\ndef probe_385(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 386: deployment telemetry\ndef probe_386(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 387: deployment telemetry\ndef probe_387(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 388: deployment telemetry\ndef probe_388(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 389: deployment telemetry\ndef probe_389(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 390: deployment telemetry\ndef probe_390(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 391: deployment telemetry\ndef probe_391(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 392: deployment telemetry\ndef probe_392(samples):\n    return sum(samples[-59:]) / max(1, len(samples))\n\n# module 393: deployment telemetry\ndef probe_393(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 394: deployment telemetry\ndef probe_394(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 395: deployment telemetry\ndef probe_395(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 396: deployment telemetry\ndef probe_396(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 397: deployment telemetry\ndef probe_397(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 398: deployment telemetry\ndef probe_398(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 399: deployment telemetry\ndef probe_399(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 400: deployment telemetry\ndef probe_400(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 401: deployment telemetry\ndef probe_401(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 402: deployment telemetry\ndef probe_402(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 403: deployment telemetry\ndef probe_403(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 404: deployment telemetry\ndef probe_404(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 405: deployment telemetry\ndef probe_405(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 406: deployment telemetry\ndef probe_406(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 407: deployment telemetry\ndef probe_407(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 408: deployment telemetry\ndef probe_408(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 409: deployment telemetry\ndef probe_409(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 410: deployment telemetry\ndef probe_410(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 411: deployment telemetry\ndef probe_411(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 412: deployment telemetry\ndef probe_412(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 413: deployment telemetry\ndef probe_413(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 414: deployment telemetry\ndef probe_414(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 415: deployment telemetry\n\nDEPLOY_SETTING service_3e320d = 86\ndef probe_415(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 416: deployment telemetry\ndef probe_416(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 417: deployment telemetry\ndef probe_417(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 418: deployment telemetry\ndef probe_418(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 419: deployment telemetry\ndef probe_419(samples):\n    return sum(samples[-50:]) / max(1, len(samples))\n\n# module 420: deployment telemetry\ndef probe_420(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 421: deployment telemetry\ndef probe_421(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 422: deployment telemetry\ndef probe_422(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 423: deployment telemetry\ndef probe_423(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 424: deployment telemetry\ndef probe_424(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 425: deployment telemetry\ndef probe_425(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 426: deployment telemetry\ndef probe_426(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 427: deployment telemetry\ndef probe_427(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 428: deployment telemetry\ndef probe_428(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 429: deployment telemetry\ndef probe_429(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 430: deployment telemetry\ndef probe_430(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 431: deployment telemetry\ndef probe_431(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 432: deployment telemetry\ndef probe_432(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 433: deployment telemetry\ndef probe_433(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 434: deployment telemetry\ndef probe_434(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 435: deployment telemetry\ndef probe_435(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 436: deployment telemetry\ndef probe_436(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 437: deployment telemetry\ndef probe_437(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 438: deployment telemetry\ndef probe_438(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 439: deployment telemetry\ndef probe_439(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 440: deployment telemetry\ndef probe_440(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 441: deployment telemetry\ndef probe_441(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 442: deployment telemetry\ndef probe_442(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 443: deployment telemetry\ndef probe_443(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 444: deployment telemetry\ndef probe_444(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 445: deployment telemetry\ndef probe_445(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 446: deployment telemetry\ndef probe_446(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 447: deployment telemetry\ndef probe_447(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 448: deployment telemetry\ndef probe_448(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 449: deployment telemetry\ndef probe_449(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 450: deployment telemetry\ndef probe_450(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 451: deployment telemetry\ndef probe_451(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 452: deployment telemetry\ndef probe_452(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 453: deployment telemetry\ndef probe_453(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 454: deployment telemetry\ndef probe_454(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 455: deployment telemetry\ndef probe_455(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 456: deployment telemetry\ndef probe_456(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 457: deployment telemetry\ndef probe_457(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 458: deployment telemetry\ndef probe_458(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 459: deployment telemetry\ndef probe_459(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 460: deployment telemetry\ndef probe_460(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 461: deployment telemetry\ndef probe_461(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 462: deployment telemetry\ndef probe_462(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 463: deployment telemetry\ndef probe_463(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 464: deployment telemetry\ndef probe_464(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 465: deployment telemetry\ndef probe_465(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 466: deployment telemetry\ndef probe_466(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 467: deployment telemetry\ndef probe_467(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 468: deployment telemetry\ndef probe_468(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 469: deployment telemetry\ndef probe_469(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 470: deployment telemetry\ndef probe_470(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 471: deployment telemetry\ndef probe_471(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 472: deployment telemetry\ndef probe_472(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 473: deployment telemetry\ndef probe_473(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 474: deployment telemetry\ndef probe_474(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 475: deployment telemetry\ndef probe_475(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 476: deployment telemetry\ndef probe_476(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 477: deployment telemetry\ndef probe_477(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 478: deployment telemetry\ndef probe_478(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 479: deployment telemetry\ndef probe_479(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 480: deployment telemetry\ndef probe_480(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 481: deployment telemetry\ndef probe_481(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 482: deployment telemetry\ndef probe_482(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 483: deployment telemetry\ndef probe_483(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 484: deployment telemetry\ndef probe_484(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 485: deployment telemetry\ndef probe_485(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 486: deployment telemetry\ndef probe_486(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 487: deployment telemetry\ndef probe_487(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 488: deployment telemetry\ndef probe_488(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 489: deployment telemetry\ndef probe_489(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 490: deployment telemetry\ndef probe_490(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 491: deployment telemetry\ndef probe_491(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 492: deployment telemetry\ndef probe_492(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 493: deployment telemetry\ndef probe_493(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 494: deployment telemetry\ndef probe_494(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 495: deployment telemetry\ndef probe_495(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 496: deployment telemetry\ndef probe_496(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 497: deployment telemetry\nDEPLOY_SETTING service_aa4d9a = 63\n\ndef probe_497(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 498: deployment telemetry\ndef probe_498(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 499: deployment telemetry\ndef probe_499(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 500: deployment telemetry\ndef probe_500(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 501: deployment telemetry\ndef probe_501(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 502: deployment telemetry\ndef probe_502(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 503: deployment telemetry\ndef probe_503(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 504: deployment telemetry\ndef probe_504(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 505: deployment telemetry\ndef probe_505(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 506: deployment telemetry\ndef probe_506(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 507: deployment telemetry\ndef probe_507(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 508: deployment telemetry\ndef probe_508(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 509: deployment telemetry\ndef probe_509(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 510: deployment telemetry\ndef probe_510(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 511: deployment telemetry\ndef probe_511(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 512: deployment telemetry\ndef probe_512(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 513: deployment telemetry\ndef probe_513(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 514: deployment telemetry\ndef probe_514(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 515: deployment telemetry\ndef probe_515(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 516: deployment telemetry\ndef probe_516(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 517: deployment telemetry\ndef probe_517(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 518: deployment telemetry\ndef probe_518(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 519: deployment telemetry\ndef probe_519(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 520: deployment telemetry\ndef probe_520(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 521: deployment telemetry\ndef probe_521(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 522: deployment telemetry\ndef probe_522(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 523: deployment telemetry\ndef probe_523(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 524: deployment telemetry\ndef probe_524(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 525: deployment telemetry\ndef probe_525(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 526: deployment telemetry\ndef probe_526(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 527: deployment telemetry\ndef probe_527(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 528: deployment telemetry\ndef probe_528(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 529: deployment telemetry\ndef probe_529(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 530: deployment telemetry\ndef probe_530(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 531: deployment telemetry\ndef probe_531(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 532: deployment telemetry\ndef probe_532(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 533: deployment telemetry\ndef probe_533(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 534: deployment telemetry\ndef probe_534(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 535: deployment telemetry\ndef probe_535(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 536: deployment telemetry\ndef probe_536(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 537: deployment telemetry\ndef probe_537(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 538: deployment telemetry\ndef probe_538(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 539: deployment telemetry\ndef probe_539(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 540: deployment telemetry\ndef probe_540(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 541: deployment telemetry\ndef probe_541(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 542: deployment telemetry\ndef probe_542(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 543: deployment telemetry\ndef probe_543(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 544: deployment telemetry\ndef probe_544(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 545: deployment telemetry\ndef probe_545(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 546: deployment telemetry\ndef probe_546(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 547: deployment telemetry\ndef probe_547(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 548: deployment telemetry\ndef probe_548(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 549: deployment telemetry\ndef probe_549(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 550: deployment telemetry\ndef probe_550(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 551: deployment telemetry\ndef probe_551(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 552: deployment telemetry\ndef probe_552(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 553: deployment telemetry\ndef probe_553(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 554: deployment telemetry\ndef probe_554(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 555: deployment telemetry\ndef probe_555(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 556: deployment telemetry\ndef probe_556(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 557: deployment telemetry\ndef probe_557(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 558: deployment telemetry\ndef probe_558(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 559: deployment telemetry\ndef probe_559(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 560: deployment telemetry\ndef probe_560(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 561: deployment telemetry\ndef probe_561(samples):\n    return sum(samples[-65:]) / max(1, len(samples))\n\n# module 562: deployment telemetry\ndef probe_562(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 563: deployment telemetry\ndef probe_563(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 564: deployment telemetry\ndef probe_564(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 565: deployment telemetry\ndef probe_565(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 566: deployment telemetry\ndef probe_566(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 567: deployment telemetry\ndef probe_567(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 568: deployment telemetry\ndef probe_568(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 569: deployment telemetry\ndef probe_569(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 570: deployment telemetry\ndef probe_570(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 571: deployment telemetry\ndef probe_571(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 572: deployment telemetry\ndef probe_572(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 573: deployment telemetry\ndef probe_573(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 574: deployment telemetry\ndef probe_574(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 575: deployment telemetry\ndef probe_575(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 576: deployment telemetry\ndef probe_576(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 577: deployment telemetry\ndef probe_577(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 578: deployment telemetry\ndef probe_578(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 57\nDEPLOY_SETTING service_4c53fa = 39\n9: deployment telemetry\ndef probe_579(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 580: deployment telemetry\ndef probe_580(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 581: deployment telemetry\ndef probe_581(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 582: deployment telemetry\ndef probe_582(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 583: deployment telemetry\ndef probe_583(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 584: deployment telemetry\ndef probe_584(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 585: deployment telemetry\ndef probe_585(samples):\n    return sum(samples[-70:]) / max(1, len(samples))\n\n# module 586: deployment telemetry\ndef probe_586(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 587: deployment telemetry\ndef probe_587(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 588: deployment telemetry\ndef probe_588(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 589: deployment telemetry\ndef probe_589(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 590: deployment telemetry\ndef probe_590(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 591: deployment telemetry\ndef probe_591(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 592: deployment telemetry\ndef probe_592(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 593: deployment telemetry\ndef probe_593(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 594: deployment telemetry\ndef probe_594(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 595: deployment telemetry\ndef probe_595(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 596: deployment telemetry\ndef probe_596(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 597: deployment telemetry\ndef probe_597(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 598: deployment telemetry\ndef probe_598(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 599: deployment telemetry\ndef probe_599(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 600: deployment telemetry\ndef probe_600(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 601: deployment telemetry\ndef probe_601(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 602: deployment telemetry\ndef probe_602(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 603: deployment telemetry\ndef probe_603(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 604: deployment telemetry\ndef probe_604(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 605: deployment telemetry\ndef probe_605(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 606: deployment telemetry\ndef probe_606(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 607: deployment telemetry\ndef probe_607(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 608: deployment telemetry\ndef probe_608(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 609: deployment telemetry\ndef probe_609(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 610: deployment telemetry\ndef probe_610(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 611: deployment telemetry\ndef probe_611(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 612: deployment telemetry\ndef probe_612(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 613: deployment telemetry\ndef probe_613(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 614: deployment telemetry\ndef probe_614(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 615: deployment telemetry\ndef probe_615(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 616: deployment telemetry\ndef probe_616(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 617: deployment telemetry\ndef probe_617(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 618: deployment telemetry\ndef probe_618(samples):\n    return sum(samples[-70:]) / max(1, len(samples))\n\n# module 619: deployment telemetry\ndef probe_619(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 620: deployment telemetry\ndef probe_620(samples):\n    return sum(samples[-44:]) / max(1, len(samples))\n\n# module 621: deployment telemetry\ndef probe_621(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 622: deployment telemetry\ndef probe_622(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 623: deployment telemetry\ndef probe_623(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 624: deployment telemetry\ndef probe_624(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 625: deployment telemetry\ndef probe_625(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 626: deployment telemetry\ndef probe_626(samples):\n    return sum(samples[-59:]) / max(1, len(samples))\n\n# module 627: deployment telemetry\ndef probe_627(samples):\n    return sum(samples[-22:]) / max(1, len(samples))\n\n# module 628: deployment telemetry\ndef probe_628(samples):\n    return sum(samples[-24:]) / max(1, len(samples))\n\n# module 629: deployment telemetry\ndef probe_629(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 630: deployment telemetry\ndef probe_630(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 631: deployment telemetry\ndef probe_631(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 632: deployment telemetry\ndef probe_632(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 633: deployment telemetry\ndef probe_633(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 634: deployment telemetry\ndef probe_634(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 635: deployment telemetry\ndef probe_635(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 636: deployment telemetry\ndef probe_636(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 637: deployment telemetry\ndef probe_637(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 638: deployment telemetry\ndef probe_638(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 639: deployment telemetry\ndef probe_639(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 640: deployment telemetry\ndef probe_640(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 641: deployment telemetry\ndef probe_641(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 642: deployment telemetry\ndef probe_642(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 643: deployment telemetry\ndef probe_643(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 644: deployment telemetry\ndef probe_644(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 645: deployment telemetry\ndef probe_645(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 646: deployment telemetry\ndef probe_646(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 647: deployment telemetry\ndef probe_647(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 648: deployment telemetry\ndef probe_648(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 649: deployment telemetry\ndef probe_649(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 650: deployment telemetry\ndef probe_650(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 651: deployment telemetry\ndef probe_651(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 652: deployment telemetry\ndef probe_652(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 653: deployment telemetry\ndef probe_653(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 654: deployment telemetry\ndef probe_654(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 655: deployment telemetry\ndef probe_655(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 656: deployment telemetry\ndef probe_656(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 657: deployment telemetry\ndef probe_657(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 658: deployment telemetry\ndef probe_658(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 659: deployment telemetry\ndef probe_659(samples):\n    return sum(samples[-38:]) / max(1, len(samples))\n\n# module 660: deployment telemetry\ndef probe_660(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\nDEPLOY_SETTING service_321efc = 88\n\n\n# module 661: deployment telemetry\ndef probe_661(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 662: deployment telemetry\ndef probe_662(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 663: deployment telemetry\ndef probe_663(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 664: deployment telemetry\ndef probe_664(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 665: deployment telemetry\ndef probe_665(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 666: deployment telemetry\ndef probe_666(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 667: deployment telemetry\ndef probe_667(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 668: deployment telemetry\ndef probe_668(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 669: deployment telemetry\ndef probe_669(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 670: deployment telemetry\ndef probe_670(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 671: deployment telemetry\ndef probe_671(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 672: deployment telemetry\ndef probe_672(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 673: deployment telemetry\ndef probe_673(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 674: deployment telemetry\ndef probe_674(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 675: deployment telemetry\ndef probe_675(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 676: deployment telemetry\ndef probe_676(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 677: deployment telemetry\ndef probe_677(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 678: deployment telemetry\ndef probe_678(samples):\n    return sum(samples[-50:]) / max(1, len(samples))\n\n# module 679: deployment telemetry\ndef probe_679(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 680: deployment telemetry\ndef probe_680(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 681: deployment telemetry\ndef probe_681(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 682: deployment telemetry\ndef probe_682(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 683: deployment telemetry\ndef probe_683(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 684: deployment telemetry\ndef probe_684(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 685: deployment telemetry\ndef probe_685(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 686: deployment telemetry\ndef probe_686(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 687: deployment telemetry\ndef probe_687(samples):\n    return sum(samples[-47:]) / max(1, len(samples))\n\n# module 688: deployment telemetry\ndef probe_688(samples):\n    return sum(samples[-27:]) / max(1, len(samples))\n\n# module 689: deployment telemetry\ndef probe_689(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 690: deployment telemetry\ndef probe_690(samples):\n    return sum(samples[-54:]) / max(1, len(samples))\n\n# module 691: deployment telemetry\ndef probe_691(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 692: deployment telemetry\ndef probe_692(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 693: deployment telemetry\ndef probe_693(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 694: deployment telemetry\ndef probe_694(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 695: deployment telemetry\ndef probe_695(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 696: deployment telemetry\ndef probe_696(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 697: deployment telemetry\ndef probe_697(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 698: deployment telemetry\ndef probe_698(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 699: deployment telemetry\ndef probe_699(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 700: deployment telemetry\ndef probe_700(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 701: deployment telemetry\ndef probe_701(samples):\n    return sum(samples[-20:]) / max(1, len(samples))\n\n# module 702: deployment telemetry\ndef probe_702(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 703: deployment telemetry\ndef probe_703(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 704: deployment telemetry\ndef probe_704(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 705: deployment telemetry\ndef probe_705(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 706: deployment telemetry\ndef probe_706(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 707: deployment telemetry\ndef probe_707(samples):\n    return sum(samples[-9:]) / max(1, len(samples))\n\n# module 708: deployment telemetry\ndef probe_708(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 709: deployment telemetry\ndef probe_709(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 710: deployment telemetry\ndef probe_710(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 711: deployment telemetry\ndef probe_711(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 712: deployment telemetry\ndef probe_712(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 713: deployment telemetry\ndef probe_713(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 714: deployment telemetry\ndef probe_714(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 715: deployment telemetry\ndef probe_715(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 716: deployment telemetry\ndef probe_716(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 717: deployment telemetry\ndef probe_717(samples):\n    return sum(samples[-14:]) / max(1, len(samples))\n\n# module 718: deployment telemetry\ndef probe_718(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 719: deployment telemetry\ndef probe_719(samples):\n    return sum(samples[-66:]) / max(1, len(samples))\n\n# module 720: deployment telemetry\ndef probe_720(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 721: deployment telemetry\ndef probe_721(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 722: deployment telemetry\ndef probe_722(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 723: deployment telemetry\ndef probe_723(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 724: deployment telemetry\ndef probe_724(samples):\n    return sum(samples[-50:]) / max(1, len(samples))\n\n# module 725: deployment telemetry\ndef probe_725(samples):\n    return sum(samples[-13:]) / max(1, len(samples))\n\n# module 726: deployment telemetry\ndef probe_726(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 727: deployment telemetry\ndef probe_727(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 728: deployment telemetry\ndef probe_728(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 729: deployment telemetry\ndef probe_729(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 730: deployment telemetry\ndef probe_730(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 731: deployment telemetry\ndef probe_731(samples):\n    return sum(samples[-30:]) / max(1, len(samples))\n\n# module 732: deployment telemetry\ndef probe_732(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 733: deployment telemetry\ndef probe_733(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 734: deployment telemetry\ndef probe_734(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 735: deployment telemetry\ndef probe_735(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 736: deployment telemetry\ndef probe_736(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 737: deployment telemetry\ndef probe_737(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 738: deployment telemetry\ndef probe_738(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 739: deployment telemetry\ndef probe_739(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 740: deployment telemetry\ndef probe_740(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 741: deployment telemetry\ndef probe_741(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 742: deployment telemetry\ndef probe_742(samples):\n    return sum(samples[-31:]) / max(1,\nAMENDMENT: DEPLOY_SETTING service_ba6749 = 85\n len(samples))\n\n# module 743: deployment telemetry\ndef probe_743(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 744: deployment telemetry\ndef probe_744(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 745: deployment telemetry\ndef probe_745(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 746: deployment telemetry\ndef probe_746(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 747: deployment telemetry\ndef probe_747(samples):\n    return sum(samples[-82:]) / max(1, len(samples))\n\n# module 748: deployment telemetry\ndef probe_748(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 749: deployment telemetry\ndef probe_749(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 750: deployment telemetry\ndef probe_750(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 751: deployment telemetry\ndef probe_751(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 752: deployment telemetry\ndef probe_752(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 753: deployment telemetry\ndef probe_753(samples):\n    return sum(samples[-85:]) / max(1, len(samples))\n\n# module 754: deployment telemetry\ndef probe_754(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 755: deployment telemetry\ndef probe_755(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 756: deployment telemetry\ndef probe_756(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 757: deployment telemetry\ndef probe_757(samples):\n    return sum(samples[-46:]) / max(1, len(samples))\n\n# module 758: deployment telemetry\ndef probe_758(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 759: deployment telemetry\ndef probe_759(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 760: deployment telemetry\ndef probe_760(samples):\n    return sum(samples[-53:]) / max(1, len(samples))\n\n# module 761: deployment telemetry\ndef probe_761(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 762: deployment telemetry\ndef probe_762(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 763: deployment telemetry\ndef probe_763(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 764: deployment telemetry\ndef probe_764(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 765: deployment telemetry\ndef probe_765(samples):\n    return sum(samples[-32:]) / max(1, len(samples))\n\n# module 766: deployment telemetry\ndef probe_766(samples):\n    return sum(samples[-10:]) / max(1, len(samples))\n\n# module 767: deployment telemetry\ndef probe_767(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 768: deployment telemetry\ndef probe_768(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 769: deployment telemetry\ndef probe_769(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 770: deployment telemetry\ndef probe_770(samples):\n    return sum(samples[-43:]) / max(1, len(samples))\n\n# module 771: deployment telemetry\ndef probe_771(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 772: deployment telemetry\ndef probe_772(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 773: deployment telemetry\ndef probe_773(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 774: deployment telemetry\ndef probe_774(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 775: deployment telemetry\ndef probe_775(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 776: deployment telemetry\ndef probe_776(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 777: deployment telemetry\ndef probe_777(samples):\n    return sum(samples[-78:]) / max(1, len(samples))\n\n# module 778: deployment telemetry\ndef probe_778(samples):\n    return sum(samples[-57:]) / max(1, len(samples))\n\n# module 779: deployment telemetry\ndef probe_779(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 780: deployment telemetry\ndef probe_780(samples):\n    return sum(samples[-70:]) / max(1, len(samples))\n\n# module 781: deployment telemetry\ndef probe_781(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 782: deployment telemetry\ndef probe_782(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 783: deployment telemetry\ndef probe_783(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 784: deployment telemetry\ndef probe_784(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 785: deployment telemetry\ndef probe_785(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 786: deployment telemetry\ndef probe_786(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 787: deployment telemetry\ndef probe_787(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 788: deployment telemetry\ndef probe_788(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 789: deployment telemetry\ndef probe_789(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 790: deployment telemetry\ndef probe_790(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 791: deployment telemetry\ndef probe_791(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 792: deployment telemetry\ndef probe_792(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 793: deployment telemetry\ndef probe_793(samples):\n    return sum(samples[-39:]) / max(1, len(samples))\n\n# module 794: deployment telemetry\ndef probe_794(samples):\n    return sum(samples[-35:]) / max(1, len(samples))\n\n# module 795: deployment telemetry\ndef probe_795(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 796: deployment telemetry\ndef probe_796(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 797: deployment telemetry\ndef probe_797(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 798: deployment telemetry\ndef probe_798(samples):\n    return sum(samples[-49:]) / max(1, len(samples))\n\n# module 799: deployment telemetry\ndef probe_799(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 800: deployment telemetry\ndef probe_800(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 801: deployment telemetry\ndef probe_801(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 802: deployment telemetry\ndef probe_802(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 803: deployment telemetry\ndef probe_803(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 804: deployment telemetry\ndef probe_804(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 805: deployment telemetry\ndef probe_805(samples):\n    return sum(samples[-61:]) / max(1, len(samples))\n\n# module 806: deployment telemetry\ndef probe_806(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 807: deployment telemetry\ndef probe_807(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 808: deployment telemetry\ndef probe_808(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 809: deployment telemetry\ndef probe_809(samples):\n    return sum(samples[-84:]) / max(1, len(samples))\n\n# module 810: deployment telemetry\ndef probe_810(samples):\n    return sum(samples[-19:]) / max(1, len(samples))\n\n# module 811: deployment telemetry\ndef probe_811(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 812: deployment telemetry\ndef probe_812(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 813: deployment telemetry\ndef probe_813(samples):\n    return sum(samples[-34:]) / max(1, len(samples))\n\n# module 814: deployment telemetry\ndef probe_814(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 815: deployment telemetry\ndef probe_815(samples):\n    return sum(samples[-89:]) / max(1, len(samples))\n\n# module 816: deployment telemetry\ndef probe_816(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 817: deployment telemetry\ndef probe_817(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 818: deployment telemetry\ndef probe_818(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 819: deployment telemetry\ndef probe_819(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 820: deployment telemetry\ndef probe_820(samples):\n    return sum(samples[-51:]) / max(1, len(samples))\n\n# module 821: deployment telemetry\ndef probe_821(samples):\n    return sum(samples[-52:]) / max(1, len(samples))\n\n# module 822: deployment telemetry\ndef probe_822(samples):\n    return sum(samples[-92:]) / max(1, len(samples))\n\n# module 823: deployment telemetry\ndef probe_823(samples):\n    return sum(samples[-26:]) / max(1, len(samples))\n\n# module 824: deployment telemetry\ndef probe_824(samples):\n    return sum(samples[-\nAMENDMENT: DEPLOY_SETTING service_aa4d9a = 70\n83:]) / max(1, len(samples))\n\n# module 825: deployment telemetry\ndef probe_825(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 826: deployment telemetry\ndef probe_826(samples):\n    return sum(samples[-47:]) / max(1, len(samples))\n\n# module 827: deployment telemetry\ndef probe_827(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 828: deployment telemetry\ndef probe_828(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 829: deployment telemetry\ndef probe_829(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 830: deployment telemetry\ndef probe_830(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 831: deployment telemetry\ndef probe_831(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 832: deployment telemetry\ndef probe_832(samples):\n    return sum(samples[-11:]) / max(1, len(samples))\n\n# module 833: deployment telemetry\ndef probe_833(samples):\n    return sum(samples[-36:]) / max(1, len(samples))\n\n# module 834: deployment telemetry\ndef probe_834(samples):\n    return sum(samples[-56:]) / max(1, len(samples))\n\n# module 835: deployment telemetry\ndef probe_835(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 836: deployment telemetry\ndef probe_836(samples):\n    return sum(samples[-23:]) / max(1, len(samples))\n\n# module 837: deployment telemetry\ndef probe_837(samples):\n    return sum(samples[-71:]) / max(1, len(samples))\n\n# module 838: deployment telemetry\ndef probe_838(samples):\n    return sum(samples[-69:]) / max(1, len(samples))\n\n# module 839: deployment telemetry\ndef probe_839(samples):\n    return sum(samples[-40:]) / max(1, len(samples))\n\n# module 840: deployment telemetry\ndef probe_840(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 841: deployment telemetry\ndef probe_841(samples):\n    return sum(samples[-33:]) / max(1, len(samples))\n\n# module 842: deployment telemetry\ndef probe_842(samples):\n    return sum(samples[-42:]) / max(1, len(samples))\n\n# module 843: deployment telemetry\ndef probe_843(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 844: deployment telemetry\ndef probe_844(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 845: deployment telemetry\ndef probe_845(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 846: deployment telemetry\ndef probe_846(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 847: deployment telemetry\ndef probe_847(samples):\n    return sum(samples[-86:]) / max(1, len(samples))\n\n# module 848: deployment telemetry\ndef probe_848(samples):\n    return sum(samples[-87:]) / max(1, len(samples))\n\n# module 849: deployment telemetry\ndef probe_849(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 850: deployment telemetry\ndef probe_850(samples):\n    return sum(samples[-79:]) / max(1, len(samples))\n\n# module 851: deployment telemetry\ndef probe_851(samples):\n    return sum(samples[-72:]) / max(1, len(samples))\n\n# module 852: deployment telemetry\ndef probe_852(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 853: deployment telemetry\ndef probe_853(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 854: deployment telemetry\ndef probe_854(samples):\n    return sum(samples[-64:]) / max(1, len(samples))\n\n# module 855: deployment telemetry\ndef probe_855(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 856: deployment telemetry\ndef probe_856(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 857: deployment telemetry\ndef probe_857(samples):\n    return sum(samples[-15:]) / max(1, len(samples))\n\n# module 858: deployment telemetry\ndef probe_858(samples):\n    return sum(samples[-12:]) / max(1, len(samples))\n\n# module 859: deployment telemetry\ndef probe_859(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 860: deployment telemetry\ndef probe_860(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 861: deployment telemetry\ndef probe_861(samples):\n    return sum(samples[-75:]) / max(1, len(samples))\n\n# module 862: deployment telemetry\ndef probe_862(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 863: deployment telemetry\ndef probe_863(samples):\n    return sum(samples[-81:]) / max(1, len(samples))\n\n# module 864: deployment telemetry\ndef probe_864(samples):\n    return sum(samples[-88:]) / max(1, len(samples))\n\n# module 865: deployment telemetry\ndef probe_865(samples):\n    return sum(samples[-90:]) / max(1, len(samples))\n\n# module 866: deployment telemetry\ndef probe_866(samples):\n    return sum(samples[-31:]) / max(1, len(samples))\n\n# module 867: deployment telemetry\ndef probe_867(samples):\n    return sum(samples[-41:]) / max(1, len(samples))\n\n# module 868: deployment telemetry\ndef probe_868(samples):\n    return sum(samples[-28:]) / max(1, len(samples))\n\n# module 869: deployment telemetry\ndef probe_869(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 870: deployment telemetry\ndef probe_870(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 871: deployment telemetry\ndef probe_871(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 872: deployment telemetry\ndef probe_872(samples):\n    return sum(samples[-73:]) / max(1, len(samples))\n\n# module 873: deployment telemetry\ndef probe_873(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 874: deployment telemetry\ndef probe_874(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 875: deployment telemetry\ndef probe_875(samples):\n    return sum(samples[-47:]) / max(1, len(samples))\n\n# module 876: deployment telemetry\ndef probe_876(samples):\n    return sum(samples[-80:]) / max(1, len(samples))\n\n# module 877: deployment telemetry\ndef probe_877(samples):\n    return sum(samples[-76:]) / max(1, len(samples))\n\n# module 878: deployment telemetry\ndef probe_878(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 879: deployment telemetry\ndef probe_879(samples):\n    return sum(samples[-16:]) / max(1, len(samples))\n\n# module 880: deployment telemetry\ndef probe_880(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 881: deployment telemetry\ndef probe_881(samples):\n    return sum(samples[-77:]) / max(1, len(samples))\n\n# module 882: deployment telemetry\ndef probe_882(samples):\n    return sum(samples[-60:]) / max(1, len(samples))\n\n# module 883: deployment telemetry\ndef probe_883(samples):\n    return sum(samples[-94:]) / max(1, len(samples))\n\n# module 884: deployment telemetry\ndef probe_884(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 885: deployment telemetry\ndef probe_885(samples):\n    return sum(samples[-83:]) / max(1, len(samples))\n\n# module 886: deployment telemetry\ndef probe_886(samples):\n    return sum(samples[-68:]) / max(1, len(samples))\n\n# module 887: deployment telemetry\ndef probe_887(samples):\n    return sum(samples[-21:]) / max(1, len(samples))\n\n# module 888: deployment telemetry\ndef probe_888(samples):\n    return sum(samples[-17:]) / max(1, len(samples))\n\n# module 889: deployment telemetry\ndef probe_889(samples):\n    return sum(samples[-25:]) / max(1, len(samples))\n\n# module 890: deployment telemetry\ndef probe_890(samples):\n    return sum(samples[-8:]) / max(1, len(samples))\n\n# module 891: deployment telemetry\ndef probe_891(samples):\n    return sum(samples[-58:]) / max(1, len(samples))\n\n# module 892: deployment telemetry\ndef probe_892(samples):\n    return sum(samples[-67:]) / max(1, len(samples))\n\n# module 893: deployment telemetry\ndef probe_893(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 894: deployment telemetry\ndef probe_894(samples):\n    return sum(samples[-18:]) / max(1, len(samples))\n\n# module 895: deployment telemetry\ndef probe_895(samples):\n    return sum(samples[-55:]) / max(1, len(samples))\n\n# module 896: deployment telemetry\ndef probe_896(samples):\n    return sum(samples[-74:]) / max(1, len(samples))\n\n# module 897: deployment telemetry\ndef probe_897(samples):\n    return sum(samples[-93:]) / max(1, len(samples))\n\n# module 898: deployment telemetry\ndef probe_898(samples):\n    return sum(samples[-45:]) / max(1, len(samples))\n\n# module 899: deployment telemetry\ndef probe_899(samples):\n    return sum(samples[-91:]) / max(1, len(samples))\n\n# module 900: deployment telemetry\ndef probe_900(samples):\n    return sum(samples[-37:]) / max(1, len(samples))\n\n# module 901: deployment telemetry\ndef probe_901(samples):\n    return sum(samples[-48:]) / max(1, len(samples))\n\n# module 902: deployment telemetry\ndef probe_902(samples):\n    return sum(samples[-29:]) / max(1, len(samples))\n\n# module 903: deployment telemetry\ndef probe_903(samples):\n    return sum(samples[-95:]) / max(1, len(samples))\n\n# module 904: deployment telemetry\ndef probe_904(samples):\n    return sum(samples[-63:]) / max(1, len(samples))\n\n# module 905: deployment telemetry\ndef probe_905(samples):\n    return sum(samples[-62:]) / max(1, len(samples))\n\n# module 906: deployment telemetry\ndef probe_906(samples):\n   \nDOCUMENT END\nReturn one JSON object, no markdown, with keys settings, total, review. settings must map each of these services to its LAST DEPLOY_SETTING integer: service_1b38c3, service_ba6749, service_326b44, service_c7f830, service_3e320d, service_aa4d9a, service_4c53fa, service_321efc. total must be the sum of those eight final integers. review must be a 200-word explanation of how you resolved the amendments and how an operator should validate this deployment. Use integers, not strings, for the settings and total.\n<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+    "has_new_line": true,
+    "truncated": false,
+    "stop_type": "eos",
+    "stopping_word": "",
+    "tokens_cached": 33127,
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 32768,
+      "prompt_ms": 224234.808,
+      "prompt_per_token_ms": 6.843103271484375,
+      "prompt_per_second": 146.13253086024005,
+      "predicted_n": 360,
+      "predicted_ms": 19707.202,
+      "predicted_per_token_ms": 54.89471309192201,
+      "predicted_per_second": 18.216690527655825
+    }
+  },
+  "decode_tps": 18.216690527655825,
+  "prefill_tps": 146.13253086024005,
+  "quality": {
+    "passed": false,
+    "matched_settings": 8,
+    "required_settings": 8,
+    "total_correct": false,
+    "scope": "Exact lookup, override and sum checks; prose quality is not graded"
+  },
+  "input_verified": true,
+  "resources": {
+    "samples": [
+      {
+        "seconds": 0.00033320000147796236,
+        "rss_mib": 17091.9296875,
+        "host_available_mib": 19664.94140625,
+        "process_read_bytes": 187565113,
+        "process_write_bytes": 92870849,
+        "gpu_used_mib": 15308.0,
+        "gpu_util_pct": 12.0
+      },
+      {
+        "seconds": 1.1167964000014763,
+        "rss_mib": 17188.02734375,
+        "host_available_mib": 19429.515625,
+        "process_read_bytes": 187569881,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15463.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 2.16775730000154,
+        "rss_mib": 17489.3046875,
+        "host_available_mib": 19137.69140625,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15471.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 3.2229244000009203,
+        "rss_mib": 17536.74609375,
+        "host_available_mib": 19075.41796875,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15450.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 4.280558200000087,
+        "rss_mib": 17539.2421875,
+        "host_available_mib": 19060.48828125,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15420.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 5.347994200001267,
+        "rss_mib": 17549.609375,
+        "host_available_mib": 19110.890625,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15406.0,
+        "gpu_util_pct": 3.0
+      },
+      {
+        "seconds": 6.426155900000595,
+        "rss_mib": 17555.32421875,
+        "host_available_mib": 18960.09765625,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15431.0,
+        "gpu_util_pct": 15.0
+      },
+      {
+        "seconds": 7.533954700000322,
+        "rss_mib": 17560.71875,
+        "host_available_mib": 18816.0,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15466.0,
+        "gpu_util_pct": 6.0
+      },
+      {
+        "seconds": 8.64007390000188,
+        "rss_mib": 17560.21484375,
+        "host_available_mib": 18803.67578125,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15542.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 9.713700899999822,
+        "rss_mib": 17559.65625,
+        "host_available_mib": 18784.23828125,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15524.0,
+        "gpu_util_pct": 5.0
+      },
+      {
+        "seconds": 10.799754899999243,
+        "rss_mib": 17560.52734375,
+        "host_available_mib": 18720.2265625,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15486.0,
+        "gpu_util_pct": 5.0
+      },
+      {
+        "seconds": 11.904399499999272,
+        "rss_mib": 17565.54296875,
+        "host_available_mib": 18658.796875,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15406.0,
+        "gpu_util_pct": 6.0
+      },
+      {
+        "seconds": 12.97951010000179,
+        "rss_mib": 17567.83984375,
+        "host_available_mib": 18657.07421875,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15377.0,
+        "gpu_util_pct": 10.0
+      },
+      {
+        "seconds": 14.066846199999418,
+        "rss_mib": 17572.5625,
+        "host_available_mib": 18629.95703125,
+        "process_read_bytes": 187572281,
+        "process_write_bytes": 93831463,
+        "gpu_used_mib": 15410.0,
+        "gpu_util_pct": 3.0
+      },
+      {
+        "seconds": 15.165361600000324,
+        "rss_mib": 17171.21875,
+        "host_available_mib": 18952.125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15409.0,
+        "gpu_util_pct": 12.0
+      },
+      {
+        "seconds": 16.229014200001984,
+        "rss_mib": 17382.17578125,
+        "host_available_mib": 18841.46875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15403.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 17.282857800000784,
+        "rss_mib": 17647.50390625,
+        "host_available_mib": 18601.6640625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15400.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 18.33119390000138,
+        "rss_mib": 17913.6171875,
+        "host_available_mib": 18339.25390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15396.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 19.392284099998506,
+        "rss_mib": 18182.2734375,
+        "host_available_mib": 18092.04296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15394.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 20.449811200000113,
+        "rss_mib": 18466.41796875,
+        "host_available_mib": 17844.51953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15408.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 21.517497199998616,
+        "rss_mib": 18751.39453125,
+        "host_available_mib": 17472.9765625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15485.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 22.579768600000534,
+        "rss_mib": 19012.23046875,
+        "host_available_mib": 17226.71484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15470.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 23.630679800000507,
+        "rss_mib": 19287.04296875,
+        "host_available_mib": 16936.8125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15517.0,
+        "gpu_util_pct": 14.0
+      },
+      {
+        "seconds": 24.69120489999841,
+        "rss_mib": 19582.59375,
+        "host_available_mib": 16595.6953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15630.0,
+        "gpu_util_pct": 5.0
+      },
+      {
+        "seconds": 25.75159319999875,
+        "rss_mib": 19916.421875,
+        "host_available_mib": 16290.48046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15654.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 26.82933309999862,
+        "rss_mib": 20230.27734375,
+        "host_available_mib": 16200.02734375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15576.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 27.894301299998915,
+        "rss_mib": 20518.90625,
+        "host_available_mib": 16013.1953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15472.0,
+        "gpu_util_pct": 16.0
+      },
+      {
+        "seconds": 28.957768100000976,
+        "rss_mib": 20786.71875,
+        "host_available_mib": 15741.1796875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15468.0,
+        "gpu_util_pct": 5.0
+      },
+      {
+        "seconds": 30.012280899998586,
+        "rss_mib": 21096.4140625,
+        "host_available_mib": 15452.71875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15451.0,
+        "gpu_util_pct": 3.0
+      },
+      {
+        "seconds": 31.07859649999955,
+        "rss_mib": 21399.59765625,
+        "host_available_mib": 15139.08984375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15435.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 32.13263780000125,
+        "rss_mib": 21692.578125,
+        "host_available_mib": 14841.39453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 33.1822757000009,
+        "rss_mib": 22026.41015625,
+        "host_available_mib": 14544.79296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 9.0
+      },
+      {
+        "seconds": 34.23355749999973,
+        "rss_mib": 22428.6640625,
+        "host_available_mib": 14153.9140625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 11.0
+      },
+      {
+        "seconds": 35.29978960000153,
+        "rss_mib": 22734.859375,
+        "host_available_mib": 13908.67578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15417.0,
+        "gpu_util_pct": 10.0
+      },
+      {
+        "seconds": 36.365120300000854,
+        "rss_mib": 23181.1640625,
+        "host_available_mib": 13460.38671875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 3.0
+      },
+      {
+        "seconds": 37.41569929999969,
+        "rss_mib": 25411.5078125,
+        "host_available_mib": 11231.45703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 30.0
+      },
+      {
+        "seconds": 38.485871199998655,
+        "rss_mib": 28469.98828125,
+        "host_available_mib": 8174.06640625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 27.0
+      },
+      {
+        "seconds": 39.542939599999954,
+        "rss_mib": 30055.375,
+        "host_available_mib": 6738.11328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15412.0,
+        "gpu_util_pct": 5.0
+      },
+      {
+        "seconds": 40.61089079999874,
+        "rss_mib": 30264.80078125,
+        "host_available_mib": 6541.25390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15425.0,
+        "gpu_util_pct": 6.0
+      },
+      {
+        "seconds": 41.671071500000835,
+        "rss_mib": 30463.296875,
+        "host_available_mib": 6342.21875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 6.0
+      },
+      {
+        "seconds": 42.73305550000077,
+        "rss_mib": 30655.63671875,
+        "host_available_mib": 6140.17578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 15.0
+      },
+      {
+        "seconds": 43.79460449999897,
+        "rss_mib": 30830.4921875,
+        "host_available_mib": 5930.5390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15420.0,
+        "gpu_util_pct": 26.0
+      },
+      {
+        "seconds": 44.857556200000545,
+        "rss_mib": 31005.296875,
+        "host_available_mib": 5760.47265625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15427.0,
+        "gpu_util_pct": 12.0
+      },
+      {
+        "seconds": 45.915095100001054,
+        "rss_mib": 31190.72265625,
+        "host_available_mib": 5613.67578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 7.0
+      },
+      {
+        "seconds": 46.977438599999005,
+        "rss_mib": 31371.25390625,
+        "host_available_mib": 5408.18359375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15424.0,
+        "gpu_util_pct": 17.0
+      },
+      {
+        "seconds": 48.04233229999954,
+        "rss_mib": 31564.609375,
+        "host_available_mib": 5247.50390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15420.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 49.094419500001095,
+        "rss_mib": 31748.875,
+        "host_available_mib": 5063.51171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 12.0
+      },
+      {
+        "seconds": 50.163175599998794,
+        "rss_mib": 32219.73046875,
+        "host_available_mib": 4576.3046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15433.0,
+        "gpu_util_pct": 58.0
+      },
+      {
+        "seconds": 51.2428445000005,
+        "rss_mib": 32364.58203125,
+        "host_available_mib": 4434.19921875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 13.0
+      },
+      {
+        "seconds": 52.300031099999615,
+        "rss_mib": 32524.34375,
+        "host_available_mib": 4275.50390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15432.0,
+        "gpu_util_pct": 12.0
+      },
+      {
+        "seconds": 53.349620400000276,
+        "rss_mib": 32674.5859375,
+        "host_available_mib": 4066.23828125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15441.0,
+        "gpu_util_pct": 15.0
+      },
+      {
+        "seconds": 54.42688199999975,
+        "rss_mib": 32826.55859375,
+        "host_available_mib": 3929.6953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15440.0,
+        "gpu_util_pct": 23.0
+      },
+      {
+        "seconds": 55.50210489999881,
+        "rss_mib": 32985.59375,
+        "host_available_mib": 3807.1171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15441.0,
+        "gpu_util_pct": 22.0
+      },
+      {
+        "seconds": 56.56978850000087,
+        "rss_mib": 33246.86328125,
+        "host_available_mib": 3567.22265625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15441.0,
+        "gpu_util_pct": 56.0
+      },
+      {
+        "seconds": 57.6475403000004,
+        "rss_mib": 33351.85546875,
+        "host_available_mib": 3465.45703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15441.0,
+        "gpu_util_pct": 37.0
+      },
+      {
+        "seconds": 58.715133000001515,
+        "rss_mib": 33481.171875,
+        "host_available_mib": 3394.76171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15432.0,
+        "gpu_util_pct": 17.0
+      },
+      {
+        "seconds": 59.76252290000048,
+        "rss_mib": 33604.203125,
+        "host_available_mib": 3373.0078125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903756,
+        "gpu_used_mib": 15433.0,
+        "gpu_util_pct": 31.0
+      },
+      {
+        "seconds": 60.820406800001365,
+        "rss_mib": 33791.19921875,
+        "host_available_mib": 3178.91015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15437.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 61.91514449999886,
+        "rss_mib": 33884.796875,
+        "host_available_mib": 3092.171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15433.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 62.965531400001055,
+        "rss_mib": 33999.65234375,
+        "host_available_mib": 2989.55859375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15428.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 64.03043719999914,
+        "rss_mib": 34119.46875,
+        "host_available_mib": 2820.796875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15429.0,
+        "gpu_util_pct": 32.0
+      },
+      {
+        "seconds": 65.09020379999856,
+        "rss_mib": 34237.6484375,
+        "host_available_mib": 2681.4453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15426.0,
+        "gpu_util_pct": 82.0
+      },
+      {
+        "seconds": 66.16274500000145,
+        "rss_mib": 34357.3828125,
+        "host_available_mib": 2606.578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15420.0,
+        "gpu_util_pct": 34.0
+      },
+      {
+        "seconds": 67.22943659999873,
+        "rss_mib": 34470.30859375,
+        "host_available_mib": 2618.421875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15420.0,
+        "gpu_util_pct": 38.0
+      },
+      {
+        "seconds": 68.29376870000124,
+        "rss_mib": 34600.57421875,
+        "host_available_mib": 2452.5703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15431.0,
+        "gpu_util_pct": 24.0
+      },
+      {
+        "seconds": 69.34891639999842,
+        "rss_mib": 34713.359375,
+        "host_available_mib": 2369.07421875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15451.0,
+        "gpu_util_pct": 36.0
+      },
+      {
+        "seconds": 70.43960919999881,
+        "rss_mib": 34764.2421875,
+        "host_available_mib": 2318.95703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15443.0,
+        "gpu_util_pct": 45.0
+      },
+      {
+        "seconds": 71.49833829999989,
+        "rss_mib": 34844.14453125,
+        "host_available_mib": 2242.671875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15445.0,
+        "gpu_util_pct": 22.0
+      },
+      {
+        "seconds": 72.54975249999916,
+        "rss_mib": 34903.47265625,
+        "host_available_mib": 2077.39453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15423.0,
+        "gpu_util_pct": 84.0
+      },
+      {
+        "seconds": 73.6142585000016,
+        "rss_mib": 34966.140625,
+        "host_available_mib": 1983.96875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15437.0,
+        "gpu_util_pct": 40.0
+      },
+      {
+        "seconds": 74.66492229999858,
+        "rss_mib": 35052.55859375,
+        "host_available_mib": 1869.91015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116903902,
+        "gpu_used_mib": 15448.0,
+        "gpu_util_pct": 39.0
+      },
+      {
+        "seconds": 75.7280978000017,
+        "rss_mib": 35126.0390625,
+        "host_available_mib": 1814.51171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15448.0,
+        "gpu_util_pct": 47.0
+      },
+      {
+        "seconds": 76.78148829999918,
+        "rss_mib": 35178.11328125,
+        "host_available_mib": 1778.84375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15448.0,
+        "gpu_util_pct": 49.0
+      },
+      {
+        "seconds": 77.8473215999984,
+        "rss_mib": 35248.55859375,
+        "host_available_mib": 1709.47265625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15447.0,
+        "gpu_util_pct": 39.0
+      },
+      {
+        "seconds": 78.91016120000131,
+        "rss_mib": 35315.203125,
+        "host_available_mib": 1636.98046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15444.0,
+        "gpu_util_pct": 47.0
+      },
+      {
+        "seconds": 79.98049600000013,
+        "rss_mib": 35376.10546875,
+        "host_available_mib": 1578.4453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15443.0,
+        "gpu_util_pct": 40.0
+      },
+      {
+        "seconds": 81.04663459999938,
+        "rss_mib": 35459.59375,
+        "host_available_mib": 1496.26953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15443.0,
+        "gpu_util_pct": 44.0
+      },
+      {
+        "seconds": 82.11397610000131,
+        "rss_mib": 35556.7109375,
+        "host_available_mib": 1398.6875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15443.0,
+        "gpu_util_pct": 43.0
+      },
+      {
+        "seconds": 83.17645070000071,
+        "rss_mib": 35585.1484375,
+        "host_available_mib": 1428.6328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15442.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 84.22952509999959,
+        "rss_mib": 35637.5546875,
+        "host_available_mib": 1360.80859375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15442.0,
+        "gpu_util_pct": 31.0
+      },
+      {
+        "seconds": 85.2885649000018,
+        "rss_mib": 35670.1328125,
+        "host_available_mib": 1361.546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15469.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 86.34777970000141,
+        "rss_mib": 35727.6875,
+        "host_available_mib": 1314.87109375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15460.0,
+        "gpu_util_pct": 41.0
+      },
+      {
+        "seconds": 87.41185069999847,
+        "rss_mib": 35768.1953125,
+        "host_available_mib": 1234.13671875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904048,
+        "gpu_used_mib": 15434.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 88.46888409999883,
+        "rss_mib": 35797.609375,
+        "host_available_mib": 1213.21875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15437.0,
+        "gpu_util_pct": 42.0
+      },
+      {
+        "seconds": 89.53703129999849,
+        "rss_mib": 35831.56640625,
+        "host_available_mib": 1138.99609375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15464.0,
+        "gpu_util_pct": 44.0
+      },
+      {
+        "seconds": 90.61610260000089,
+        "rss_mib": 35861.4765625,
+        "host_available_mib": 1085.40234375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15465.0,
+        "gpu_util_pct": 50.0
+      },
+      {
+        "seconds": 91.68851839999843,
+        "rss_mib": 35884.17578125,
+        "host_available_mib": 1112.44140625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15455.0,
+        "gpu_util_pct": 52.0
+      },
+      {
+        "seconds": 92.76269189999948,
+        "rss_mib": 35912.15234375,
+        "host_available_mib": 1093.17578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15463.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 93.82194489999893,
+        "rss_mib": 35931.73828125,
+        "host_available_mib": 1007.12109375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15458.0,
+        "gpu_util_pct": 43.0
+      },
+      {
+        "seconds": 94.88553949999914,
+        "rss_mib": 35959.49609375,
+        "host_available_mib": 995.66015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15454.0,
+        "gpu_util_pct": 52.0
+      },
+      {
+        "seconds": 95.9512618000008,
+        "rss_mib": 35981.05078125,
+        "host_available_mib": 981.51953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15470.0,
+        "gpu_util_pct": 52.0
+      },
+      {
+        "seconds": 97.02438460000121,
+        "rss_mib": 36002.7265625,
+        "host_available_mib": 949.05078125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15470.0,
+        "gpu_util_pct": 54.0
+      },
+      {
+        "seconds": 98.09433640000134,
+        "rss_mib": 36036.30078125,
+        "host_available_mib": 866.56640625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904194,
+        "gpu_used_mib": 15466.0,
+        "gpu_util_pct": 48.0
+      },
+      {
+        "seconds": 99.16420819999985,
+        "rss_mib": 36051.80859375,
+        "host_available_mib": 1004.15625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15470.0,
+        "gpu_util_pct": 58.0
+      },
+      {
+        "seconds": 100.23016180000195,
+        "rss_mib": 36080.1171875,
+        "host_available_mib": 1009.3203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15462.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 101.27920839999933,
+        "rss_mib": 36100.48046875,
+        "host_available_mib": 1017.6328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15457.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 102.32885670000178,
+        "rss_mib": 36127.86328125,
+        "host_available_mib": 1008.7421875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15457.0,
+        "gpu_util_pct": 58.0
+      },
+      {
+        "seconds": 103.38943819999986,
+        "rss_mib": 36149.6484375,
+        "host_available_mib": 939.109375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15457.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 104.43624379999892,
+        "rss_mib": 36167.078125,
+        "host_available_mib": 948.921875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15442.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 105.47880359999908,
+        "rss_mib": 36194.6015625,
+        "host_available_mib": 1016.2890625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15419.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 106.5398294000006,
+        "rss_mib": 36211.9375,
+        "host_available_mib": 991.55859375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15419.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 107.59254679999867,
+        "rss_mib": 36229.578125,
+        "host_available_mib": 972.63671875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904340,
+        "gpu_used_mib": 15419.0,
+        "gpu_util_pct": 48.0
+      },
+      {
+        "seconds": 108.66444590000174,
+        "rss_mib": 36246.94140625,
+        "host_available_mib": 959.4375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15419.0,
+        "gpu_util_pct": 82.0
+      },
+      {
+        "seconds": 109.73814739999943,
+        "rss_mib": 36262.91796875,
+        "host_available_mib": 944.625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15419.0,
+        "gpu_util_pct": 52.0
+      },
+      {
+        "seconds": 110.79468500000075,
+        "rss_mib": 36282.39453125,
+        "host_available_mib": 929.46875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15384.0,
+        "gpu_util_pct": 56.0
+      },
+      {
+        "seconds": 111.84629159999895,
+        "rss_mib": 36298.70703125,
+        "host_available_mib": 910.64453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15382.0,
+        "gpu_util_pct": 53.0
+      },
+      {
+        "seconds": 112.911684900002,
+        "rss_mib": 36331.70703125,
+        "host_available_mib": 875.49609375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15382.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 113.96320140000171,
+        "rss_mib": 36348.1171875,
+        "host_available_mib": 821.08203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15382.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 115.02916570000161,
+        "rss_mib": 36352.078125,
+        "host_available_mib": 812.1015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15382.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 116.09316749999925,
+        "rss_mib": 36368.1484375,
+        "host_available_mib": 852.50390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 117.16169010000158,
+        "rss_mib": 36388.38671875,
+        "host_available_mib": 842.484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15331.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 118.23678870000003,
+        "rss_mib": 36402.37109375,
+        "host_available_mib": 807.6484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904486,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 119.28840990000026,
+        "rss_mib": 36405.01953125,
+        "host_available_mib": 781.359375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15344.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 120.36069639999914,
+        "rss_mib": 36424.5546875,
+        "host_available_mib": 775.4453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15346.0,
+        "gpu_util_pct": 53.0
+      },
+      {
+        "seconds": 121.41809949999879,
+        "rss_mib": 36439.74609375,
+        "host_available_mib": 773.28125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15331.0,
+        "gpu_util_pct": 86.0
+      },
+      {
+        "seconds": 122.4676412000008,
+        "rss_mib": 36449.3046875,
+        "host_available_mib": 770.328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15330.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 123.52555969999958,
+        "rss_mib": 36462.84765625,
+        "host_available_mib": 710.9609375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15330.0,
+        "gpu_util_pct": 87.0
+      },
+      {
+        "seconds": 124.59149239999897,
+        "rss_mib": 36472.47265625,
+        "host_available_mib": 725.7578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15327.0,
+        "gpu_util_pct": 44.0
+      },
+      {
+        "seconds": 125.6531615999993,
+        "rss_mib": 36498.23046875,
+        "host_available_mib": 761.0078125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15346.0,
+        "gpu_util_pct": 50.0
+      },
+      {
+        "seconds": 126.70384629999899,
+        "rss_mib": 36505.86328125,
+        "host_available_mib": 773.40234375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15338.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 127.7754176999988,
+        "rss_mib": 36517.109375,
+        "host_available_mib": 738.6484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904633,
+        "gpu_used_mib": 15337.0,
+        "gpu_util_pct": 56.0
+      },
+      {
+        "seconds": 128.83227660000193,
+        "rss_mib": 36529.359375,
+        "host_available_mib": 746.47265625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15368.0,
+        "gpu_util_pct": 81.0
+      },
+      {
+        "seconds": 129.88775879999957,
+        "rss_mib": 36540.8359375,
+        "host_available_mib": 758.58203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15395.0,
+        "gpu_util_pct": 54.0
+      },
+      {
+        "seconds": 130.95844880000004,
+        "rss_mib": 36555.62109375,
+        "host_available_mib": 744.85546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15393.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 132.0334584000011,
+        "rss_mib": 36562.13671875,
+        "host_available_mib": 694.328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15396.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 133.10243049999917,
+        "rss_mib": 36573.18359375,
+        "host_available_mib": 664.390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15399.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 134.1708734999993,
+        "rss_mib": 36578.09375,
+        "host_available_mib": 680.39453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15415.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 135.24033699999927,
+        "rss_mib": 36592.35546875,
+        "host_available_mib": 601.23046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15432.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 136.31102230000033,
+        "rss_mib": 36598.57421875,
+        "host_available_mib": 703.69140625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15375.0,
+        "gpu_util_pct": 75.0
+      },
+      {
+        "seconds": 137.36790230000042,
+        "rss_mib": 36611.08203125,
+        "host_available_mib": 701.50390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904780,
+        "gpu_used_mib": 15349.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 138.43623740000112,
+        "rss_mib": 36623.70703125,
+        "host_available_mib": 700.59375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15325.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 139.51628720000008,
+        "rss_mib": 36628.98828125,
+        "host_available_mib": 696.3046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15314.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 140.57331329999943,
+        "rss_mib": 36640.23046875,
+        "host_available_mib": 691.4921875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15314.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 141.62744160000148,
+        "rss_mib": 36640.734375,
+        "host_available_mib": 678.4921875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15314.0,
+        "gpu_util_pct": 65.0
+      },
+      {
+        "seconds": 142.69722360000014,
+        "rss_mib": 36642.1640625,
+        "host_available_mib": 682.140625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15308.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 143.74878199999876,
+        "rss_mib": 36650.17578125,
+        "host_available_mib": 648.1328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15308.0,
+        "gpu_util_pct": 82.0
+      },
+      {
+        "seconds": 144.80168380000032,
+        "rss_mib": 36651.40625,
+        "host_available_mib": 647.3828125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 145.84956880000027,
+        "rss_mib": 36658.015625,
+        "host_available_mib": 666.21484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15344.0,
+        "gpu_util_pct": 53.0
+      },
+      {
+        "seconds": 146.90242099999887,
+        "rss_mib": 36660.453125,
+        "host_available_mib": 674.296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 69.0
+      },
+      {
+        "seconds": 147.9711113000012,
+        "rss_mib": 36664.73828125,
+        "host_available_mib": 664.2109375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116904927,
+        "gpu_used_mib": 15314.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 149.04202609999993,
+        "rss_mib": 36668.05859375,
+        "host_available_mib": 667.18359375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15314.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 150.1117559000013,
+        "rss_mib": 36680.76953125,
+        "host_available_mib": 632.51953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15326.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 151.16943750000064,
+        "rss_mib": 36684.0234375,
+        "host_available_mib": 643.04296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15324.0,
+        "gpu_util_pct": 79.0
+      },
+      {
+        "seconds": 152.22990579999896,
+        "rss_mib": 36689.54296875,
+        "host_available_mib": 619.45703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15319.0,
+        "gpu_util_pct": 61.0
+      },
+      {
+        "seconds": 153.29065959999934,
+        "rss_mib": 36699.9765625,
+        "host_available_mib": 543.61328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15407.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 154.3834433000011,
+        "rss_mib": 36705.1015625,
+        "host_available_mib": 532.39453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15404.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 155.45655479999914,
+        "rss_mib": 36713.34375,
+        "host_available_mib": 589.58203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15374.0,
+        "gpu_util_pct": 65.0
+      },
+      {
+        "seconds": 156.50756080000065,
+        "rss_mib": 36718.06640625,
+        "host_available_mib": 571.61328125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15355.0,
+        "gpu_util_pct": 83.0
+      },
+      {
+        "seconds": 157.57541280000078,
+        "rss_mib": 36722.15234375,
+        "host_available_mib": 590.85546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905074,
+        "gpu_used_mib": 15365.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 158.6319336000015,
+        "rss_mib": 36728.90234375,
+        "host_available_mib": 592.55078125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15339.0,
+        "gpu_util_pct": 65.0
+      },
+      {
+        "seconds": 159.68497040000148,
+        "rss_mib": 36731.57421875,
+        "host_available_mib": 621.3125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15318.0,
+        "gpu_util_pct": 60.0
+      },
+      {
+        "seconds": 160.7651565999986,
+        "rss_mib": 36738.171875,
+        "host_available_mib": 626.7265625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 161.82440489999863,
+        "rss_mib": 36741.19921875,
+        "host_available_mib": 648.796875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 162.89510299999893,
+        "rss_mib": 36745.35546875,
+        "host_available_mib": 647.0703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15338.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 163.9573722999994,
+        "rss_mib": 36753.4921875,
+        "host_available_mib": 588.984375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15329.0,
+        "gpu_util_pct": 70.0
+      },
+      {
+        "seconds": 165.0099827999984,
+        "rss_mib": 36757.02734375,
+        "host_available_mib": 591.28515625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15332.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 166.0603861999989,
+        "rss_mib": 36762.0703125,
+        "host_available_mib": 638.00390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15332.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 167.10661360000086,
+        "rss_mib": 36768.015625,
+        "host_available_mib": 638.5546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905221,
+        "gpu_used_mib": 15319.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 168.1637950000004,
+        "rss_mib": 36773.2265625,
+        "host_available_mib": 639.53515625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15320.0,
+        "gpu_util_pct": 84.0
+      },
+      {
+        "seconds": 169.241700999999,
+        "rss_mib": 36779.6640625,
+        "host_available_mib": 632.1171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15320.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 170.3215467000009,
+        "rss_mib": 36785.90234375,
+        "host_available_mib": 621.91015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15323.0,
+        "gpu_util_pct": 55.0
+      },
+      {
+        "seconds": 171.39069459999882,
+        "rss_mib": 36788.7578125,
+        "host_available_mib": 621.34375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15317.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 172.44249919999857,
+        "rss_mib": 36791.6171875,
+        "host_available_mib": 619.96875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15317.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 173.5209184000014,
+        "rss_mib": 36796.5546875,
+        "host_available_mib": 559.5390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15318.0,
+        "gpu_util_pct": 65.0
+      },
+      {
+        "seconds": 174.59469220000028,
+        "rss_mib": 36800.60546875,
+        "host_available_mib": 535.92578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15328.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 175.64726810000138,
+        "rss_mib": 36802.375,
+        "host_available_mib": 559.8359375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15332.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 176.72420830000192,
+        "rss_mib": 36806.67578125,
+        "host_available_mib": 558.23046875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905368,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 177.77706229999967,
+        "rss_mib": 36818.55859375,
+        "host_available_mib": 540.31640625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 52.0
+      },
+      {
+        "seconds": 178.8460589999995,
+        "rss_mib": 36821.4140625,
+        "host_available_mib": 542.296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15329.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 179.90853290000086,
+        "rss_mib": 36825.14453125,
+        "host_available_mib": 534.9296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15325.0,
+        "gpu_util_pct": 61.0
+      },
+      {
+        "seconds": 180.99128950000159,
+        "rss_mib": 36828.828125,
+        "host_available_mib": 527.4296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15353.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 182.0429225000007,
+        "rss_mib": 36833.109375,
+        "host_available_mib": 534.24609375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15355.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 183.1206114000015,
+        "rss_mib": 36836.47265625,
+        "host_available_mib": 520.87890625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15355.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 184.19203030000062,
+        "rss_mib": 36846.0703125,
+        "host_available_mib": 474.84765625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15354.0,
+        "gpu_util_pct": 56.0
+      },
+      {
+        "seconds": 185.2539711999998,
+        "rss_mib": 36852.22265625,
+        "host_available_mib": 476.96875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15353.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 186.30815660000007,
+        "rss_mib": 36853.6484375,
+        "host_available_mib": 509.0234375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905515,
+        "gpu_used_mib": 15347.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 187.359084300002,
+        "rss_mib": 36856.25,
+        "host_available_mib": 498.0234375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15344.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 188.42231040000115,
+        "rss_mib": 36868.3125,
+        "host_available_mib": 488.484375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 189.48181509999995,
+        "rss_mib": 36873.5078125,
+        "host_available_mib": 489.859375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 65.0
+      },
+      {
+        "seconds": 190.5469133000006,
+        "rss_mib": 36875.5,
+        "host_available_mib": 522.90625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 191.60864239999864,
+        "rss_mib": 36877.36328125,
+        "host_available_mib": 516.203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 66.0
+      },
+      {
+        "seconds": 192.6730150000003,
+        "rss_mib": 36879.734375,
+        "host_available_mib": 513.7890625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 193.72283489999973,
+        "rss_mib": 36884.7578125,
+        "host_available_mib": 405.20703125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15356.0,
+        "gpu_util_pct": 59.0
+      },
+      {
+        "seconds": 194.7869200999994,
+        "rss_mib": 36885.21484375,
+        "host_available_mib": 466.625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15352.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 195.85175000000163,
+        "rss_mib": 36886.33203125,
+        "host_available_mib": 501.89453125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905662,
+        "gpu_used_mib": 15340.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 196.9222933000019,
+        "rss_mib": 36889.81640625,
+        "host_available_mib": 494.29296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15339.0,
+        "gpu_util_pct": 75.0
+      },
+      {
+        "seconds": 197.97963019999952,
+        "rss_mib": 36892.4765625,
+        "host_available_mib": 497.10546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15342.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 199.0519080999984,
+        "rss_mib": 36897.6953125,
+        "host_available_mib": 503.171875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15335.0,
+        "gpu_util_pct": 79.0
+      },
+      {
+        "seconds": 200.10480259999895,
+        "rss_mib": 36903.20703125,
+        "host_available_mib": 505.66015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 64.0
+      },
+      {
+        "seconds": 201.1566610000009,
+        "rss_mib": 36914.62890625,
+        "host_available_mib": 490.10546875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15335.0,
+        "gpu_util_pct": 57.0
+      },
+      {
+        "seconds": 202.20424619999903,
+        "rss_mib": 36917.703125,
+        "host_available_mib": 489.625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15335.0,
+        "gpu_util_pct": 68.0
+      },
+      {
+        "seconds": 203.27835720000076,
+        "rss_mib": 36921.796875,
+        "host_available_mib": 435.79296875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 54.0
+      },
+      {
+        "seconds": 204.35611060000156,
+        "rss_mib": 36923.671875,
+        "host_available_mib": 438.91015625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 79.0
+      },
+      {
+        "seconds": 205.41695199999958,
+        "rss_mib": 36923.671875,
+        "host_available_mib": 478.1953125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905809,
+        "gpu_used_mib": 15381.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 206.4760963000008,
+        "rss_mib": 36928.2734375,
+        "host_available_mib": 454.625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15385.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 207.521150200002,
+        "rss_mib": 36929.703125,
+        "host_available_mib": 441.921875,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15359.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 208.59504020000168,
+        "rss_mib": 36931.640625,
+        "host_available_mib": 430.06640625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15358.0,
+        "gpu_util_pct": 74.0
+      },
+      {
+        "seconds": 209.6462188000005,
+        "rss_mib": 36933.0703125,
+        "host_available_mib": 408.50390625,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15365.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 210.70527159999983,
+        "rss_mib": 36933.07421875,
+        "host_available_mib": 409.30078125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15361.0,
+        "gpu_util_pct": 67.0
+      },
+      {
+        "seconds": 211.77397070000006,
+        "rss_mib": 36936.25390625,
+        "host_available_mib": 414.75,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15359.0,
+        "gpu_util_pct": 62.0
+      },
+      {
+        "seconds": 212.81991930000004,
+        "rss_mib": 36940.10546875,
+        "host_available_mib": 413.08203125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116905956,
+        "gpu_used_mib": 15338.0,
+        "gpu_util_pct": 63.0
+      },
+      {
+        "seconds": 213.88245090000055,
+        "rss_mib": 37077.8046875,
+        "host_available_mib": 496.8828125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116906103,
+        "gpu_used_mib": 15345.0,
+        "gpu_util_pct": 85.0
+      },
+      {
+        "seconds": 214.94938719999845,
+        "rss_mib": 37114.12109375,
+        "host_available_mib": 1457.3984375,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116906103,
+        "gpu_used_mib": 15340.0,
+        "gpu_util_pct": 35.0
+      },
+      {
+        "seconds": 216.00552160000007,
+        "rss_mib": 37136.52734375,
+        "host_available_mib": 2302.42578125,
+        "process_read_bytes": 187574681,
+        "process_write_bytes": 116906103,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 51.0
+      },
+      {
+        "seconds": 217.071805399999,
+        "rss_mib": 37386.19921875,
+        "host_available_mib": 2476.97265625,
+        "process_read_bytes": 187577097,
+        "process_write_bytes": 116906250,
+        "gpu_used_mib": 15333.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 218.1289242999992,
+        "rss_mib": 37400.2265625,
+        "host_available_mib": 2753.40625,
+        "process_read_bytes": 187577097,
+        "process_write_bytes": 116906250,
+        "gpu_used_mib": 15348.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 219.18498810000165,
+        "rss_mib": 37381.61328125,
+        "host_available_mib": 3292.83984375,
+        "process_read_bytes": 187577097,
+        "process_write_bytes": 116906250,
+        "gpu_used_mib": 15348.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 220.26620800000092,
+        "rss_mib": 37383.07421875,
+        "host_available_mib": 4896.48828125,
+        "process_read_bytes": 187577097,
+        "process_write_bytes": 116906250,
+        "gpu_used_mib": 15337.0,
+        "gpu_util_pct": 1.0
+      },
+      {
+        "seconds": 221.33688180000172,
+        "rss_mib": 37339.4296875,
+        "host_available_mib": 4931.87109375,
+        "process_read_bytes": 187581945,
+        "process_write_bytes": 122800294,
+        "gpu_used_mib": 15340.0,
+        "gpu_util_pct": 2.0
+      },
+      {
+        "seconds": 222.3859549000008,
+        "rss_mib": 37368.5859375,
+        "host_available_mib": 4834.53125,
+        "process_read_bytes": 187581945,
+        "process_write_bytes": 122800294,
+        "gpu_used_mib": 15348.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 223.47138170000107,
+        "rss_mib": 37370.0625,
+        "host_available_mib": 4790.10546875,
+        "process_read_bytes": 187581945,
+        "process_write_bytes": 122800294,
+        "gpu_used_mib": 15348.0,
+        "gpu_util_pct": 4.0
+      },
+      {
+        "seconds": 224.5405393000001,
+        "rss_mib": 37368.69921875,
+        "host_available_mib": 4792.13671875,
+        "process_read_bytes": 187586825,
+        "process_write_bytes": 126676050,
+        "gpu_used_mib": 15334.0,
+        "gpu_util_pct": 1.0
+      },
+      {
+        "seconds": 225.60331360000055,
+        "rss_mib": 37356.68359375,
+        "host_available_mib": 4817.15625,
+        "process_read_bytes": 187586825,
+        "process_write_bytes": 126676050,
+        "gpu_used_mib": 15340.0,
+        "gpu_util_pct": 1.0
+      },
+      {
+        "seconds": 226.65745280000192,
+        "rss_mib": 37448.66796875,
+        "host_available_mib": 4734.58203125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293430,
+        "gpu_used_mib": 15344.0,
+        "gpu_util_pct": 25.0
+      },
+      {
+        "seconds": 227.73526200000197,
+        "rss_mib": 37516.90234375,
+        "host_available_mib": 4639.09375,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293430,
+        "gpu_used_mib": 15344.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 228.81308060000083,
+        "rss_mib": 37537.44140625,
+        "host_available_mib": 4634.328125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293430,
+        "gpu_used_mib": 15335.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 229.88456379999843,
+        "rss_mib": 37557.984375,
+        "host_available_mib": 4612.58203125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293430,
+        "gpu_used_mib": 15342.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 230.9560558000012,
+        "rss_mib": 37571.3203125,
+        "host_available_mib": 4566.61328125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293534,
+        "gpu_used_mib": 15350.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 232.03725169999962,
+        "rss_mib": 37581.78125,
+        "host_available_mib": 4526.00390625,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293534,
+        "gpu_used_mib": 15362.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 233.11745599999995,
+        "rss_mib": 37608.421875,
+        "host_available_mib": 4480.046875,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293534,
+        "gpu_used_mib": 15353.0,
+        "gpu_util_pct": 30.0
+      },
+      {
+        "seconds": 234.18476989999908,
+        "rss_mib": 37701.47265625,
+        "host_available_mib": 4327.0703125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293638,
+        "gpu_used_mib": 15353.0,
+        "gpu_util_pct": 26.0
+      },
+      {
+        "seconds": 235.25506550000136,
+        "rss_mib": 37725.3515625,
+        "host_available_mib": 4247.78125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293638,
+        "gpu_used_mib": 15367.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 236.3567680999986,
+        "rss_mib": 37749.2734375,
+        "host_available_mib": 4278.32421875,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293638,
+        "gpu_used_mib": 15345.0,
+        "gpu_util_pct": 27.0
+      },
+      {
+        "seconds": 237.43564200000037,
+        "rss_mib": 37758.85546875,
+        "host_available_mib": 4248.4765625,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293742,
+        "gpu_used_mib": 15347.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 238.5067315999986,
+        "rss_mib": 37762.3203125,
+        "host_available_mib": 4266.50390625,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293742,
+        "gpu_used_mib": 15345.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 239.56141610000122,
+        "rss_mib": 37767.85546875,
+        "host_available_mib": 4254.54296875,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293742,
+        "gpu_used_mib": 15343.0,
+        "gpu_util_pct": 30.0
+      },
+      {
+        "seconds": 240.6273798000002,
+        "rss_mib": 37771.8046875,
+        "host_available_mib": 4257.9921875,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293846,
+        "gpu_used_mib": 15338.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 241.7001679999994,
+        "rss_mib": 37774.55859375,
+        "host_available_mib": 4244.90625,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293846,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 29.0
+      },
+      {
+        "seconds": 242.76260700000057,
+        "rss_mib": 37778.7734375,
+        "host_available_mib": 4297.453125,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293846,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 28.0
+      },
+      {
+        "seconds": 243.8357834999988,
+        "rss_mib": 37784.4609375,
+        "host_available_mib": 4299.8046875,
+        "process_read_bytes": 187589273,
+        "process_write_bytes": 129293950,
+        "gpu_used_mib": 15341.0,
+        "gpu_util_pct": 24.0
+      }
+    ],
+    "errors": [],
+    "gpu_peak_mib": 15654.0,
+    "rss_peak_mib": 37784.4609375,
+    "scope": "1-second samples during requests; GPU includes other processes; process I/O is not physical SSD traffic"
+  },
+  "prompt_artifact": "C:\\Users\\henry\\Documents\\ChatGPT\\gpu-engineer-agent\\evidence\\strata\\e5359ac4eb6d42358187f0530d66b1d9\\prompt-tuning-32768-0.json.gz"
+}

@@ -2,7 +2,27 @@
 
 Measured on October 11, 2026 using a **GeForce RTX 5070 Ti with 16,303 MiB VRAM**, an i7-14700F, and WSL with about 48 GiB assigned RAM. The harness uses the physical card capacity by default. A model may use both GPU memory and CPU RAM.
 
-## Current evidence
+## New 32K engine comparison — October 11, 2026
+
+Same Qwen3.8-Flash-Next IQ2_XS files and 32,768 input token IDs, native Windows, RTX 5070 Ti 16 GB, i7-14700F and 64 GB RAM. Reasoning disabled; one request per engine.
+
+| Metric | llama.cpp b11429 | Strata v0.1.43 |
+| --- | ---: | ---: |
+| Generation, tokens/s | **18.22** | **107.77** |
+| Prompt processing, tokens/s | 146.13 | 2,814.73 |
+| First token, seconds | 224.30 | 11.66 |
+| Request time excluding loading, seconds | 244.01 | 14.90 |
+| Document retrieval | 8/8 correct | 8/8 correct |
+
+**5.92× observed decode throughput in this run.** Both engines completed inference and retrieved every final document value, but both reported 413 for a separate arithmetic total whose correct value is 503. These are fictional service values in a synthetic document, not engine settings.
+
+Strata used MTP4 and reported route-tail expert skipping; llama.cpp had no draft head. Kernels and cache formats differ. The first measured long request after a short warmup may include startup/cache effects. This is a descriptive runtime comparison, not a repeatability claim, proof of equivalent output quality or a generated-policy improvement.
+
+[Comparison GUI](demo-ui/index.html#comparison) · [Verified measurements](evidence/engine-comparison/summary.json) · [Atlas records and raw answers](evidence/engine-comparison/latest.json) · [Reproduction runner](scripts/quick_engine_comparison.py)
+
+**Atlas inventory:** 61 experiment records and 61 decisions across 14 runs, including one superseded run and one failed preflight. Of these, 58 records belong to 13 runs marked completed; that status includes the preflight and does not mean every trial passed. [Read-back count audit](evidence/engine-comparison/atlas-counts.json).
+
+## Earlier inference evidence
 
 | Model | Weight file | Result |
 | --- | ---: | --- |
