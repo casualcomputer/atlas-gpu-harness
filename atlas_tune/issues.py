@@ -36,4 +36,8 @@ def describe(trial: dict) -> dict | None:
     if any(lv.get("ok") != lv.get("requests") for lv in levels):
         return {"category": "load_failure", "explanation": "Some load-test requests failed; inspect concurrency-level errors.",
                 "retryable": False}
+    limit = (trial.get("metrics") or {}).get("max_ttft_ms")
+    if limit is not None and any(lv.get("ttft_p99_ms") is None or lv["ttft_p99_ms"] > limit for lv in levels):
+        return {"category": "latency_limit", "explanation": "TTFT p99 exceeded the requested limit or was not measured.",
+                "retryable": False}
     return None

@@ -49,7 +49,7 @@ WORKLOADS = {
     "rag": Workload("rag", 4000, 256, (1, 4)),
     "batch": Workload("batch", 512, 512, (16, 64)),
 }
-WORKLOAD_VERSION = "v3"  # bump whenever prompts, checks or scoring change: memory keys on it
+WORKLOAD_VERSION = "v4"  # bump whenever prompts, checks or scoring change: memory keys on it
 
 
 def score_answer(content: str, expected) -> bool:
@@ -70,23 +70,44 @@ def score_answer(content: str, expected) -> bool:
     return text == str(expected) or text.lower() == str(expected).lower()
 
 
-def quality(base_url: str, model: str, timeout: float = 120) -> dict:
+def read_quality_cases(path) -> list[dict]:
+    from pathlib import Path
+
+    cases = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("quality file must be a nonempty JSON list")
+    for case in cases:
+        if (not isinstance(case, dict) or not isinstance(case.get("prompt"), str)
+                or not case["prompt"].strip() or not isinstance(case.get("expected"), (str, int, float))
+                or (case.get("system") is not None and not isinstance(case["system"], str))):
+            raise ValueError("each quality case requires prompt, scalar expected, and optional string system")
+    return cases
+
+
+def quality(base_url: str, model: str, timeout: float = 120, extra_tasks: list[dict] | None = None) -> dict:
     rows = []
     with httpx.Client(timeout=timeout, trust_env=False) as client:
-        for name, prompt, expected in QUALITY_TASKS:
+        tasks = [{"name": name, "prompt": prompt, "expected": expected, "system": SYSTEM}
+                 for name, prompt, expected in QUALITY_TASKS]
+        tasks += [{**case, "required": True} for case in extra_tasks or []]
+        for i, task in enumerate(tasks):
+            name, prompt, expected = task.get("name", f"custom_{i}"), task["prompt"], task["expected"]
+            messages = ([{"role": "system", "content": task["system"]}] if task.get("system") else [])
+            messages.append({"role": "user", "content": prompt})
             body = {"model": model, "temperature": 0, "max_tokens": 256, **NO_THINK,
-                    "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}]}
+                    "messages": messages}
             try:
                 response = client.post(base_url + "/v1/chat/completions", json=body)
                 response.raise_for_status()
                 content = response.json()["choices"][0]["message"].get("content") or ""
-                rows.append({"task": name, "passed": score_answer(content, expected), "output": content[:300]})
+                rows.append({"task": name, "required": task.get("required", False),
+                             "passed": score_answer(content, expected), "output": content[:300]})
             except (httpx.HTTPError, ValueError, KeyError, IndexError) as error:
-                rows.append({"task": name, "passed": False, "error": f"{type(error).__name__}: {error}"[:300]})
+                rows.append({"task": name, "required": task.get("required", False), "passed": False, "error": f"{type(error).__name__}: {error}"[:300]})
     passed = sum(r["passed"] for r in rows)
     # "pass" here only means the server answers sensibly at all. Whether a config degraded the
     # model is judged against the best config of the same model (see quality_ok).
-    return {"passed": passed, "total": len(rows), "pass": passed >= 2, "tasks": rows}
+    return {"passed": passed, "total": len(rows), "pass": passed >= 2 and all(r["passed"] for r in rows if r["required"]), "tasks": rows}
 
 
 def quality_ok(trial: dict, reference_passed: int, tolerance: int = 1) -> bool:
@@ -194,6 +215,9 @@ def score(metrics: dict | None, goal: str) -> float | None:
     """All requested load levels must pass. Latency ranks inverse p99 response seconds."""
     levels = (metrics or {}).get("levels") or []
     if not levels or any(not lv.get("ok") or lv.get("ok") != lv.get("requests") for lv in levels):
+        return None
+    limit = (metrics or {}).get("max_ttft_ms")
+    if limit is not None and any(lv.get("ttft_p99_ms") is None or lv["ttft_p99_ms"] > limit for lv in levels):
         return None
     if goal == "latency":
         latency = min(levels, key=lambda lv: lv["concurrency"]).get("response_p99_ms")

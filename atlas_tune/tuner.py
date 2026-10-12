@@ -23,6 +23,9 @@ class Options:
     goal: str = "throughput"
     workload: str = "chat"
     context: int | None = None
+    concurrency: tuple[int, ...] | None = None
+    max_ttft_ms: float | None = None
+    quality_cases: list[dict] = field(default_factory=list)
     budget_minutes: float = 90
     max_trials: int = 5            # per engine
     allow_cpu_offload: bool = False
@@ -77,6 +80,16 @@ class Tuner:
         self.info: dict[str, dict] = {}       # engine → {"version", "help"} of the pulled image
         self.allowed: dict[str, dict] = {}    # engine → knobs this image supports
         self.tried: set = set()
+        w = bench.WORKLOADS[opts.workload]
+        self.workload = bench.Workload(w.name, w.input_tokens, w.output_tokens, opts.concurrency or w.concurrency)
+
+    def _quality(self, server):
+        return bench.quality(server.base_url, server.model, extra_tasks=self.opts.quality_cases)
+
+    def _load(self, server):
+        metrics = bench.load(server.base_url, server.model, self.workload)
+        metrics["max_ttft_ms"] = self.opts.max_ttft_ms
+        return metrics
 
     # ---------------------------------------------------------------- engines
     def inspect_engines(self, engines: list[str]) -> None:
@@ -145,7 +158,8 @@ class Tuner:
         self.log(f"Agent ({o.llm}) round {round_no}: researching…")
         try:
             return agent.propose(o.llm, model=o.model, engines=engines, artifacts=artifacts, hw=hw, goal=o.goal,
-                                 workload={**bench.WORKLOADS[o.workload].__dict__, "context": _context(o)}, previous=previous,
+                                 workload={**self.workload.__dict__, "context": _context(o), "max_ttft_ms": o.max_ttft_ms,
+                                           "required_quality_cases": o.quality_cases}, previous=previous,
                                  max_new=o.max_trials * len(engines), use_research=o.research,
                                  allowed=self.allowed, info=self.info, round_no=round_no, log=self.log)
         except Exception as error:  # noqa: BLE001 - a broken LLM must not stop the benchmark
@@ -173,7 +187,7 @@ class Tuner:
                      f"(pass --hf-repo with an AWQ/FP8 variant, or a smaller model)")
         self.inspect_engines(engines)
         engines = [e for e in engines if e in self.allowed]
-        workload = bench.WORKLOADS[o.workload]
+        workload = self.workload
         candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal, context=_context(o))
         previous = [_summary_row(a["payload"]) for a in self.store.attempts(o.model, hardware.fingerprint(hw))[-40:]]
         candidates += self._agent(hw, artifacts, engines, previous, 1)
@@ -195,7 +209,8 @@ class Tuner:
         context, machine = _context(o), hardware.fingerprint(hw)
         image = self.runner.image_id(engine)
         key = trial_key(machine=machine, engine=c.engine, image=image, artifact=art.to_dict(), config=c.config,
-                        context=context, workload=f"{o.workload}-{bench.WORKLOAD_VERSION}")
+                        context=context, workload={"version": bench.WORKLOAD_VERSION, "spec": self.workload.__dict__,
+                                                   "max_ttft_ms": o.max_ttft_ms, "quality": o.quality_cases})
         seen = self.store.trial(key)
         failure = issues.describe(seen) if seen else None
         retry = seen and seen["status"] != "ok" and (o.retry_failed or (failure or {}).get("retryable"))
@@ -206,7 +221,8 @@ class Tuner:
             return reused
         record = {"key": key, "run_id": self.run_id, "model": o.model, "machine": machine, "engine": c.engine,
                   "image": image, "artifact": art.to_dict(), "config": c.config, "context": context,
-                  "workload": o.workload, "hypothesis": f"[{c.origin}] {c.hypothesis}"[:800], "sources": c.sources,
+                  "workload": o.workload, "requirements": {"concurrency": self.workload.concurrency, "max_ttft_ms": o.max_ttft_ms,
+                                                            "quality_cases": o.quality_cases}, "hypothesis": f"[{c.origin}] {c.hypothesis}"[:800], "sources": c.sources,
                   "launch": docker_run(engine, art, c.config, context, host_port=8000,
                                        name=f"{c.engine}-serve", production=True)}
         server = None
@@ -214,9 +230,9 @@ class Tuner:
             with GpuSampler() as gpu:
                 server = self.runner.start(engine, art, c.config, context)
                 self.runner.wait_ready(server)
-                q = bench.quality(server.base_url, server.model)
+                q = self._quality(server)
                 self.log(f"  quality {q['passed']}/{q['total']}")
-                metrics = bench.load(server.base_url, server.model, bench.WORKLOADS[o.workload]) if q["pass"] else None
+                metrics = self._load(server) if q["pass"] else None
             record.update(status="ok" if q["pass"] else "quality_failed", quality=q, metrics=metrics,
                           gpu_peak_gib=gpu.peak_gib)
         except EngineFailed as error:
@@ -298,8 +314,8 @@ class Tuner:
             with GpuSampler() as gpu:
                 server = self.runner.start(engine, art, t["config"], t["context"])
                 self.runner.wait_ready(server)
-                q = bench.quality(server.base_url, server.model)
-                metrics = bench.load(server.base_url, server.model, bench.WORKLOADS[self.opts.workload]) if q["pass"] else None
+                q = self._quality(server)
+                metrics = self._load(server) if q["pass"] else None
             attempt.update(status="ok", quality=q, metrics=metrics, gpu_peak_gib=gpu.peak_gib)
             if not bench.quality_ok(attempt, reference):
                 attempt["status"] = "quality_failed"
@@ -404,8 +420,10 @@ def report(o: Options, hw: dict, trials: list[dict], winner: dict | None, refere
     gpu = hw.get("gpu") or {}
     lines = [f"# {o.model}", "", f"GPU {gpu.get('name')} ({gpu.get('vram_gib')} GiB) · goal **{o.goal}** "
              f"({unit}) · workload **{o.workload}**", "",
-             f"Quality reference: the best config answered {reference}/{len(bench.QUALITY_TASKS)} checks; "
-             "a config more than one below that cannot win (it degraded the model).", "",
+             f"Quality reference: the best config answered {reference}/{len(bench.QUALITY_TASKS) + len(o.quality_cases)} checks; "
+             "a config more than one below that cannot win. Every custom quality case must pass.",
+             f"Required concurrency: {o.concurrency or bench.WORKLOADS[o.workload].concurrency}; "
+             f"TTFT p99 limit: {o.max_ttft_ms if o.max_ttft_ms is not None else 'none'} ms.", "",
              f"Serving context configured: {_context(o)} tokens; prompt lengths follow the workload, not the context limit.", "",
              "| engine | artifact | config | status | quality | score (runs) | TTFT p50 | GPU peak | why tried |",
              "| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |"]

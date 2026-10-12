@@ -77,7 +77,8 @@ def _run(args) -> int:
     from .tuner import Options, Tuner
 
     opts = Options(model=args.model, engines=args.engines, goal=args.goal, workload=args.workload,
-                   context=args.context, budget_minutes=args.budget_minutes, max_trials=args.max_trials,
+                   context=args.context, concurrency=args.concurrency, max_ttft_ms=args.max_ttft_ms,
+                   quality_cases=bench.read_quality_cases(args.quality_file) if args.quality_file else [], budget_minutes=args.budget_minutes, max_trials=args.max_trials,
                    llm=args.llm or os.environ.get("ATLAS_LLM"), research=not args.no_research,
                    gguf_repo=args.gguf_repo, extra_hf=tuple(args.hf_repo), dry_run=args.dry_run,
                    vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs,
@@ -179,6 +180,10 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--workload", choices=list(bench.WORKLOADS), default="chat")
     run.add_argument("--context", type=int,
                      help="context length you will serve; trials run at it (default 8192)")
+    run.add_argument("--concurrency", type=lambda s: tuple(int(v) for v in s.split(",")),
+                     help="required concurrent request levels, e.g. 1,4,16")
+    run.add_argument("--max-ttft-ms", type=float, help="every level must meet this TTFT p99 limit")
+    run.add_argument("--quality-file", type=Path, help="JSON list of additional required prompt/expected cases")
     run.add_argument("--budget-minutes", type=float, default=90)
     run.add_argument("--max-trials", type=int, default=5, help="trials per engine")
     run.add_argument("--llm", help="LiteLLM model for the agent (default: $ATLAS_LLM; none = defaults only)")
@@ -206,6 +211,15 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("sync", help="copy local memory to MongoDB Atlas (needs MONGODB_URI)")
     args = parser.parse_args(argv)
     if args.command == "run":
+        if args.concurrency and any(c < 1 for c in args.concurrency):
+            parser.error("concurrency must contain positive integers")
+        if args.max_ttft_ms is not None and args.max_ttft_ms <= 0:
+            parser.error("max-ttft-ms must be positive")
+        if args.quality_file:
+            try:
+                bench.read_quality_cases(args.quality_file)
+            except (OSError, ValueError) as error:
+                parser.error(str(error))
         unknown = set(args.engines) - set(ENGINES)
         if unknown:
             parser.error(f"unknown engines {sorted(unknown)}; choose from {list(ENGINES)}")
