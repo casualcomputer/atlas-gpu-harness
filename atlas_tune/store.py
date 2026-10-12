@@ -1,4 +1,4 @@
-"""Local memory in SQLite, with MongoDB Atlas as an optional mirror.
+"""Local memory in SQLite, with MongoDB Atlas as an optional mirror (`uv sync --extra atlas`).
 
 Local is always on, so the tool works offline and remembers every trial. When
 MONGODB_URI is set, runs, trials and recipes are mirrored to Atlas (best effort) so a
@@ -143,7 +143,13 @@ class AtlasMirror:
 
         load_dotenv(override=False)
         uri = os.environ.get("MONGODB_URI")
-        return cls(uri) if uri else None
+        if not uri:
+            return None
+        try:
+            return cls(uri)
+        except ImportError:
+            print("  (MONGODB_URI is set but pymongo is not installed: `uv sync --extra atlas`; using local memory only)")
+            return None
 
     def put(self, table: str, row: dict) -> None:
         if self.failed:

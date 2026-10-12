@@ -160,7 +160,7 @@ Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) (`curl -L
 
 ```bash
 git clone https://github.com/casualcomputer/atlas-gpu-harness && cd atlas-gpu-harness
-uv sync                      # creates .venv from uv.lock
+uv sync --extra harness      # creates .venv from uv.lock
 cp .env.example .env         # paste your Atlas MONGODB_URI
 uv run atlas-harness setup-engine    # pinned llama.cpp b11429 + CUDA 12.8 runtime → artifacts/engines/
 uv run atlas-harness doctor          # checks Atlas, GPU, llama.cpp and Ollama; prints the fix for anything missing
@@ -178,8 +178,8 @@ uv run atlas-harness doctor          # checks Atlas, GPU, llama.cpp and Ollama; 
 | `atlas-harness tune --model M.gguf --resume-run RUN_ID` | Continue an interrupted run; committed trials are not rerun |
 | `atlas-harness serve --recipe artifacts/inference/RUN_ID/recommendation.json` | Relaunch a confirmed recipe; API at `http://127.0.0.1:8081/v1` |
 | `atlas-harness deploy docs\|plan\|benchmark\|compare` | vLLM/SGLang workflow, see [DEPLOYMENT_ENGINEER.md](DEPLOYMENT_ENGINEER.md) |
-| `atlas-harness strata --strata-root … --config …` | Native Strata 32K policy sweep, see [STRATA_EXPERIMENT.md](STRATA_EXPERIMENT.md) (`uv sync --extra strata`) |
-| `atlas-harness topk run\|resume\|status\|export` | Original exact top-k operator demo (`uv sync --extra torch`) |
+| `atlas-harness strata --strata-root … --config …` | Native Strata 32K policy sweep, see [STRATA_EXPERIMENT.md](STRATA_EXPERIMENT.md) (`uv sync --extra harness`) |
+| `atlas-harness topk run\|resume\|status\|export` | Original exact top-k operator demo (`uv sync --extra harness --extra torch`) |
 | `atlas-harness ui` | Serve the static demo site at `http://127.0.0.1:8000/demo-ui/` |
 
 Each command takes `-h`. `--engine` defaults to the launcher installed by `atlas-harness setup-engine`.

@@ -76,12 +76,17 @@ Workloads: `chat` (256 in / 256 out, 1–16 concurrent), `rag` (4,000 in / 256 o
 | --- | --- | --- |
 | Model lookup, downloads | nothing (`HF_TOKEN` only for gated models like Llama) | — |
 | **Failed trial → matching GitHub issues** in the report | nothing (`GITHUB_TOKEN` raises the rate limit) | — |
-| Agent that reads the model card and issues, then proposes extra configs | one LLM: `ATLAS_LLM` | stock configs only |
-| Agent web search | `TAVILY_API_KEY` or `BRAVE_API_KEY` | agent uses model card + GitHub only |
+| Agent that reads the model card and issues, then proposes extra configs | the LLM key you already have: `ATLAS_LLM` | stock configs only |
+| Agent web search | nothing extra: uses your LLM provider's built-in search (Claude, Gemini, OpenAI, xAI, Perplexity) | model card + GitHub only (e.g. local Ollama) |
+| Share results across machines | MongoDB Atlas: `MONGODB_URI` + `uv sync --extra atlas` | local SQLite only |
 
-`ATLAS_LLM` is any [LiteLLM](https://docs.litellm.ai/docs/providers) model string: `anthropic/claude-sonnet-5-5`, `ollama_chat/qwen3:8b`, or `openai/<model>` with `OPENAI_API_BASE` for any OpenAI-compatible server.
+`ATLAS_LLM` is any [LiteLLM](https://docs.litellm.ai/docs/providers) model string: `anthropic/claude-sonnet-5-5`, `gemini/gemini-2.5-flash`, `ollama_chat/qwen3:8b`, or `openai/<model>` with `OPENAI_API_BASE` for any OpenAI-compatible server. `atlas doctor` shows whether your model has built-in search.
 
-We tested the research sources on real models. Model cards for Qwen3 and gpt-oss carry the exact vLLM and SGLang serve commands. Anonymous GitHub issue search returns relevant bugs for a pasted error (for example vLLM out-of-memory errors with fp8 KV cache). Reddit blocks anonymous API access, so it is reached only through optional web search.
+We tested the research sources on real models. Model cards for Qwen3 and gpt-oss carry the exact vLLM and SGLang serve commands. Anonymous GitHub issue search returns relevant bugs for a pasted error (for example vLLM out-of-memory errors with fp8 KV cache). Reddit blocks anonymous API access, so forum results come only through the LLM's own search.
+
+## Isolation
+
+The agent can only search GitHub issues, read public web pages and model cards, and submit configs. It has no tool for local files, commands or Docker, and its configs pass an allowlist of tuning flags. Engine containers see only the GPU and the two model caches. [SECURITY.md](SECURITY.md) lists what leaves the machine and what is not yet enterprise-ready.
 
 A local Ollama model shares your GPU. Its memory shows up in the results, so stop it or use a hosted model for clean numbers.
 
@@ -89,7 +94,7 @@ A local Ollama model shares your GPU. Its memory shows up in the results, so sto
 
 Local memory is a SQLite file at `~/.atlas-tune/atlas.db` (change it with `ATLAS_HOME`). It holds runs, every trial (config, quality answers, latency and throughput per concurrency level, sampled GPU memory, errors and log tail, sources) and the best recipe per model, machine, engine and goal.
 
-Set `MONGODB_URI` and the same records are mirrored to MongoDB Atlas (`tune_runs`, `tune_trials`, `tune_recipes`), so a team or several machines share verified results. `atlas sync` backfills Atlas from local memory.
+Set `MONGODB_URI` and install the extra (`uv sync --extra atlas`), and the same records are mirrored to MongoDB Atlas (`tune_runs`, `tune_trials`, `tune_recipes`), so a team or several machines share verified results. `atlas sync` backfills Atlas from local memory.
 
 ## Limits
 

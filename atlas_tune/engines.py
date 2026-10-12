@@ -117,15 +117,16 @@ ENGINES: dict[str, Engine] = {
 
 def docker_run(engine: Engine, artifact: Artifact, config: dict, context: int, *, host_port: int,
                name: str, production: bool = False, labels: dict | None = None) -> list[str]:
-    """Full `docker run` argv. Caches are mounted so weights download once.
+    """Full `docker run` argv.
 
+    Only the two model caches are mounted, never the working directory or home folder.
     Trials bind to 127.0.0.1 only; the production recipe publishes the port and restarts.
     """
     hf_cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface"))
     llama_cache = Path(os.environ.get("LLAMA_CACHE", Path.home() / ".cache/llama.cpp"))
     publish = f"{host_port}:{engine.port}" if production else f"127.0.0.1:{host_port}:{engine.port}"
     argv = ["docker", "run", "-d", *(["--restart", "unless-stopped"] if production else []),
-            "--gpus", "all", "--ipc=host", "--name", name, "-p", publish,
+            "--gpus", "all", "--ipc=host", "--security-opt", "no-new-privileges", "--name", name, "-p", publish,
             "-v", f"{hf_cache}:/root/.cache/huggingface", "-v", f"{llama_cache}:/root/.cache/llama.cpp",
             "-e", "LLAMA_CACHE=/root/.cache/llama.cpp", "-e", "HF_TOKEN"]
     for key, value in (labels or {}).items():

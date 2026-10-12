@@ -6,24 +6,20 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "pymongo>=4.10,<5",
-    "filelock>=3.13,<4",
-    "python-dotenv>=1.0,<2",
-    "gguf==0.19.0",
-    "huggingface-hub>=0.30",
     "httpx>=0.27",
+    "huggingface-hub>=0.30",
+    # 1.82.7 and 1.82.8 were compromised in a March 2026 supply-chain attack.
     "litellm>=1.70,!=1.82.7,!=1.82.8",
     "psutil>=5.9,<8",
+    "python-dotenv>=1.0,<2",
 ]
 
 [project.optional-dependencies]
-# Original exact top-k operator demo (`atlas topk ...`). PyTorch's default
-# Linux wheel ships CUDA 12.x; see https://pytorch.org/get-started/locally/
-# for other platforms.
+# Mirror local memory to MongoDB Atlas.
+atlas = ["pymongo>=4.10,<5"]
+# Hackathon-era `atlas-harness` tools (native llama.cpp MoE loop, Strata, top-k).
+harness = ["pymongo>=4.10,<5", "filelock>=3.13,<4", "gguf==0.19.0"]
 torch = ["torch>=2.8"]
-# Native Strata policy experiments (`atlas strata ...`).
-strata = ["psutil>=5.9,<8"]
-# Demo video regeneration scripts.
 video = ["pillow>=10"]
 
 [project.scripts]
@@ -32,7 +28,7 @@ atlas = "atlas_tune.cli:main"
 atlas-harness = "atlas_gpu_harness.cli:main"
 
 [dependency-groups]
-dev = ["mongomock>=4.3,<5"]
+dev = ["mongomock>=4.3,<5", "pymongo>=4.10,<5", "filelock>=3.13,<4", "gguf==0.19.0"]
 
 [build-system]
 requires = ["hatchling>=1.25"]

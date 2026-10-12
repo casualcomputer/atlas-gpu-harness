@@ -182,6 +182,9 @@ class EngineTests(unittest.TestCase):
         self.assertIn("127.0.0.1:9000:8000", trial)
         self.assertIn("8000:8000", prod)
         self.assertIn("unless-stopped", prod)
+        self.assertIn("no-new-privileges", trial)
+        mounts = [trial[i + 1] for i, arg in enumerate(trial) if arg == "-v"]
+        self.assertTrue(all(m.endswith(("/root/.cache/huggingface", "/root/.cache/llama.cpp")) for m in mounts))
 
 
 class ShortlistTests(unittest.TestCase):
@@ -218,6 +221,28 @@ class AgentTests(unittest.TestCase):
         self.assertEqual([c.config for c in out], [{"max_num_seqs": 48}])
         self.assertEqual(out[0].sources, ["https://github.com/x/1"])
         self.assertEqual(out[0].origin, "llm")
+
+
+class ResearchSafetyTests(unittest.TestCase):
+    def test_fetch_refuses_local_private_and_metadata_addresses(self):
+        from atlas_tune import research
+
+        for url in ("http://127.0.0.1:8000/", "http://169.254.169.254/latest/meta-data", "http://10.1.2.3/",
+                    "file:///etc/passwd", "http://localhost/"):
+            with self.assertRaises(ValueError, msg=url):
+                research.fetch_page(url)
+
+    def test_model_card_rejects_path_tricks(self):
+        from atlas_tune import research
+
+        with self.assertRaises(ValueError):
+            research.model_card("../../etc/passwd")
+
+    def test_agent_has_no_local_file_or_shell_tools(self):
+        from atlas_tune import research
+
+        names = {s["function"]["name"] for s in research.SCHEMAS} | {agent.SUBMIT["function"]["name"]}
+        self.assertEqual(names, {"search_github_issues", "fetch_page", "model_card", "submit_configs"})
 
 
 class BenchTests(unittest.TestCase):

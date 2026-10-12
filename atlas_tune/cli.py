@@ -41,12 +41,12 @@ def _doctor(args) -> int:
         rows.append(("GPU idle", None, f"{busy:.1f} GiB already in use", "stop other GPU apps (e.g. Ollama) for clean results"))
     rows.append(("HF token", None if not os.environ.get("HF_TOKEN") else True,
                  "set" if os.environ.get("HF_TOKEN") else "not set (only gated models need it)", "export HF_TOKEN=…"))
-    search = os.environ.get("TAVILY_API_KEY") and "Tavily" or os.environ.get("BRAVE_API_KEY") and "Brave"
-    rows.append(("Web search", True if search else None, search or "no key (agent uses GitHub + model cards only)",
-                 "set TAVILY_API_KEY or BRAVE_API_KEY"))
+    from .research import native_web_search
+
     llm = os.environ.get("ATLAS_LLM")
-    rows.append(("Agent LLM", True if llm else None, llm or "not set (defaults only, no research)",
-                 "set ATLAS_LLM, e.g. anthropic/claude-sonnet-5-5 or ollama_chat/qwen3:8b"))
+    search = "with built-in web search" if native_web_search(llm) else "no web search (model card + GitHub only)"
+    rows.append(("Agent LLM", True if llm else None, f"{llm}, {search}" if llm else "not set (stock configs only)",
+                 "optional: set ATLAS_LLM, e.g. anthropic/claude-sonnet-5-5, gemini/gemini-2.5-flash, ollama_chat/qwen3:8b"))
     try:
         store = Store(mirror=False)
         rows.append(("Local memory", True, f"{store.path} ({len(store.trials())} trials)", ""))
@@ -55,9 +55,12 @@ def _doctor(args) -> int:
     if os.environ.get("MONGODB_URI"):
         try:
             AtlasMirror(os.environ["MONGODB_URI"]).db.client.admin.command("ping")
-            rows.append(("Atlas mirror", True, "connected", ""))
+        except ImportError:
+            rows.append(("Atlas mirror", False, "MONGODB_URI set but pymongo not installed", "uv sync --extra atlas"))
         except Exception as error:  # noqa: BLE001
             rows.append(("Atlas mirror", False, f"{type(error).__name__}", "check MONGODB_URI and the Atlas IP access list"))
+        else:
+            rows.append(("Atlas mirror", True, "connected", ""))
     else:
         rows.append(("Atlas mirror", None, "off (local only)", "set MONGODB_URI in .env to share results"))
     width = max(len(r[0]) for r in rows)

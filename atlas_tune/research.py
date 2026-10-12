@@ -1,15 +1,20 @@
-"""Research tools the agent can call: web search, GitHub issues, page fetch, HF model card.
+"""Research tools the agent can call: GitHub issues, page fetch, HF model card.
 
-Everything returned here is untrusted text. It only ever becomes a *candidate* config,
-which must pass the engine allowlist and then be measured before it can win.
+Web search comes from the user's own LLM provider (Claude, Gemini, OpenAI, xAI, Perplexity
+through LiteLLM), so there is no separate search account. Everything returned here is
+untrusted text: it can only become a *candidate* config, which must pass the engine
+allowlist and then be measured before it can win. These tools reach public internet
+hosts only; they cannot read local files or private network addresses.
 """
 
 from __future__ import annotations
 
 import html
+import ipaddress
 import os
 import re
-from urllib.parse import urlsplit
+import socket
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
@@ -20,15 +25,21 @@ _client = None
 def _http() -> httpx.Client:
     global _client
     if _client is None:
-        _client = httpx.Client(timeout=20, follow_redirects=True,
+        _client = httpx.Client(timeout=20, follow_redirects=False,
                                headers={"User-Agent": "atlas-tune/0.3 (inference config research)"})
     return _client
 
 
-def available() -> dict:
-    """GitHub, page fetch and model cards need no key; web search is the only optional one."""
-    return {"web_search": bool(os.environ.get("TAVILY_API_KEY") or os.environ.get("BRAVE_API_KEY")),
-            "github": True, "fetch": True, "model_card": True}
+def native_web_search(llm: str | None) -> bool:
+    """True when the LLM provider offers built-in web search (used via the same API key)."""
+    if not llm:
+        return False
+    try:
+        import litellm
+
+        return bool(litellm.supports_web_search(model=llm))
+    except Exception:  # noqa: BLE001 - unknown model names just mean "no"
+        return False
 
 
 ERROR_LINE = re.compile(r"(out of memory|OutOfMemory|CUDA error|RuntimeError|ValueError|AssertionError|"
@@ -59,24 +70,6 @@ def related_issues(engine: str, logs: str | None, error: str = "", limit: int = 
         return []
 
 
-def search_web(query: str, max_results: int = 6) -> list[dict]:
-    """Tavily if TAVILY_API_KEY is set, else Brave if BRAVE_API_KEY is set."""
-    if key := os.environ.get("TAVILY_API_KEY"):
-        response = _http().post("https://api.tavily.com/search",
-                                json={"api_key": key, "query": query, "max_results": max_results})
-        response.raise_for_status()
-        return [{"title": r.get("title"), "url": r.get("url"), "snippet": (r.get("content") or "")[:500]}
-                for r in response.json().get("results", [])]
-    if key := os.environ.get("BRAVE_API_KEY"):
-        response = _http().get("https://api.search.brave.com/res/v1/web/search",
-                               params={"q": query, "count": max_results},
-                               headers={"X-Subscription-Token": key, "Accept": "application/json"})
-        response.raise_for_status()
-        return [{"title": r.get("title"), "url": r.get("url"), "snippet": (r.get("description") or "")[:500]}
-                for r in response.json().get("web", {}).get("results", [])]
-    raise RuntimeError("no web search key: set TAVILY_API_KEY or BRAVE_API_KEY")
-
-
 def search_github_issues(engine: str, query: str, max_results: int = 6) -> list[dict]:
     """Issues and discussions in the engine's repo, e.g. a model name + 'OOM' or 'not supported'."""
     repo = ENGINE_REPOS.get(engine, engine)
@@ -92,11 +85,31 @@ def search_github_issues(engine: str, query: str, max_results: int = 6) -> list[
             for i in response.json().get("items", [])]
 
 
-def fetch_page(url: str, max_chars: int = 6000) -> str:
+def _public(url: str) -> None:
+    """Refuse anything but public internet hosts (no localhost, LAN, link-local or cloud metadata)."""
     parts = urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname or parts.hostname in ("localhost", "127.0.0.1"):
-        raise ValueError("only public http(s) URLs")
-    response = _http().get(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ValueError("only http(s) URLs")
+    try:
+        infos = socket.getaddrinfo(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80))
+    except socket.gaierror as error:
+        raise ValueError(f"cannot resolve {parts.hostname}") from error
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0])
+        if not address.is_global:
+            raise ValueError(f"refusing non-public address {address} for {parts.hostname}")
+
+
+def fetch_page(url: str, max_chars: int = 6000) -> str:
+    for _ in range(4):  # follow redirects manually so every hop is checked
+        _public(url)
+        response = _http().get(url)
+        if response.is_redirect:
+            url = urljoin(url, response.headers.get("location", ""))
+            continue
+        break
+    else:
+        raise ValueError("too many redirects")
     response.raise_for_status()
     text = response.text
     if "html" in response.headers.get("content-type", ""):
@@ -107,16 +120,15 @@ def fetch_page(url: str, max_chars: int = 6000) -> str:
 
 def model_card(repo: str, max_chars: int = 8000) -> str:
     """Hugging Face model cards often include a recommended `vllm serve` / llama.cpp command."""
+    if not re.fullmatch(r"[\w.\-]+/[\w.\-]+", repo):
+        raise ValueError("repo must look like org/name")
     return fetch_page(f"https://huggingface.co/{repo}/raw/main/README.md", max_chars)
 
 
-TOOLS = {"search_web": search_web, "search_github_issues": search_github_issues,
+TOOLS = {"search_github_issues": search_github_issues,
          "fetch_page": fetch_page, "model_card": model_card}
 
 SCHEMAS = [
-    {"type": "function", "function": {"name": "search_web", "description":
-        "Web search (blogs, forum threads, recipes) for serving configs of this model/GPU. Needs a search key.",
-        "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "search_github_issues", "description":
         "Search issues in an engine's GitHub repo for known bugs, OOMs or required flags for this model.",
         "parameters": {"type": "object", "properties": {
