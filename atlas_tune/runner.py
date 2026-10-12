@@ -117,7 +117,7 @@ class DockerRunner:
         lines = [ln.strip() for ln in self._inside(engine, engine.version_cmd, timeout=120).splitlines() if ln.strip()]
         named = [ln for ln in lines if "version" in ln.lower()]
         bare = [ln for ln in lines if re.fullmatch(r"v?\d+(\.\d+)+\S*", ln)]  # vllm/sglang print just "0.11.0"
-        version = (named or bare or lines or ["unknown"])[-1]
+        version = (bare or named or lines or ["unknown"])[-1]
         return {"version": version[:200], "help": help_text[-200_000:]}
 
     def start(self, engine: Engine, artifact: Artifact, config: dict, context: int) -> Server:

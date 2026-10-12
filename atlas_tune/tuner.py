@@ -93,7 +93,7 @@ class Tuner:
                     continue
             image = self.runner.image_id(engine, pull=not self.opts.dry_run)
             info = self.store.engine_info(image)
-            if not info:
+            if not info or info.get("version", "").startswith("CUDA Version "):
                 self.log(f"  reading {name} --help from {engine.image}")
                 described = self.runner.describe(engine)
                 self.store.put_engine_info(image, name, described["version"], described["help"])
