@@ -4,6 +4,20 @@
 
 **[▶ Live demo](demo-ui/index.html)** · [32K Strata policy lab](demo-ui/strata.html) · [59-second video](demo/atlas-inference-demo.mp4) · [Measured results](INFERENCE_RESULTS.md) · [System design](ARCHITECTURE.md) · [Submission](SUBMISSION.md)
 
+![Scrolling through the demo site](docs/screenshots/demo-scroll.gif)
+
+<sub>Full-resolution scroll recording: [demo-scroll.mp4](docs/screenshots/demo-scroll.mp4)</sub>
+
+| Agent console replaying a real run | MongoDB Atlas as the agent's memory |
+| --- | --- |
+| ![Hero with agent console](docs/screenshots/01-hero.png) | ![Atlas operations, real decision record and experiment ledger](docs/screenshots/03-atlas.png) |
+| **30 GB Kimi model on a 16 GB GPU** | **68 GB Strata model at 32K tokens** |
+| ![Kimi results and the agent's code revision](docs/screenshots/04-kimi-proof.png) | ![Strata 32K results: a +6.2% setting rejected](docs/screenshots/05-strata-32k.png) |
+| **The problem** | **Inference engines** |
+| ![Problem statement with sourced numbers](docs/screenshots/02-problem.png) | ![Engine status table](docs/screenshots/06-engines.png) |
+
+[Interactive 32K Strata policy lab screenshot](docs/screenshots/07-strata-policy-lab.png)
+
 | | |
 | --- | --- |
 | **Headline result** | **Kimi-Linear-48B-A3B, a 30.06 GB model, served on a 16 GB RTX 5070 Ti.** Every tuning trial passed 12/12 answer checks; the selected configuration passed 4/4 unseen confirmation questions. |
