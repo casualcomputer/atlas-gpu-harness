@@ -26,7 +26,7 @@ def _http() -> httpx.Client:
     global _client
     if _client is None:
         _client = httpx.Client(timeout=20, follow_redirects=False,
-                               headers={"User-Agent": "atlas-tune/0.3 (inference config research)"})
+                               headers={"User-Agent": "atlas-tune/0.4 (inference config research)"})
     return _client
 
 
@@ -140,3 +140,14 @@ SCHEMAS = [
         "Read a Hugging Face model card (README) for recommended serving commands.",
         "parameters": {"type": "object", "properties": {"repo": {"type": "string"}}, "required": ["repo"]}}},
 ]
+
+
+SECRET = re.compile(r"(hf_[A-Za-z0-9]{10,}|sk-[A-Za-z0-9_\-]{10,}|gh[pousr]_[A-Za-z0-9]{20,}|"
+                    r"(?i:(?:token|api[_-]?key|secret|password|authorization)\s*[=:]\s*)\S+|"
+                    r"mongodb(?:\+srv)?://\S+)")
+
+
+def redact(text: str | None, lines: int = 60, max_chars: int = 3000) -> str:
+    """Last lines of an engine log, with tokens, keys and connection strings removed."""
+    tail = "\n".join((text or "").splitlines()[-lines:])
+    return SECRET.sub("[redacted]", tail)[-max_chars:]

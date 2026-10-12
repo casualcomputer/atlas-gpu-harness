@@ -1,8 +1,0 @@
-atlas_gpu_harness/
-tests/
-scripts/
-requirements*.txt
-pyproject.toml
-*.py
-uv.lock
-.python-version

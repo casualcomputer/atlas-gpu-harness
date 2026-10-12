@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS trials (
   quality TEXT, metrics TEXT, gpu_peak_gib REAL, error TEXT, logs TEXT, hypothesis TEXT,
   sources TEXT, launch TEXT, related TEXT);
 CREATE INDEX IF NOT EXISTS trials_model ON trials(model, machine);
+CREATE TABLE IF NOT EXISTS engine_info (
+  image TEXT PRIMARY KEY, engine TEXT, version TEXT, help TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS recipes (
   model TEXT, machine TEXT, engine TEXT, goal TEXT, workload TEXT, trial_key TEXT,
   score REAL, launch TEXT, updated TEXT, PRIMARY KEY (model, machine, engine, goal, workload));
@@ -113,6 +115,16 @@ class Store:
         args = [v for v in (model, machine) if v]
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
         return self._all(f"SELECT * FROM recipes {where} ORDER BY score DESC", args)
+
+    # -- engine images: version and --help, cached by immutable digest
+    def engine_info(self, image: str) -> dict | None:
+        row = self.db.execute("SELECT * FROM engine_info WHERE image=?", (image,)).fetchone()
+        return dict(row) if row else None
+
+    def put_engine_info(self, image: str, engine: str, version: str, help_text: str) -> None:
+        self.db.execute("INSERT OR REPLACE INTO engine_info VALUES (?, ?, ?, ?, ?)",
+                        (image, engine, version, help_text, now()))
+        self.db.commit()
 
     def sync(self) -> dict:
         if not self.mirror:

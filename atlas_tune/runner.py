@@ -80,6 +80,29 @@ class DockerRunner:
             self._pulled[engine.image] = digest
         return self._pulled[engine.image]
 
+    def has_image(self, engine: Engine) -> bool:
+        try:
+            return subprocess.run(["docker", "image", "inspect", engine.image], capture_output=True,
+                                  timeout=30).returncode == 0
+        except (OSError, subprocess.SubprocessError):  # no docker on a planning machine
+            return False
+
+    def _inside(self, engine: Engine, command: tuple, timeout: int = 300) -> str:
+        """Run a read-only command in the engine image: no network, removed afterwards."""
+        entrypoint, args = command
+        argv = ["docker", "run", "--rm", "--network", "none", "--gpus", "all",
+                *(["--entrypoint", entrypoint] if entrypoint else []), engine.image, *args]
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        return (result.stdout + "\n" + result.stderr).strip()
+
+    def describe(self, engine: Engine) -> dict:
+        """The image's own --help and version: the authoritative docs for this exact build."""
+        help_text = self._inside(engine, engine.help_cmd)
+        if engine.name == "vllm" and "--max-num-seqs" not in help_text:  # older vLLM: no --help=all
+            help_text = self._inside(engine, ("vllm", ("serve", "--help")))
+        version = self._inside(engine, engine.version_cmd, timeout=120).splitlines()
+        return {"version": (version[-1] if version else "unknown")[:200], "help": help_text[-200_000:]}
+
     def start(self, engine: Engine, artifact: Artifact, config: dict, context: int) -> Server:
         port, name = free_port(), f"{LABEL}-{engine.name}-{uuid.uuid4().hex[:8]}"
         argv = docker_run(engine, artifact, config, context, host_port=port, name=name, labels={LABEL: "1"})

@@ -56,14 +56,35 @@ def fake_server(delay: float, wrong: bool = False):
     return server
 
 
+FAKE_VLLM_HELP = """usage: vllm serve [model_tag] [options]
+  --gpu-memory-utilization GPU_MEMORY_UTILIZATION
+                        The fraction of GPU memory to be used for the model executor.
+  --max-num-seqs MAX_NUM_SEQS
+                        Maximum number of sequences per iteration.
+  --kv-cache-dtype {auto,fp8,fp8_e4m3,fp8_e5m2}
+                        Data type for kv cache storage.
+  --enforce-eager       Always use eager-mode PyTorch.
+"""
+
+
 class FakeRunner:
-    """Speed depends on config so the tuner has something to find; one config 'OOMs'."""
+    """Speed depends on config so the tuner has something to find; one config 'OOMs'.
+
+    Its vLLM image is an older build without --max-num-batched-tokens, --async-scheduling, etc.
+    """
 
     def __init__(self):
-        self.started, self.servers = [], {}
+        self.started, self.servers, self.described = [], {}, 0
 
     def image_id(self, engine):
         return f"{engine.image}@sha256:test"
+
+    def has_image(self, engine):
+        return True
+
+    def describe(self, engine):
+        self.described += 1
+        return {"version": "0.0.test", "help": FAKE_VLLM_HELP}
 
     def cleanup(self):
         return 0
@@ -71,7 +92,8 @@ class FakeRunner:
     def start(self, engine, artifact, config, context):
         self.started.append((engine.name, dict(config)))
         if config.get("max_num_seqs") == 999:
-            raise EngineFailed("CUDA out of memory", logs="torch.OutOfMemoryError")
+            raise EngineFailed("container exited during startup",
+                               logs="loading\nHF_TOKEN=hf_secretsecretsecret\ntorch.OutOfMemoryError: CUDA out of memory.")
         delay = 0.001 if config.get("kv_cache_dtype") == "fp8" else 0.004
         httpd = fake_server(delay, wrong=config.get("enforce_eager", False))
         server = Server(name=f"s{len(self.started)}", base_url=f"http://127.0.0.1:{httpd.server_port}")
@@ -127,9 +149,9 @@ class TunerTests(unittest.TestCase):
         self.assertTrue((Path(summary["report"]).parent / "serve.sh").exists())
 
     def test_second_run_reuses_memory_instead_of_relaunching(self):
-        self._run(FakeRunner())
+        self._run(FakeRunner(), rounds=1)
         runner = FakeRunner()
-        summary = self._run(runner)
+        summary = self._run(runner, rounds=1)
         self.assertEqual(runner.started, [])
         self.assertEqual(summary["winner"]["engine"], "vllm")
 
@@ -139,16 +161,56 @@ class TunerTests(unittest.TestCase):
         issue = {"title": "[Bug]: OOM at startup", "url": "https://github.com/vllm-project/vllm/issues/1", "state": "open"}
         with mock.patch("atlas_tune.agent.defaults", return_value=bad), \
                 mock.patch("atlas_tune.research.search_github_issues", return_value=[issue]) as search:
-            summary = self._run(FakeRunner())
+            summary = self._run(FakeRunner(), rounds=1)
         self.assertIn("OutOfMemoryError", search.call_args.args[1])
         statuses = {t["status"] for t in self.store.trials("org/m")}
         self.assertEqual(statuses, {"failed", "quality_failed"})
         self.assertIsNone(summary["winner"])
         failed = next(t for t in self.store.trials("org/m") if t["status"] == "failed")
-        self.assertIn("out of memory", failed["error"])
+        self.assertIn("exited during startup", failed["error"])
         self.assertIn("OutOfMemoryError", failed["logs"])
         self.assertEqual(failed["related"], [issue])
         self.assertIn("issues/1", Path(summary["report"]).read_text())
+
+    def test_image_help_decides_which_flags_are_used(self):
+        runner = FakeRunner()
+        self._run(runner, rounds=1)
+        used = {k for _, cfg in runner.started for k in cfg}
+        self.assertNotIn("max_num_batched_tokens", used)   # not in this image's --help
+        self.assertNotIn("async_scheduling", used)
+        self.assertIn("kv_cache_dtype", used)
+        self.assertEqual(runner.described, 1)
+        self._run(FakeRunner(), rounds=1)                  # second run: help comes from the cache
+        self.assertEqual(self.store.engine_info("vllm/vllm-openai:latest@sha256:test")["version"], "0.0.test")
+
+    def test_oom_is_fixed_automatically_in_the_next_round(self):
+        start = [agent.Candidate("vllm", ARTIFACT.id, {"max_num_seqs": 999}, "too many sequences", origin="baseline")]
+        with mock.patch("atlas_tune.agent.defaults", return_value=start), \
+                mock.patch("atlas_tune.research.search_github_issues", return_value=[]):
+            summary = self._run(FakeRunner(), rounds=2)
+        fixed = [t for t in self.store.trials("org/m") if t["hypothesis"].startswith("[fix]")]
+        self.assertTrue(fixed)
+        self.assertEqual(summary["winner"]["engine"], "vllm")
+        self.assertLess(summary["best"]["vllm"]["config"]["max_num_seqs"], 999)
+
+    def test_agent_round_two_sees_redacted_logs_of_failures(self):
+        start = [agent.Candidate("vllm", ARTIFACT.id, {"max_num_seqs": 999}, "too many sequences", origin="baseline")]
+        seen = []
+
+        def fake_propose(llm, **kw):
+            seen.append(kw)
+            return []
+
+        with mock.patch("atlas_tune.agent.defaults", return_value=start), \
+                mock.patch("atlas_tune.agent.propose", side_effect=fake_propose), \
+                mock.patch("atlas_tune.research.search_github_issues", return_value=[]):
+            self._run(FakeRunner(), rounds=2, llm="openai/test")
+        round2 = next(kw for kw in seen if kw["round_no"] == 2)
+        failed = next(r for r in round2["previous"] if r["status"] == "failed")
+        self.assertIn("OutOfMemoryError", failed["log_tail"])
+        self.assertNotIn("hf_secret", failed["log_tail"])
+        self.assertIn("--max-num-seqs", round2["info"]["vllm"]["help"])
+        self.assertNotIn("max_num_batched_tokens", round2["allowed"]["vllm"])
 
     def test_dry_run_starts_nothing(self):
         runner = FakeRunner()
@@ -202,6 +264,13 @@ class AgentTests(unittest.TestCase):
         message.model_dump.return_value = {"role": "assistant"}
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
+    def test_agent_rejects_flags_the_image_does_not_have(self):
+        allowed = {"vllm": {"max_num_seqs": engines.ENGINES["vllm"].knobs["max_num_seqs"]}}
+        good, errors = agent.validate([{"engine": "vllm", "artifact_id": ARTIFACT.id, "hypothesis": "x",
+                                        "config": {"async_scheduling": True}}], ["vllm"], [ARTIFACT], allowed)
+        self.assertEqual(good, [])
+        self.assertIn("not supported by this vllm image", errors[0])
+
     def test_agent_researches_then_only_valid_configs_survive(self):
         replies = [
             self._reply("search_github_issues", {"engine": "vllm", "query": "org/m OOM"}),
@@ -242,7 +311,13 @@ class ResearchSafetyTests(unittest.TestCase):
         from atlas_tune import research
 
         names = {s["function"]["name"] for s in research.SCHEMAS} | {agent.SUBMIT["function"]["name"]}
-        self.assertEqual(names, {"search_github_issues", "fetch_page", "model_card", "submit_configs"})
+        names.add(agent.ENGINE_HELP["function"]["name"])
+        self.assertEqual(names, {"search_github_issues", "fetch_page", "model_card", "engine_help", "submit_configs"})
+
+    def test_engine_help_search_returns_the_flag_entry(self):
+        text = agent.search_help(FAKE_VLLM_HELP, "kv-cache-dtype")
+        self.assertIn("fp8_e5m2", text)
+        self.assertNotIn("--enforce-eager", text)
 
 
 class BenchTests(unittest.TestCase):

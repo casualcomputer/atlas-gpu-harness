@@ -6,15 +6,23 @@ atlas is a single-user CLI that runs on the machine with the GPU. This page list
 
 | Part | Can reach | Cannot reach |
 | --- | --- | --- |
-| **Agent LLM** (optional) | Four tools: GitHub issue search, public web page fetch, Hugging Face model card, `submit_configs`. Plus the provider's built-in web search when it has one. | Local files, shell commands, Docker, environment variables, the local database. There is no tool for any of these. |
+| **Agent LLM** (optional) | Five tools: the engine image's cached `--help`, GitHub issue search, public web page fetch, Hugging Face model card, `submit_configs`. Plus the provider's built-in web search when it has one. | Local files, shell commands, Docker, environment variables, the local database. There is no tool for any of these. |
 | **`fetch_page` / `model_card`** | Public internet hosts over http(s). Each redirect hop is re-checked. | `localhost`, private LAN ranges (10/8, 172.16/12, 192.168/16), link-local and cloud metadata (169.254.169.254), `file://`. |
-| **Agent proposals** | A config dict for a listed engine and artifact. | Any container argument outside a per-engine allowlist of about 6–8 tuning flags with type and range checks. No image, entrypoint, volume, env or network changes. |
+| **Agent proposals** | A config dict for a listed engine and artifact, using flags from a per-engine allowlist that also exist in the pulled image's `--help`. | Any other container argument. Every value is type- and range-checked. No image, entrypoint, volume, env or network changes. |
 | **Engine containers** | The GPU; two mounted caches (`~/.cache/huggingface`, `~/.cache/llama.cpp`); the internet, to download weights; `HF_TOKEN` if set. | Your working directory, home folder, `.env` and other files: nothing else is mounted. They run with `no-new-privileges`, and trial ports bind to `127.0.0.1` only. |
+| **Image help check** | Runs `--help` / `--version` inside each image with `--network none`, then removes the container. | — |
 | **atlas itself** | Docker, `nvidia-smi`, the two caches, its SQLite file (`~/.atlas-tune`), `./atlas-out`. | It removes only containers carrying its own `atlas-tune` label. |
 
 ## What leaves the machine
 
-- **To the LLM provider** (only if `ATLAS_LLM` is set): model ID, GPU name, VRAM, driver, RAM, disk free, CPU count; candidate artifacts; past trial summaries (configs, throughput, latency, quality score, error message up to 300 characters); text the agent's tools fetched. Container logs, file contents and keys are never sent.
+- **To the LLM provider** (only if `ATLAS_LLM` is set):
+  - model ID, GPU name, VRAM, driver, RAM, disk free and CPU count
+  - candidate artifacts, and the engine images' help text
+  - trial summaries: configs, throughput, latency, quality score, wrong answers, error message up to 300 characters
+  - for failed trials in the current run, the last 60 lines of the engine container's log, with tokens, API keys, passwords and connection strings removed (`--no-share-logs` turns this off)
+  - text the agent's tools fetched
+
+  Your files and keys are never sent.
 - **To GitHub search** (anonymous unless `GITHUB_TOKEN`): the agent's queries, and for a failed trial the engine's error line with paths and numbers removed.
 - **To Hugging Face**: model lookups and weight downloads (by the engines).
 - **To MongoDB Atlas** (only if `MONGODB_URI` and the `atlas` extra): runs, trials (without log tails) and recipes.

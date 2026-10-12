@@ -79,7 +79,7 @@ def _run(args) -> int:
                    context=args.context, budget_minutes=args.budget_minutes, max_trials=args.max_trials,
                    llm=args.llm or os.environ.get("ATLAS_LLM"), research=not args.no_research,
                    gguf_repo=args.gguf_repo, extra_hf=tuple(args.hf_repo), dry_run=args.dry_run,
-                   vram_gib=args.gpu_gib)
+                   vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs)
     if not args.dry_run and not hardware.docker()["ok"]:
         print("Docker is not available; run `atlas doctor`.", file=sys.stderr)
         return 1
@@ -151,7 +151,11 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--budget-minutes", type=float, default=90)
     run.add_argument("--max-trials", type=int, default=5, help="trials per engine")
     run.add_argument("--llm", help="LiteLLM model for the agent (default: $ATLAS_LLM; none = defaults only)")
+    run.add_argument("--rounds", type=int, default=3,
+                     help="1 = planned trials only; each extra round fixes failures and refines (default 3)")
     run.add_argument("--no-research", action="store_true", help="agent proposes without web/GitHub search")
+    run.add_argument("--no-share-logs", action="store_true",
+                     help="don't send redacted engine log tails of failed trials to the agent LLM")
     run.add_argument("--gguf-repo", help="GGUF repo for llama.cpp (default: found automatically)")
     run.add_argument("--hf-repo", action="append", default=[], help="extra HF repo, e.g. an AWQ/FP8 variant")
     run.add_argument("--dry-run", action="store_true", help="plan only: print trials and docker commands")
