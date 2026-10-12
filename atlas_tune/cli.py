@@ -81,7 +81,7 @@ def _run(args) -> int:
                    llm=args.llm or os.environ.get("ATLAS_LLM"), research=not args.no_research,
                    gguf_repo=args.gguf_repo, extra_hf=tuple(args.hf_repo), dry_run=args.dry_run,
                    vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs,
-                   confirm=max(0, args.confirm), retry_failed=args.retry_failed)
+                   confirm=max(0, args.confirm), retry_failed=args.retry_failed, allow_cpu_offload=args.allow_cpu_offload)
     if not args.dry_run and not hardware.docker()["ok"]:
         print("Docker is not available; run `atlas doctor`.", file=sys.stderr)
         return 1
@@ -186,6 +186,7 @@ def main(argv: list[str] | None = None) -> None:
                      help="1 = planned trials only; each extra round fixes failures and refines (default 3)")
     run.add_argument("--confirm", type=int, default=2,
                      help="re-measure the top configs this many more times; winner by median (0 = provisional results only)")
+    run.add_argument("--allow-cpu-offload", action="store_true", help="include a RAM-backed option for oversized dense models")
     run.add_argument("--retry-failed", action="store_true", help="retry cached failures; transient failures retry automatically on a new run")
     run.add_argument("--no-research", action="store_true", help="agent proposes without web/GitHub search")
     run.add_argument("--no-share-logs", action="store_true",

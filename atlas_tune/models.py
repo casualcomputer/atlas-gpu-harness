@@ -20,6 +20,7 @@ class Artifact:
     file: str | None = None
     moe: bool = False
     layers: int | None = None
+    revision: str | None = None
     kv_bytes_per_token: int | None = None  # FP16/BF16 K + V across all layers
 
     def to_dict(self) -> dict:
@@ -36,13 +37,13 @@ def _weights_gib(info, suffix: str) -> float:
     return round(sum((s.size or 0) for s in info.siblings if s.rfilename.endswith(suffix)) / 2**30, 2)
 
 
-def _config(repo: str) -> dict:
+def _config(repo: str, revision: str | None = None) -> dict:
     import json
 
     from huggingface_hub import hf_hub_download
 
     try:
-        return json.loads(open(hf_hub_download(repo, "config.json")).read())
+        return json.loads(open(hf_hub_download(repo, "config.json", revision=revision)).read())
     except Exception:  # noqa: BLE001 - gated or missing config is not fatal
         return {}
 
@@ -91,7 +92,7 @@ def _hf_artifact(info, cfg: dict) -> Artifact | None:
     return Artifact(id=f"hf:{info.id}", engine_format="hf", repo=info.id, size_gib=size,
                     quant=match.group(1).lower() if match else str(text.get("torch_dtype", "bf16")),
                     moe=moe, layers=text.get("num_hidden_layers"),
-                    kv_bytes_per_token=_kv_bytes_per_token(cfg))
+                    revision=getattr(info, "sha", None), kv_bytes_per_token=_kv_bytes_per_token(cfg))
 
 
 def _gguf_repos(api, base: str, explicit: str | None, model_org: str = "") -> list[str]:
@@ -110,11 +111,11 @@ def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] 
     """All loadable artifacts: the model itself, any extra quantized HF repos, and single-file GGUFs."""
     api = _api()
     info = api.model_info(model, files_metadata=True)
-    cfg = _config(model)
+    cfg = _config(model, getattr(info, "sha", None))
     out: list[Artifact] = []
     for repo in (model, *extra_hf):
         repo_info = info if repo == model else api.model_info(repo, files_metadata=True)
-        artifact = _hf_artifact(repo_info, cfg if repo == model else _config(repo))
+        artifact = _hf_artifact(repo_info, cfg if repo == model else _config(repo, getattr(repo_info, "sha", None)))
         if artifact:
             out.append(artifact)
     base = model.split("/")[-1]
@@ -131,7 +132,7 @@ def resolve(model: str, gguf_repo: str | None = None, extra_hf: tuple[str, ...] 
                 continue
             out.append(Artifact(id=f"gguf:{repo}:{quant.group(1)}", engine_format="gguf", repo=repo,
                                 file=name, quant=quant.group(1), size_gib=round((sibling.size or 0) / 2**30, 2),
-                                moe=moe, layers=layers, kv_bytes_per_token=_kv_bytes_per_token(cfg)))
+                                moe=moe, layers=layers, revision=getattr(ginfo, "sha", None), kv_bytes_per_token=_kv_bytes_per_token(cfg)))
     return out
 
 
@@ -140,7 +141,7 @@ GGUF_PREFERENCE = ("Q8_0", "Q6_K", "Q5_K_M", "Q4_K_M", "IQ4_XS", "Q3_K_M", "IQ3_
 
 
 def shortlist(artifacts: list[Artifact], vram_gib: float, ram_gib: float,
-              context: int = 8192, used_gib: float = 0) -> list[Artifact]:
+              context: int = 8192, used_gib: float = 0, allow_cpu_offload: bool = False) -> list[Artifact]:
     """Keep what can plausibly run on this machine, highest precision first.
 
     HF: up to two repos whose weights and one full-context KV cache fit in VRAM.
@@ -163,4 +164,15 @@ def shortlist(artifacts: list[Artifact], vram_gib: float, ram_gib: float,
     fits = [a for a in preferred if fits_one(a)][:2]
     offload = [a for a in preferred if gpu_room < a.size_gib <= gpu_room + ram_room and a.moe]
     offload.sort(key=lambda a: (a.quant.upper() != "Q4_K_M", -a.size_gib))
+    if allow_cpu_offload:
+        # Require room for a full host-side weight copy, not just the GPU spill.
+        def can_offload(a):
+            kv = (a.kv_bytes_per_token or 0) * context / 2**30
+            return (not fits_one(a) and a.layers and a.kv_bytes_per_token
+                    and 0 < a.size_gib <= ram_room and vram_gib * 0.8 - used_gib - kv > 1)
+        hf_extra = sorted((a for a in artifacts if a.engine_format == "hf" and can_offload(a)),
+                          key=lambda a: a.size_gib)[:1]
+        dense = [a for a in preferred if not a.moe and can_offload(a)]
+        # One high-precision offload option makes the speed/precision tradeoff measurable.
+        return hf + hf_extra + fits + offload[:1] + dense[:1]
     return hf + fits + offload[:1]

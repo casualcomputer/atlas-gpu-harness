@@ -25,6 +25,7 @@ class Options:
     context: int | None = None
     budget_minutes: float = 90
     max_trials: int = 5            # per engine
+    allow_cpu_offload: bool = False
     retry_failed: bool = False
     llm: str | None = None
     research: bool = True
@@ -111,6 +112,10 @@ class Tuner:
         for old, new in ENGINES[c.engine].aliases:
             if old in c.config and old not in allowed and new in allowed:
                 c.config[new] = c.config.pop(old)
+        essential = {"cpu_offload_gb", "n_gpu_layers", "n_cpu_moe", "cpu_moe"} & c.config.keys()
+        if essential - allowed.keys():
+            self.log(f"  skip {c.engine}: required offload settings unsupported: {sorted(essential - allowed.keys())}")
+            return None
         c.config = {k: v for k, v in c.config.items() if k in allowed}
         key = (c.engine, c.artifact_id, json.dumps(c.config, sort_keys=True))
         if key in self.tried:
@@ -158,7 +163,8 @@ class Tuner:
                  f"RAM {hw['ram_available_gib']}/{hw['ram_total_gib']} GiB free · disk {hw['disk_free_gib']} GiB free")
         all_artifacts = models.resolve(o.model, o.gguf_repo, o.extra_hf)
         artifacts = models.shortlist(all_artifacts, gpu.get("vram_gib") or 0, hw["ram_available_gib"],
-                                     context=_context(o), used_gib=gpu.get("used_gib") or 0)
+                                     context=_context(o), used_gib=gpu.get("used_gib") or 0,
+                                     allow_cpu_offload=o.allow_cpu_offload)
         for a in artifacts:
             self.log(f"  artifact {a.id}  {a.size_gib} GiB")
         engines = [e for e in o.engines if any(a.engine_format == ENGINES[e].format for a in artifacts)]
@@ -188,7 +194,7 @@ class Tuner:
         art = next(a for a in artifacts if a.id == c.artifact_id)
         context, machine = _context(o), hardware.fingerprint(hw)
         image = self.runner.image_id(engine)
-        key = trial_key(machine=machine, engine=c.engine, image=image, artifact=art.id, config=c.config,
+        key = trial_key(machine=machine, engine=c.engine, image=image, artifact=art.to_dict(), config=c.config,
                         context=context, workload=f"{o.workload}-{bench.WORKLOAD_VERSION}")
         seen = self.store.trial(key)
         failure = issues.describe(seen) if seen else None

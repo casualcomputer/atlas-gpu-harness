@@ -16,6 +16,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote
 
 from .models import Artifact
 
@@ -97,16 +98,22 @@ class Engine:
         config = self.validate(config)
         port = port or self.port
         tuned = [arg for key, value in config.items() for arg in self.knobs[key].argv(value)]
+        revision = ["--revision", artifact.revision] if artifact.revision else []
         if self.name == "vllm":
             return ["--model", artifact.repo, "--host", host, "--port", str(port),
-                    "--max-model-len", str(context), *tuned]
+                    "--max-model-len", str(context), *revision, *tuned]
         if self.name == "sglang":
             return ["python3", "-m", "sglang.launch_server", "--model-path", artifact.repo,
-                    "--host", host, "--port", str(port), "--context-length", str(context), *tuned]
+                    "--host", host, "--port", str(port), "--context-length", str(context), *revision, *tuned]
         if self.name == "llamacpp":
             # -c is shared by all parallel slots, so give each slot the requested context.
             slots = int(config.get("parallel", 1))
-            return ["-hf", f"{artifact.repo}:{artifact.quant}", "--host", host, "--port", str(port),
+            model_args = ["-hf", f"{artifact.repo}:{artifact.quant}"]
+            if artifact.revision and artifact.file:
+                url = f"https://huggingface.co/{artifact.repo}/resolve/{artifact.revision}/{quote(artifact.file)}"
+                cache_name = f"{artifact.repo.replace('/', '_')}_{artifact.revision}_{artifact.file}"
+                model_args = ["--model-url", url, "-m", f"/root/.cache/llama.cpp/{cache_name}"]
+            return [*model_args, "--host", host, "--port", str(port),
                     "-c", str(context * slots), "--jinja", *tuned]
         raise ValueError(f"unknown engine {self.name}")
 

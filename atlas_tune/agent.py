@@ -58,6 +58,9 @@ def defaults(engines: list[str], artifacts: list[Artifact], hw: dict, max_concur
     out: list[Candidate] = []
     for engine in engines:
         for rank, art in enumerate(_for_engine(engine, artifacts)):
+            kv = (art.kv_bytes_per_token or 0) * context / 2**30
+            weight_room = max(0, vram * 0.8 - used - kv)
+            spill = art.size_gib + kv > vram * 0.9 - used or art.size_gib > vram * 0.85
             slots = parallel_slots(art, vram, context, max_concurrency, used,
                                    fraction=0.85 if engine == "sglang" else 0.9)
             if engine == "vllm":
@@ -88,9 +91,18 @@ def defaults(engines: list[str], artifacts: list[Artifact], hw: dict, max_concur
                     variants = [({**base, "n_cpu_moe": min(art.layers, estimate + 4)}, "safer: more experts in RAM"),
                                 ({**base, "n_cpu_moe": max(0, estimate - 4)}, "faster if it still fits: more experts on GPU"),
                                 ({**base, "ubatch_size": 2048, "batch_size": 4096}, "big batches amortise expert copies in prefill")]
-            offloaded = "n_cpu_moe" in base
+            if spill and art.layers and not (engine == "llamacpp" and art.moe):
+                if engine == "llamacpp":
+                    layers = max(1, min(art.layers, int(art.layers * weight_room / art.size_gib)))
+                    base = {"n_gpu_layers": layers, "parallel": 1, "flash_attn": "on", "threads": threads}
+                    variants = [({**base, "n_gpu_layers": max(1, layers - 4)}, "more layers in RAM for headroom")]
+                else:
+                    base["cpu_offload_gb"] = math.ceil(max(0, art.size_gib - weight_room))
+                    base["max_num_seqs" if engine == "vllm" else "max_running_requests"] = 1
+                    variants = []
+            offloaded = "n_cpu_moe" in base or "cpu_offload_gb" in base or base.get("n_gpu_layers", 999) < 999
             out.append(Candidate(engine, art.id, base, "engine baseline for this artifact"
-                                 + (" (MoE experts partly in RAM)" if offloaded else ""), origin="baseline"))
+                                 + (" (weights partly in CPU RAM)" if offloaded else ""), origin="baseline"))
             if rank == 0 or offloaded:
                 out += [Candidate(engine, art.id, cfg, why) for cfg, why in variants]
     return out
@@ -167,6 +179,9 @@ How to work:
   GitHub issues; search the engine's issues with the key error words; use web search for
   forum and blog reports from people with the same model or GPU. State the cause in `diagnosis`.
 - Check flags against engine_help: it is the documentation for the exact version being run.
+- The workload includes the actual serving context. Account for weights, KV cache, existing
+  GPU use and available RAM. Offloading trades GPU memory for RAM use and transfer/CPU cost;
+  propose a bounded change and measure it. Issue categories are diagnostic hints, not proof.
 - Otherwise look for speed: the model card's recommended settings, known good settings for this
   GPU class, and the next obvious step from the best result so far.
 - Use only engines, artifact_ids and settings in the schema; respect ranges and choices.
