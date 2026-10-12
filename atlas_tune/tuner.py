@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import agent, bench, deploy, hardware, models, research
+from . import agent, bench, deploy, hardware, issues, models, research
 from .engines import ENGINES, docker_run
 from .runner import DockerRunner, EngineFailed, GpuSampler
 from .store import Store, trial_key
@@ -25,6 +25,7 @@ class Options:
     context: int | None = None
     budget_minutes: float = 90
     max_trials: int = 5            # per engine
+    retry_failed: bool = False
     llm: str | None = None
     research: bool = True
     gguf_repo: str | None = None
@@ -59,7 +60,7 @@ def _summary_row(trial: dict, with_logs: bool = False) -> dict:
            "levels": [{k: lv.get(k) for k in ("concurrency", "ok", "requests", "output_tok_s", "ttft_p50_ms",
                                               "per_user_tok_s", "errors")} for lv in m.get("levels", [])],
            "gpu_peak_gib": trial.get("gpu_peak_gib"), "error": (trial.get("error") or "")[:300],
-           "related_issues": trial.get("related") or []}
+           "related_issues": trial.get("related") or [], "issue": issues.describe(trial)}
     if with_logs and trial["status"] != "ok":
         row["log_tail"] = research.redact(trial.get("logs"))
     return row
@@ -139,7 +140,7 @@ class Tuner:
         self.log(f"Agent ({o.llm}) round {round_no}: researching…")
         try:
             return agent.propose(o.llm, model=o.model, engines=engines, artifacts=artifacts, hw=hw, goal=o.goal,
-                                 workload=bench.WORKLOADS[o.workload].__dict__, previous=previous,
+                                 workload={**bench.WORKLOADS[o.workload].__dict__, "context": _context(o)}, previous=previous,
                                  max_new=o.max_trials * len(engines), use_research=o.research,
                                  allowed=self.allowed, info=self.info, round_no=round_no, log=self.log)
         except Exception as error:  # noqa: BLE001 - a broken LLM must not stop the benchmark
@@ -168,18 +169,18 @@ class Tuner:
         engines = [e for e in engines if e in self.allowed]
         workload = bench.WORKLOADS[o.workload]
         candidates = agent.defaults(engines, artifacts, hw, max(workload.concurrency), o.goal, context=_context(o))
-        previous = [_summary_row(t) for t in self.store.trials(o.model, hardware.fingerprint(hw))]
+        previous = [_summary_row(a["payload"]) for a in self.store.attempts(o.model, hardware.fingerprint(hw))[-40:]]
         candidates += self._agent(hw, artifacts, engines, previous, 1)
         return hw, artifacts, engines, self._cap(candidates)
 
     def next_round(self, hw, artifacts, engines, trials, round_no) -> list[agent.Candidate]:
         """Fix what failed (rules, then the agent with logs and issues) and push on what worked."""
         by_id = {a.id: a for a in artifacts}
-        fixes = [f for t in trials if not t.get("reused")
+        fixes = [f for t in trials
                  for f in agent.rule_fixes(t, by_id.get((t.get("artifact") or {}).get("id")))]
         current = [_summary_row(t, with_logs=self.opts.share_logs) for t in trials]
-        memory = [_summary_row(t) for t in self.store.trials(self.opts.model, hardware.fingerprint(hw))
-                  if t.get("run_id") != self.run_id]
+        memory = [_summary_row(a["payload"]) for a in self.store.attempts(self.opts.model, hardware.fingerprint(hw))
+                  if a.get("run_id") != self.run_id]
         return self._cap(fixes + self._agent(hw, artifacts, engines, memory[-20:] + current, round_no))
 
     def trial(self, hw: dict, artifacts: list[models.Artifact], c: agent.Candidate) -> dict:
@@ -189,9 +190,14 @@ class Tuner:
         image = self.runner.image_id(engine)
         key = trial_key(machine=machine, engine=c.engine, image=image, artifact=art.id, config=c.config,
                         context=context, workload=f"{o.workload}-{bench.WORKLOAD_VERSION}")
-        if (seen := self.store.trial(key)) and seen["status"] in ("ok", "quality_failed", "failed"):
+        seen = self.store.trial(key)
+        failure = issues.describe(seen) if seen else None
+        retry = seen and seen["status"] != "ok" and (o.retry_failed or (failure or {}).get("retryable"))
+        if seen and seen["status"] in ("ok", "quality_failed", "failed") and not retry:
             self.log(f"  memory: already measured on this machine → reuse ({seen['status']})")
-            return {**seen, "reused": True}
+            reused = {**seen, "run_id": self.run_id, "reused": True}
+            self.store.record_attempt(reused, "reuse")
+            return reused
         record = {"key": key, "run_id": self.run_id, "model": o.model, "machine": machine, "engine": c.engine,
                   "image": image, "artifact": art.to_dict(), "config": c.config, "context": context,
                   "workload": o.workload, "hypothesis": f"[{c.origin}] {c.hypothesis}"[:800], "sources": c.sources,
@@ -219,6 +225,8 @@ class Tuner:
             record["related"] = research.related_issues(c.engine, record.get("logs"), record.get("error", ""))
             for issue in record["related"]:
                 self.log(f"  related issue: {issue['title'][:90]}  {issue['url']}")
+        record["issue"] = issues.describe(record)
+        self.store.record_attempt(record, "trial")
         self.store.put_trial(record)
         return record
 

@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import uuid
 from pathlib import Path
 
 SCHEMA = """
@@ -24,13 +25,17 @@ CREATE TABLE IF NOT EXISTS trials (
   quality TEXT, metrics TEXT, gpu_peak_gib REAL, error TEXT, logs TEXT, hypothesis TEXT,
   sources TEXT, launch TEXT, related TEXT);
 CREATE INDEX IF NOT EXISTS trials_model ON trials(model, machine);
+CREATE TABLE IF NOT EXISTS attempts (
+  id TEXT PRIMARY KEY, run_id TEXT, trial_key TEXT, model TEXT, machine TEXT,
+  phase TEXT, created TEXT, payload TEXT);
+CREATE INDEX IF NOT EXISTS attempts_model ON attempts(model, machine, created);
 CREATE TABLE IF NOT EXISTS engine_info (
   image TEXT PRIMARY KEY, engine TEXT, version TEXT, help TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS recipes (
   model TEXT, machine TEXT, engine TEXT, goal TEXT, workload TEXT, trial_key TEXT,
   score REAL, launch TEXT, updated TEXT, PRIMARY KEY (model, machine, engine, goal, workload));
 """
-JSON_FIELDS = {"hardware", "summary", "artifact", "config", "quality", "metrics", "sources", "launch", "related"}
+JSON_FIELDS = {"hardware", "summary", "artifact", "config", "quality", "metrics", "sources", "launch", "related", "payload"}
 
 
 def now() -> str:
@@ -52,11 +57,16 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(self.path)
         self.db.row_factory = sqlite3.Row
+        import_legacy = not self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='attempts'").fetchone()
         self.db.executescript(SCHEMA)
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(trials)")}
         if "related" not in columns:  # databases created by 0.3.0
             self.db.execute("ALTER TABLE trials ADD COLUMN related TEXT")
         self.mirror = mirror if mirror is not None else AtlasMirror.from_env()
+        # Preserve the last known legacy measurement once; never invent lost attempts.
+        if import_legacy:
+            for row in self.trials():
+                self.record_attempt(row, "legacy", attempt_id="legacy:" + row["key"], mirror=False)
 
     # -- helpers
     def _write(self, table: str, row: dict, conflict: str = "REPLACE") -> None:
@@ -107,6 +117,30 @@ class Store:
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
         return self._all(f"SELECT * FROM trials {where} ORDER BY created", args)
 
+    def record_attempt(self, trial: dict, phase: str, *, attempt_id: str | None = None,
+                       mirror: bool = True) -> None:
+        row = {"id": attempt_id or uuid.uuid4().hex, "run_id": trial["run_id"],
+               "trial_key": trial["key"], "model": trial["model"], "machine": trial["machine"],
+               "phase": phase, "created": now(), "payload": trial}
+        # INSERT IGNORE preserves immutable attempt rows, including legacy imports.
+        if mirror:
+            self._write("attempts", row, conflict="IGNORE")
+        else:
+            self.db.execute("INSERT OR IGNORE INTO attempts VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            (*[row[k] for k in ("id", "run_id", "trial_key", "model", "machine", "phase", "created")],
+                             json.dumps(trial, default=str)))
+            self.db.commit()
+
+    def attempts(self, model: str | None = None, machine: str | None = None,
+                 run_id: str | None = None) -> list[dict]:
+        clauses, args = [], []
+        for column, value in (("model", model), ("machine", machine), ("run_id", run_id)):
+            if value:
+                clauses.append(f"{column}=?")
+                args.append(value)
+        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        return self._all(f"SELECT * FROM attempts {where} ORDER BY created, rowid", args)
+
     # -- recipes
     def put_recipe(self, recipe: dict) -> None:
         self._write("recipes", {**recipe, "updated": now()})
@@ -131,7 +165,7 @@ class Store:
         if not self.mirror:
             raise RuntimeError("MONGODB_URI is not set; nothing to sync to")
         counts = {}
-        for table in ("runs", "trials", "recipes"):
+        for table in ("runs", "trials", "recipes", "attempts"):
             rows = self._all(f"SELECT * FROM {table}")
             for row in rows:
                 self.mirror.put(table, row)
@@ -142,7 +176,7 @@ class Store:
 class AtlasMirror:
     """Best-effort copy of local rows into Atlas collections tune_runs / tune_trials / tune_recipes."""
 
-    KEYS = {"runs": ("id",), "trials": ("key",), "recipes": ("model", "machine", "engine", "goal", "workload")}
+    KEYS = {"attempts": ("id",), "runs": ("id",), "trials": ("key",), "recipes": ("model", "machine", "engine", "goal", "workload")}
 
     def __init__(self, uri: str, database: str = "atlas_gpu_harness"):
         from pymongo import MongoClient
@@ -168,6 +202,8 @@ class AtlasMirror:
         if self.failed:
             return
         document = {k: v for k, v in row.items() if k != "logs"}
+        if "payload" in document:
+            document["payload"] = {k: v for k, v in document["payload"].items() if k != "logs"}
         document["_id"] = ":".join(str(row[k]) for k in self.KEYS[table])
         try:
             self.db[f"tune_{table}"].replace_one({"_id": document["_id"]}, document, upsert=True)

@@ -81,7 +81,7 @@ def _run(args) -> int:
                    llm=args.llm or os.environ.get("ATLAS_LLM"), research=not args.no_research,
                    gguf_repo=args.gguf_repo, extra_hf=tuple(args.hf_repo), dry_run=args.dry_run,
                    vram_gib=args.gpu_gib, rounds=max(1, args.rounds), share_logs=not args.no_share_logs,
-                   confirm=max(0, args.confirm))
+                   confirm=max(0, args.confirm), retry_failed=args.retry_failed)
     if not args.dry_run and not hardware.docker()["ok"]:
         print("Docker is not available; run `atlas doctor`.", file=sys.stderr)
         return 1
@@ -103,17 +103,41 @@ def _run(args) -> int:
 def _history(args) -> int:
     from .store import Store
 
+    from . import issues, research
+
     store = Store(mirror=False)
+    attempts = store.attempts(args.model, run_id=args.run_id)
+    if args.json:
+        rows = []
+        for a in attempts:
+            t = {**a["payload"], "issue": issues.describe(a["payload"])}
+            if t.get("logs"):
+                t["logs"] = research.redact(t["logs"])
+            rows.append({**a, "payload": t})
+        print(json.dumps(rows, indent=2))
+        return 0
     for run in store.runs(args.model):
+        if args.run_id and run["id"] != args.run_id:
+            continue
         winner = (run.get("summary") or {}).get("winner") or {}
         print(f"{run['created']}  {run['id']}  {run['model']}  {run['goal']}/{run['workload']}  "
               f"{run['status']}  best={winner.get('engine', '–')} {winner.get('score', '')}")
-    if args.model:
+    if args.model or args.run_id:
         print()
-        for t in store.trials(args.model):
-            s = bench.score(t.get("metrics"), "throughput")
-            print(f"  {t['created']}  {t['engine']:<8} {t['status']:<14} {s or '':>8}  {json.dumps(t['config'])}"
-                  + (f"  ! {t['error'][:80]}" if t.get("error") else ""))
+        for a in attempts:
+            t = a["payload"]
+            issue = issues.describe(t)
+            score = bench.score(t.get("metrics"), "throughput")
+            print(f"  {a['created']}  {a['phase']:<12} {t['engine']:<8} {t['status']:<14} "
+                  f"{score if score is not None else '–':>8}  {json.dumps(t['config'])}"
+                  + (f"  ! {issue['category']}: {issue['explanation']}" if issue else ""))
+            if args.details:
+                print(f"    Why: {t.get('hypothesis') or 'not recorded'}")
+                if t.get("error"):
+                    print(f"    Error: {research.redact(t['error'])}")
+                for lv in (t.get("metrics") or {}).get("levels", []):
+                    print(f"    concurrency={lv['concurrency']} requests={lv.get('ok')}/{lv.get('requests')} "
+                          f"tok/s={lv.get('output_tok_s')} TTFT p99 ms={lv.get('ttft_p99_ms')}")
     return 0
 
 
@@ -160,6 +184,7 @@ def main(argv: list[str] | None = None) -> None:
                      help="1 = planned trials only; each extra round fixes failures and refines (default 3)")
     run.add_argument("--confirm", type=int, default=2,
                      help="re-measure the top configs this many more times; winner by median (0 = off)")
+    run.add_argument("--retry-failed", action="store_true", help="retry cached failures; transient failures retry automatically on a new run")
     run.add_argument("--no-research", action="store_true", help="agent proposes without web/GitHub search")
     run.add_argument("--no-share-logs", action="store_true",
                      help="don't send redacted engine log tails of failed trials to the agent LLM")
@@ -169,6 +194,9 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--gpu-gib", type=float, help="plan for this VRAM size instead of the detected GPU")
     history = sub.add_parser("history", help="past runs and trials")
     history.add_argument("model", nargs="?")
+    history.add_argument("--run-id", help="show one run's attempts")
+    history.add_argument("--details", action="store_true", help="include hypotheses and per-concurrency measurements")
+    history.add_argument("--json", action="store_true", help="export attempts with redacted log tails")
     recipe = sub.add_parser("recipe", help="best verified launch command on this machine")
     recipe.add_argument("model")
     recipe.add_argument("--goal", choices=("throughput", "latency"), default="throughput")
