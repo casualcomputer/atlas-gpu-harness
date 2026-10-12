@@ -223,7 +223,7 @@ class Tuner:
         seen = self.store.trial(key)
         failure = issues.describe(seen) if seen else None
         retry = seen and seen["status"] != "ok" and (o.retry_failed or (failure or {}).get("retryable"))
-        if seen and seen["status"] in ("ok", "quality_failed", "failed") and not retry:
+        if seen and seen["status"] in ("ok", "quality_failed", "load_failed", "failed") and not retry:
             self.log(f"  memory: already measured on this machine → reuse ({seen['status']})")
             reused = {**seen, "run_id": self.run_id, "reused": True}
             self.store.record_attempt(reused, "reuse")
@@ -242,7 +242,8 @@ class Tuner:
                 q = self._quality(server)
                 self.log(f"  quality {q['passed']}/{q['total']}")
                 metrics = self._load(server) if q["pass"] else None
-            record.update(status="ok" if q["pass"] else "quality_failed", quality=q, metrics=metrics,
+            record.update(status=("quality_failed" if not q["pass"] else
+                                  "ok" if bench.score(metrics, o.goal) is not None else "load_failed"), quality=q, metrics=metrics,
                           gpu_peak_gib=gpu.peak_gib)
         except KeyboardInterrupt:
             record.update(status="interrupted", error="Trial interrupted before completion")
@@ -420,7 +421,7 @@ def final_score(t: dict, goal: str) -> float | None:
     runs = [first, *((t.get("metrics") or {}).get("confirm_scores") or [])]
     if first is None or any(r is None for r in runs):
         return None
-    return round(statistics.median(runs), 1)
+    return round(statistics.median(runs), 4 if goal == "latency" else 1)
 
 
 def _score_cell(t: dict, goal: str) -> str:

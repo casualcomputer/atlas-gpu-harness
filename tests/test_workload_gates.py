@@ -64,3 +64,18 @@ class WorkloadGateTests(unittest.TestCase):
             metrics=t._load(mock.Mock())
         self.assertEqual(load.call_args.args[2].concurrency,(1,3))
         self.assertEqual(metrics['max_ttft_ms'],200)
+
+    def test_load_failure_is_reported_as_failure_not_ok(self):
+        from atlas_tune import agent
+        from test_tune import ARTIFACT
+        with tempfile.TemporaryDirectory() as tmp:
+            store=Store(Path(tmp)/'db',mirror=False)
+            runner=mock.Mock()
+            runner.image_id.return_value='image@sha256:test'
+            t=tuner.Tuner(tuner.Options(model='org/m'),store=store,runner=runner,log=lambda *_:None)
+            metrics={'levels':[{'concurrency':1,'ok':7,'requests':8,'output_tok_s':100}]}
+            with mock.patch.object(t,'_quality',return_value={'pass':True,'passed':8,'total':8}), \
+                 mock.patch.object(t,'_load',return_value=metrics), mock.patch('atlas_tune.hardware.gpus',return_value=[]):
+                trial=t.trial(HW,[ARTIFACT],agent.Candidate('vllm',ARTIFACT.id,{}))
+            self.assertEqual(trial['status'],'load_failed')
+            self.assertEqual(trial['issue']['category'],'load_failure')

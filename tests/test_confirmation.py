@@ -69,3 +69,9 @@ class ConfirmationTests(unittest.TestCase):
         slow={'levels':[{'concurrency':1,'ok':8,'requests':8,'per_user_tok_s':200,'response_p99_ms':2000}]}
         fast={'levels':[{'concurrency':1,'ok':8,'requests':8,'per_user_tok_s':100,'response_p99_ms':1000}]}
         self.assertGreater(bench.score(fast,'latency'),bench.score(slow,'latency'))
+
+    def test_long_response_latency_keeps_score_precision(self):
+        trial=measured()
+        trial['metrics']['levels'][0]['response_p99_ms']=60000
+        trial['metrics']['confirm_scores']=[.017,.018]
+        self.assertEqual(tuner.final_score(trial,'latency'),.017)
