@@ -133,8 +133,9 @@ def main():
     with FileLock(str(ROOT/'artifacts/gpu.lock'), timeout=0):
         store = AtlasStore()
         store.client.admin.command('ping')
-        run_id = store.create_run(fixed, digest(fixed), 2)
-        store.runs.update_one({'_id': run_id}, {'$set': {'objective': 'Quick Qwen3.8-Flash-Next llama.cpp versus Strata 32K comparison', 'policy_version': fixed['protocol']}})
+        run_id = store.create_run(fixed, digest(fixed), 2,
+                                  objective='Quick Qwen3.8-Flash-Next llama.cpp versus Strata 32K comparison',
+                                  policy_version=fixed['protocol'])
         directory = ROOT/'evidence/engine-comparison'/run_id
         directory.mkdir(parents=True)
         latest = directory.parent/'latest.json'

@@ -398,11 +398,11 @@ def main():
             if run["context_hash"] != digest(fixed):
                 raise ValueError("Resume rejected: engine, config, source or protocol changed")
         else:
-            run_id = store.create_run(fixed, digest(fixed), args.repeats * (len(POLICIES) + 2))
-            store.runs.update_one({"_id": run_id}, {"$set": {
-                "objective": "Strata hardware policy calibration on long-context repository review",
-                "policy_version": VERSION, "repeats": args.repeats,
-                "evidence_kind": "real_native_Strata_inference_on_synthetic_workloads"}})
+            run_id = store.create_run(
+                fixed, digest(fixed), args.repeats * (len(POLICIES) + 2),
+                objective="Strata hardware policy calibration on long-context repository review",
+                policy_version=VERSION, repeats=args.repeats,
+                evidence_kind="real_native_Strata_inference_on_synthetic_workloads")
             run = store.run(run_id)
         print("ATLAS_RUN_ID=" + run["_id"], flush=True)
         directory = args.output / run["_id"]

@@ -108,7 +108,7 @@ The Kimi report is exported for public inspection; local artifacts retain server
 From the repository root, with the local `MONGODB_URI` configuration already present:
 
 ```bash
-.venv/bin/python scripts/show_atlas_evidence.py \
+uv run python scripts/show_atlas_evidence.py \
   --run-id 70be4572a9824186999857dadeb1237d
 ```
 
@@ -124,8 +124,8 @@ Prepare the local engine using [INFERENCE_SETUP.md](INFERENCE_SETUP.md), local O
 MODEL="$PWD/artifacts/models/Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf"
 ENGINE="$PWD/artifacts/engines/llama-b11429/launch-llama.sh"
 
-.venv/bin/python -m atlas_gpu_harness.inference inspect --model "$MODEL"
-.venv/bin/python -m atlas_gpu_harness.inference evolve \
+uv run atlas inspect --model "$MODEL"
+uv run atlas tune \
   --model "$MODEL" --engine "$ENGINE" --budget-evals 3
 ```
 
@@ -134,14 +134,14 @@ Default memory budget is the physical card. Three slots cover one baseline plus 
 Resume the printed run ID with unchanged model, engine, machine, and source:
 
 ```bash
-.venv/bin/python -m atlas_gpu_harness.inference evolve \
+uv run atlas tune \
   --model "$MODEL" --engine "$ENGINE" --resume-run RUN_ID
 ```
 
 Launch a confirmed recipe from its matching software revision:
 
 ```bash
-.venv/bin/python -m atlas_gpu_harness.inference_serve \
+uv run atlas serve \
   --recipe artifacts/inference/RUN_ID/recommendation.json --port 8081
 ```
 
@@ -168,7 +168,7 @@ Describe **Recursive Harnessing** as bounded placement-policy evolution and **Lo
 
 The project owner confirms the Atlas cluster was created through the event invitation; this provenance has not been independently checked in the Atlas UI. The event requires a public repository, an accessible one-minute video, all team members on the submission, and the event Atlas Sandbox for finalist eligibility. The supplied deadline is **5:00 PM Pacific / 8:00 PM Toronto, October 11, 2026**.
 
-The old `artifacts/atlas-gpu-harness-demo-backup.mp4` shows the earlier top-k prototype and is not the current submission story. For the completed Kimi run, `.venv/bin/python scripts/make_inference_video.py --run-id 70be4572a9824186999857dadeb1237d` produces a captioned 59-second saved-evidence walkthrough; it is explicitly labeled as saved evidence. The rendered copy is [demo/atlas-inference-demo.mp4](demo/atlas-inference-demo.mp4). It was visually inspected and verified as 59 seconds. Record the real interface for the spoken version above; this captioned version is a saved-evidence walkthrough.
+The old `artifacts/atlas-gpu-harness-demo-backup.mp4` shows the earlier top-k prototype and is not the current submission story. For the completed Kimi run, `uv run python scripts/make_inference_video.py --run-id 70be4572a9824186999857dadeb1237d` produces a captioned 59-second saved-evidence walkthrough; it is explicitly labeled as saved evidence. The rendered copy is [demo/atlas-inference-demo.mp4](demo/atlas-inference-demo.mp4). It was visually inspected and verified as 59 seconds. Record the real interface for the spoken version above; this captioned version is a saved-evidence walkthrough.
 
 ## Supporting evidence, if asked
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Install a pinned llama.cpp runtime locally; never install system packages or models."""
 
 import argparse
@@ -129,7 +128,7 @@ def manifest(base, launcher, checks):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine-dir", type=Path,
-                        default=Path(__file__).resolve().parents[1] / "artifacts/engines/llama-b11429")
+                        default=Path("artifacts/engines/llama-b11429"))
     parser.add_argument("--cxx-dir", type=Path, default=Path.home() / "miniconda3/lib",
                         help="Existing libstdc++.so.6 and libgcc_s.so.1 directory, needed on older Linux")
     parser.add_argument("--check", action="store_true", help="Verify an existing launcher without writing files")

@@ -40,12 +40,15 @@ class AtlasStore:
             raise RuntimeError("Atlas write/read probe failed")
         return {"ping": "ok", "write_read": "ok", "database": self.db.name}
 
-    def create_run(self, context: dict, context_hash: str, budget: int) -> str:
+    def create_run(self, context: dict, context_hash: str, budget: int,
+                   objective: str = "exact top-k GPU operator search",
+                   policy_version: str = "deterministic-memory-v1", **fields) -> str:
+        """Insert a run in one write, so it never exists with another workflow's labels."""
         run_id = uuid.uuid4().hex
-        self.runs.insert_one({"_id": run_id, "objective": "exact top-k GPU operator search",
+        self.runs.insert_one({**fields, "_id": run_id, "objective": objective,
                               "status": "running", "budget_evals": budget,
                               "context": context, "context_hash": context_hash,
-                              "policy_version": "deterministic-memory-v1", "created_at": now()})
+                              "policy_version": policy_version, "created_at": now()})
         return run_id
 
     def run(self, run_id: str) -> dict:

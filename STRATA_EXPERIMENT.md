@@ -26,7 +26,7 @@ The runner uses the existing `runs`, `experiments`, and `decisions` collections 
 From the repository directory in PowerShell:
 
 ```powershell
-artifacts\Strata\.venv\Scripts\python.exe -m pip install -r requirements-strata.txt
+artifacts\Strata\.venv\Scripts\python.exe -m pip install -e ".[strata]"
 
 artifacts\Strata\.venv\Scripts\python.exe -m atlas_gpu_harness.strata_experiment `
   --strata-root artifacts\Strata `

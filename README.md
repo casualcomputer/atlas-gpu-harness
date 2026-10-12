@@ -154,69 +154,63 @@ Limits of the earlier Kimi and Qwen3.5 trials: short exact-answer tasks, not a p
 2. **Next:** live vLLM and SGLang benchmarks under the same contract, recorded in the same Atlas ledger.
 3. **Vision:** parallel agents exploring configurations across NVIDIA, AMD and Intel fleets and controlling their own experiments, so new open models run efficiently on day one.
 
-## Demo website
+## Quickstart
 
-The demo page is static and reads only exported evidence; no credentials reach the browser.
-
-```bash
-python3 -m http.server 8000   # then open http://127.0.0.1:8000/demo-ui/
-```
-
-It deploys to Vercel as-is: import the repository with no build command; `vercel.json` serves the demo at `/`.
-
-## Run it
-
-The current path targets **Linux/WSL x86-64 with one visible NVIDIA GPU**, sufficient system RAM, a local single-file supported GGUF, and a working NVIDIA driver. The verified desktop is a GeForce RTX 5070 Ti with 16,303 MiB VRAM. The setup script installs pinned llama.cpp **b11429 / `d81235049`**, CUDA 12.8 runtime files, and verifies GPU visibility. It does not download model weights.
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`). uv installs the right Python for you. Run every command from the repository root.
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-inference.txt
-.venv/bin/python scripts/setup_inference_engine.py
+git clone https://github.com/casualcomputer/atlas-gpu-harness && cd atlas-gpu-harness
+uv sync                      # creates .venv from uv.lock
+cp .env.example .env         # paste your Atlas MONGODB_URI
+uv run atlas setup-engine    # pinned llama.cpp b11429 + CUDA 12.8 runtime → artifacts/engines/
+uv run atlas doctor          # checks Atlas, GPU, llama.cpp and Ollama; prints the fix for anything missing
 ```
 
-Use a current Python with `tarfile.data_filter`. Older Linux installations may need `--cxx-dir /path/to/existing/modern/cxx/libraries`; the script reports the requirement and keeps its runtime under `artifacts/engines/`. It does not replace system libraries.
+`atlas tune` also needs a local [Ollama](https://ollama.com) with the proposer model: `ollama pull gemma3:12b`.
 
-Start a local Ollama service with `gemma3:12b` available at `127.0.0.1:11434`. Put the event Atlas URI in the ignored `.env` file as `MONGODB_URI=...`; `.env.example` has placeholders. Supply the actual path to a downloaded GGUF:
+### Commands
+
+| Command | What it does |
+| --- | --- |
+| `atlas doctor` | Check Python, Atlas, GPU, llama.cpp and Ollama, with a fix for each failure |
+| `atlas inspect --model M.gguf` | Read GGUF metadata and the machine; print an initial placement estimate (no inference) |
+| `atlas tune --model M.gguf` | Baseline, generate and test placement policies, confirm on held-out tasks; everything recorded in Atlas |
+| `atlas tune --model M.gguf --resume-run RUN_ID` | Continue an interrupted run; committed trials are not rerun |
+| `atlas serve --recipe artifacts/inference/RUN_ID/recommendation.json` | Relaunch a confirmed recipe; API at `http://127.0.0.1:8081/v1` |
+| `atlas deploy docs\|plan\|benchmark\|compare` | vLLM/SGLang workflow, see [DEPLOYMENT_ENGINEER.md](DEPLOYMENT_ENGINEER.md) |
+| `atlas strata --strata-root … --config …` | Native Strata 32K policy sweep, see [STRATA_EXPERIMENT.md](STRATA_EXPERIMENT.md) (`uv sync --extra strata`) |
+| `atlas topk run\|resume\|status\|export` | Original exact top-k operator demo (`uv sync --extra torch`) |
+| `atlas ui` | Serve the static demo site at `http://127.0.0.1:8000/demo-ui/` |
+
+Each command takes `-h`. `--engine` defaults to the launcher installed by `atlas setup-engine`.
+
+A typical tuning session:
 
 ```bash
-# Inspect metadata and the machine; this is an estimate, not an inference test.
-.venv/bin/python -m atlas_gpu_harness.inference inspect \
-  --model /path/to/model.gguf
-
-# Establish the baseline, generate/test two policies, then confirm a choice.
-.venv/bin/python -m atlas_gpu_harness.inference evolve \
-  --model /path/to/model.gguf \
-  --engine artifacts/engines/llama-b11429/launch-llama.sh \
-  --budget-evals 3
-
-# Resume the printed run ID with the same model, engine, machine and source.
-.venv/bin/python -m atlas_gpu_harness.inference evolve \
-  --model /path/to/model.gguf \
-  --engine artifacts/engines/llama-b11429/launch-llama.sh \
-  --resume-run RUN_ID
-
-# Reuse a confirmed configuration; this does not rerun the search.
-.venv/bin/python -m atlas_gpu_harness.inference_serve \
-  --recipe artifacts/inference/RUN_ID/recommendation.json \
-  --port 8081
+uv run atlas inspect --model /path/to/model.gguf
+uv run atlas tune    --model /path/to/model.gguf --budget-evals 3     # prints INFERENCE_RUN_ID=…
+uv run atlas serve   --recipe artifacts/inference/RUN_ID/recommendation.json
 ```
 
-The Kimi recipe was actually relaunched and answered the same short API check correctly from both WSL and Windows. [Launch receipt](evidence/inference-serve.json) · [Completed-run resume receipt](evidence/inference-resume.json). Its existing llama.cpp interface is at `http://127.0.0.1:8081/` while running.
+### Requirements and scope
 
-Keep `recommendation.json` beside `report.json`. The launch helper requires a matching successful confirmation and checks model, engine, hardware, and evaluation compatibility. Once llama.cpp finishes loading, the API is `http://127.0.0.1:8081/v1`. Ctrl+C stops the owned server. Recipe reuse reads local evidence without Atlas or another generation call.
+The tuning path targets **Linux/WSL x86-64 with one NVIDIA GPU**, enough system RAM for the offloaded experts, and a local single-file supported GGUF (`qwen35moe`, `qwen3moe`, `kimi-linear`). The verified desktop is a GeForce RTX 5070 Ti with 16,303 MiB VRAM. `atlas setup-engine` verifies checksums, keeps its runtime under `artifacts/engines/`, never replaces system libraries and never downloads weights. Older Linux may need `--cxx-dir /path/to/modern/cxx/libs`.
 
-Per-run artifacts include policy `.py` files and receipts, server logs, trial JSON, `report.json`, and `recommendation.json`. If the recommendation's `recipe` is `null`, no configuration met the confirmation rules.
+The Kimi recipe was actually relaunched and answered the same short API check correctly from both WSL and Windows. [Launch receipt](evidence/inference-serve.json) · [Completed-run resume receipt](evidence/inference-resume.json). `atlas serve` requires a matching successful confirmation and checks model, engine, hardware and evaluation compatibility; it reads local evidence without Atlas or another generation call. Ctrl+C stops the owned server.
 
-### Code checks without inference
+Per-run artifacts in `artifacts/inference/RUN_ID/` include policy `.py` files and receipts, server logs, trial JSON, `report.json` and `recommendation.json`. A `null` recipe means no configuration met the confirmation rules.
+
+### Tests
 
 ```bash
-.venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m unittest discover -s tests -p 'test_policy_codegen.py' -v
-.venv/bin/python -m unittest discover -s tests -p 'test_model_probe.py' -v
-.venv/bin/python -m unittest discover -s tests -p 'test_inference*.py' -v
+uv run python -m unittest discover -s tests -v
 ```
 
-These cover generated-code restrictions, metadata, orchestration, measurements, and saved-recipe guards using fixtures. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
+These use fixtures and an in-memory MongoDB double, so they need no Atlas, GPU or engine. The real-CUDA operator test is skipped unless the `torch` extra and a GPU are present. Real GPU/Atlas runs provide separate integration evidence in [INFERENCE_RESULTS.md](INFERENCE_RESULTS.md).
+
+### Demo website
+
+The demo page is static and reads only exported evidence; no credentials reach the browser. Run `uv run atlas ui`, or deploy to Vercel as-is: import the repository with no build command; `vercel.json` serves the demo at `/`.
 
 
 ## Credits

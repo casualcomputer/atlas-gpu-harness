@@ -1,0 +1,39 @@
+[project]
+name = "atlas-gpu-harness"
+version = "0.2.0"
+description = "LLM deployment agent: benchmark inference-engine configs for correctness, memory and speed, with every experiment recorded in MongoDB Atlas."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "pymongo>=4.10,<5",
+    "filelock>=3.13,<4",
+    "python-dotenv>=1.0,<2",
+    "gguf==0.19.0",
+]
+
+[project.optional-dependencies]
+# Original exact top-k operator demo (`atlas topk ...`). PyTorch's default
+# Linux wheel ships CUDA 12.x; see https://pytorch.org/get-started/locally/
+# for other platforms.
+torch = ["torch>=2.8"]
+# Native Strata policy experiments (`atlas strata ...`).
+strata = ["psutil>=5.9,<8"]
+# Demo video regeneration scripts.
+video = ["pillow>=10"]
+
+[project.scripts]
+atlas = "atlas_gpu_harness.cli:main"
+
+[dependency-groups]
+dev = ["mongomock>=4.3,<5"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["atlas_gpu_harness"]
+
+[tool.uv]
+default-groups = ["dev"]

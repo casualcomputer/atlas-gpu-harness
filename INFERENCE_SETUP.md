@@ -13,12 +13,12 @@ The model experiments use the official **llama.cpp b11429**, commit `d81235049`,
 From the repository root:
 
 ```bash
-python3 scripts/setup_inference_engine.py
+uv run atlas setup-engine
 # If the modern C++ runtime is elsewhere:
-python3 scripts/setup_inference_engine.py --cxx-dir /path/to/existing/runtime/lib
+uv run atlas setup-engine --cxx-dir /path/to/existing/runtime/lib
 
 # Read-only checks: pinned engine version, visible CUDA device, cached archive checksums.
-python3 scripts/setup_inference_engine.py --check
+uv run atlas setup-engine --check
 artifacts/engines/llama-b11429/launch-llama.sh --list-devices
 ```
 

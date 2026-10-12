@@ -104,5 +104,5 @@ The user confirmed on October 11 that this cluster was created through the event
 To publish completed local exports without model weights or credentials:
 
 ```bash
-.venv/bin/python scripts/export_inference_evidence.py RUN_ID [ANOTHER_RUN_ID]
+uv run python scripts/export_inference_evidence.py RUN_ID [ANOTHER_RUN_ID]
 ```

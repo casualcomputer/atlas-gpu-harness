@@ -44,7 +44,7 @@ Generation finishes before a target-model trial begins; the Ollama request sets 
 | Inference evaluator | `atlas_gpu_harness/inference_backend.py` | Launch llama.cpp, check readiness, run fixed tasks, sample memory, retain answer/timing records, stop the owned server. |
 | Atlas storage | `atlas_gpu_harness/store.py` | Majority writes, compatible-history retrieval, experiment ownership checks, runs and decisions. |
 | Recipe launcher | `atlas_gpu_harness/inference_serve.py` | Verify saved confirmation and compatibility; launch the recorded recipe without repeating search. |
-| Engine setup | `scripts/setup_inference_engine.py` | Install checksum-pinned llama.cpp b11429/runtime assets locally; verify engine version and CUDA visibility. |
+| Engine setup | `atlas_gpu_harness/setup_engine.py` (`atlas setup-engine`) | Install checksum-pinned llama.cpp b11429/runtime assets locally; verify engine version and CUDA visibility. |
 
 The metadata allowlist is `qwen35moe`, `qwen3moe`, and `kimi-linear`; input must be a single-file GGUF with expert metadata. Engine architecture support is necessary, but a passing real trial establishes operability. The prototype does not download arbitrary models, convert weights, support every MoE architecture, or coordinate multiple GPUs. The separately acquired Qwen3-30B-A3B and Kimi-Linear-48B-A3B Q4_K_M files have verified full SHA-256 checksums in the [model manifest](evidence/inference-models.json); their acquisition is distinct from proving inference works.
 

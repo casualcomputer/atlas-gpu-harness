@@ -16,6 +16,8 @@ from .model_probe import inspect_gguf, plan_model, probe_hardware
 from .policy_codegen import PolicyError, propose_policy
 from .store import AtlasStore
 
+DEFAULT_ENGINE = Path("artifacts/engines/llama-b11429/launch-llama.sh")
+
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
@@ -241,7 +243,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("inspect", "evolve"))
     parser.add_argument("--model", required=True)
-    parser.add_argument("--engine")
+    parser.add_argument("--engine", default=str(DEFAULT_ENGINE) if DEFAULT_ENGINE.is_file() else None,
+                        help=f"llama-server launcher (default: {DEFAULT_ENGINE} if installed)")
     parser.add_argument("--gpu-budget-mib", type=int, default=None,
                         help="optional lower experiment limit; default uses the physical card capacity")
     parser.add_argument("--budget-evals", type=int, default=3, choices=range(2, 6))
@@ -255,7 +258,8 @@ def main():
         print(json.dumps(plan_model(inspect_gguf(args.model), hardware, budget), indent=2))
         return
     if not args.engine:
-        parser.error("--engine must point to a working llama-server binary or trusted local launcher")
+        parser.error(f"no engine: run `atlas setup-engine` to install {DEFAULT_ENGINE}, "
+                     "or pass --engine with a working llama-server launcher")
     Path("artifacts").mkdir(exist_ok=True)
     with FileLock("artifacts/gpu.lock", timeout=0):
         context, context_hash = context_for(args.model, args.engine, args.gpu_budget_mib)
@@ -269,13 +273,13 @@ def main():
             if run["context_hash"] != context_hash:
                 raise RuntimeError("Model, engine, machine, source or evaluation contract changed; resume refused")
         else:
-            run_id = store.create_run(context, context_hash, args.budget_evals)
-            store.runs.update_one({"_id": run_id}, {"$set": {
-                "objective": "Generate and test MoE placement code under a GPU memory budget",
-                "workflow": CONTRACT_VERSION, "policy_version": "local-model-codegen-v1",
-                "model_path": str(Path(args.model).absolute()), "engine_path": str(Path(args.engine).absolute()),
-                "proposer_model": args.proposer_model, "port": args.port,
-                "budget_scope": "baseline plus bounded code proposals; held-out confirmation adds up to four engine launches"}})
+            run_id = store.create_run(
+                context, context_hash, args.budget_evals,
+                objective="Generate and test MoE placement code under a GPU memory budget",
+                policy_version="local-model-codegen-v1", workflow=CONTRACT_VERSION,
+                model_path=str(Path(args.model).absolute()), engine_path=str(Path(args.engine).absolute()),
+                proposer_model=args.proposer_model, port=args.port,
+                budget_scope="baseline plus bounded code proposals; held-out confirmation adds up to four engine launches")
             run = store.run(run_id)
         directory = Path("artifacts/inference") / run["_id"]
         print(f"INFERENCE_RUN_ID={run['_id']}", flush=True)

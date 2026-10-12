@@ -3,12 +3,15 @@
 import random
 import unittest
 
-import torch
+try:
+    import torch
+except ImportError:  # optional extra: uv sync --extra torch
+    torch = None
 
 from atlas_gpu_harness.evaluator import _operator, _oracle
 
 
-@unittest.skipUnless(torch.cuda.is_available(), "CUDA GPU required")
+@unittest.skipUnless(torch is not None and torch.cuda.is_available(), "PyTorch with a CUDA GPU required")
 class PackedKeyGpuTests(unittest.TestCase):
     def test_exact_indices_across_ties_negatives_and_signed_zero(self):
         rng = random.Random(20261011)

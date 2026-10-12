@@ -93,7 +93,7 @@ This tests the specific failure boundary after saving a result and before updati
 Use a configured Atlas connection and the repository's CUDA environment. The live comparison creates four new runs and preserves the seed:
 
 ```bash
-.venv/bin/python scripts/measure_harness.py \
+uv run python scripts/measure_harness.py \
   --seed-run-id 28236d7c01de4472b7ef84bdbe30379e \
   --output artifacts/new-harness-comparison.json
 ```
@@ -101,7 +101,7 @@ Use a configured Atlas connection and the repository's CUDA environment. The liv
 The seed must exist in your configured Atlas database and match the current environment. On a new compatible database, run a four-evaluation seed first and pass its ID. The script refuses to overwrite an existing output file. Recompute the published presentation metrics without Atlas or a GPU:
 
 ```bash
-.venv/bin/python scripts/summarize_experiments.py
+uv run python scripts/summarize_experiments.py
 ```
 
 Five existing tests passed after the warmup change, followed by the real recovery run and four real Atlas/GPU comparison runs. The raw evidence, not the mocked tests, supports the live measurements above.
