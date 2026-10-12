@@ -123,10 +123,20 @@ class DockerRunner:
     def start(self, engine: Engine, artifact: Artifact, config: dict, context: int) -> Server:
         port, name = free_port(), f"{LABEL}-{engine.name}-{uuid.uuid4().hex[:8]}"
         argv = docker_run(engine, artifact, config, context, host_port=port, name=name, labels={LABEL: "1"})
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
-        if result.returncode != 0:
-            raise EngineFailed(f"docker run failed: {result.stderr.strip()[-500:]}")
-        return Server(name=name, base_url=f"http://127.0.0.1:{port}", argv=argv)
+        server = Server(name=name, base_url=f"http://127.0.0.1:{port}", argv=argv)
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                raise EngineFailed(f"docker run failed: {result.stderr.strip()[-500:]}")
+        except (OSError, subprocess.SubprocessError, EngineFailed, KeyboardInterrupt):
+            # Docker may have created the container before its client failed. The
+            # caller has no Server yet, so it cannot clean this up in its finally.
+            try:
+                self.stop(server)
+            except (OSError, subprocess.SubprocessError):
+                pass  # preserve the startup error; labelled leftovers are retried by cleanup()
+            raise
+        return server
 
     def running(self, server: Server) -> bool:
         return self._docker("inspect", "-f", "{{.State.Running}}", server.name, check=False) == "true"
